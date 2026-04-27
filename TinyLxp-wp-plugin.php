@@ -85,6 +85,20 @@ function on_activate() {
         PRIMARY KEY (id)
     )");
 
+    $wpdb->query("CREATE TABLE IF NOT EXISTS {$wpdb->prefix}lxp_workbook_submissions(
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        lesson_id bigint(20) unsigned NOT NULL,
+        course_id bigint(20) unsigned NOT NULL,
+        user_id bigint(20) unsigned NOT NULL,
+        fields longtext NOT NULL,
+        submitted_at datetime NOT NULL,
+        updated_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY lesson_user (lesson_id, user_id),
+        KEY course_id (course_id),
+        KEY user_id (user_id)
+    )");
+
     // Check if the pages already exist to avoid duplication
     $pagesArray = array(
     	['title' => 'Assignment','content' =>''],
