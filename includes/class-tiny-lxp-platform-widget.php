@@ -61,7 +61,7 @@ class Tiny_LXP_Widget
 
     public function widget_dependencies($hook)
     {
-        $plugin_path = content_url().'/plugins/TinyLxp-wp-plugin/includes/widgets/assets';
+        $plugin_path = plugins_url('widgets/assets', __FILE__);
         if (is_page('learner-assignments')) {
             wp_register_style( 'calendar',          plugins_url( 'widgets/assets/style/calendar.css', __FILE__ ) );
             wp_register_style( 'newAssignment',     plugins_url( 'widgets/assets/style/newAssignment.css', __FILE__ ) );

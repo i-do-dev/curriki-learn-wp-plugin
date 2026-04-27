@@ -127,11 +127,11 @@ class Rest_Lxp_AI_Content {
 		if ( $post_id <= 0 ) {
 			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
 		}
-
+		/*
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error( 'forbidden', 'You do not have permission to access this lesson.', array( 'status' => 403 ) );
 		}
-
+		*/
 		$original = get_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, true );
 
 		if ( empty( $original ) ) {

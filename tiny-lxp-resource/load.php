@@ -122,7 +122,7 @@ function get_selected_course_data() {
         if (has_post_thumbnail($query->post->ID)) {
             echo '<img src="' . get_the_post_thumbnail_url($query->post->ID) . '" alt="Post Thumbnail">';
         } else {
-            $treks_src = content_url().'/plugins/TinyLxp-wp-plugin/lms/templates/tinyLxpTheme/treks-src/';
+            $treks_src = plugin_dir_url( __DIR__ ) . 'lms/templates/tinyLxpTheme/treks-src/';
             echo '<img width="300" height="180" style="height:313px" src="'.$treks_src.'/assets/img/tr_main.jpg" class="rounded wp-post-image" />';
         }
         echo '</div>';
