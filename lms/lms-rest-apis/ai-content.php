@@ -86,7 +86,16 @@ class Rest_Lxp_AI_Content {
 		$result        = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt );
 
 		if ( is_wp_error( $result ) ) {
-			return new WP_Error( 'bedrock_error', $result->get_error_message(), array( 'status' => 502 ) );
+			$error_code = $result->get_error_code();
+			$http_status = 502;
+			if ( 'bedrock_access_denied' === $error_code ) {
+				$http_status = 403;
+			} elseif ( 'bedrock_validation_error' === $error_code ) {
+				$http_status = 400;
+			} elseif ( 'bedrock_model_not_found' === $error_code ) {
+				$http_status = 404;
+			}
+			return new WP_Error( $error_code, $result->get_error_message(), array( 'status' => $http_status ) );
 		}
 
 		return rest_ensure_response( array( 'content' => $result ) );
