@@ -9,6 +9,7 @@ Key integrations:
 - **LearnPress** — sections and section items stored in LearnPress DB tables are queried directly.
 - **Edlink** — SIS/rostering integration (OAuth, user import, provider sync).
 - **Curriki Studio / Tsugi** — H5P activity content and xAPI score tracking.
+- **AWS Bedrock** — AI-powered lesson content generation via `BedrockRuntimeClient::converse()` (Anthropic Claude model); credentials resolved automatically from EC2 IAM role via IMDS.
 
 ### Root Folders and Files
 
@@ -17,7 +18,8 @@ Key integrations:
 | `TinyLxp-wp-plugin.php` | Main plugin entry point (WordPress plugin header, bootstraps the plugin) |
 | `tiny-lxp-platform.php` | Duplicate entry point with identical content (legacy) |
 | `uninstall.php` | Cleanup hook run on plugin uninstall |
-| `composer.json` | PHP dependency manifest (`celtic/lti ^4.7.2`) |
+| `composer.json` | PHP dependency manifest (`celtic/lti ^4.7.2`, `aws/aws-sdk-php ^3.337`) |
+| `includes/class-aws-bedrock-client.php` | AWS Bedrock SDK wrapper — `TL_AWS_Bedrock_Client::invoke_bedrock()` |
 | `includes/` | Core plugin infrastructure: main class, loader, i18n, LTI platform/tool, data connector, Elementor widget registry |
 | `admin/` | WordPress admin layer: admin class, LTI tool list table, CSS/JS assets, admin partial templates |
 | `public/` | Public/frontend layer: handles LTI request routing on `parse_request` |
@@ -26,7 +28,7 @@ Key integrations:
 | `lms/templates/` | PHP templates: single-post overrides, page templates, LXP dashboard partials, Edlink partials |
 | `lms/templates/tinyLxpTheme/` | Full theme-like template layer (header, footer, all page-*.php templates, all `lxp/` partials) |
 | `includes/widgets/` | Elementor widget classes and their static CSS/JS/font assets |
-| `vendor/` | Composer-managed dependencies (`celtic/lti`, `firebase/php-jwt`) |
+| `vendor/` | Composer-managed dependencies (`celtic/lti`, `firebase/php-jwt`, `aws/aws-sdk-php`) — gitignored; run `composer install` after clone |
 | `languages/` | i18n POT file and language PHP file |
 | `tiny-lxp-resource/` | xAPI Activity class and resource loader |
 
@@ -64,6 +66,8 @@ New Elementor widget     →  includes/widgets/lxp-{name}-widget.php  (extend Wi
 Widget registration      →  includes/class-tiny-lxp-platform-widget.php
 New LTI flow             →  includes/class-tiny-lxp-platform-platform.php or -public.php
 New constants            →  lms/tl-constants.php or lms/xapi-constants.php
+AI Bedrock calls         →  includes/class-aws-bedrock-client.php  (TL_AWS_Bedrock_Client::invoke_bedrock)
+AI REST endpoints        →  lms/lms-rest-apis/ai-content.php  (Rest_Lxp_AI_Content)
 ```
 
 ### Architecture Rules
@@ -117,6 +121,7 @@ All endpoints use namespace `lms/v1` → base URL `/wp-json/lms/v1/`. Entry poin
 | `schools.php` | `Rest_Lxp_School` | School CRUD, settings |
 | `groups.php` | `Rest_Lxp_Group` | Group CRUD, class groups, group students |
 | `edlink-apis.php` | `Rest_Lxp_Edlink` | OAuth token exchange, provider/district/people sync |
+| `ai-content.php` | `Rest_Lxp_AI_Content` | AI lesson generation via Bedrock; original content backup/restore |
 
 **Security note**: All routes use `'permission_callback' => '__return_true'`. Access control is enforced inside callbacks; always verify `current_user_can()` or nonce for write operations.
 
@@ -176,6 +181,93 @@ Designed for Elementor Theme Builder **single `lp_lesson` templates**. LP4 lesso
 
 ---
 
+## AI Content Generation (AWS Bedrock)
+
+### Overview
+
+The AI Content Gen feature allows lesson authors to transform raw lesson text into a richly structured 6-section HTML page using AWS Bedrock (Claude model). It is surfaced as an "AI Content Gen" metabox on the `lp_lesson` admin edit screen.
+
+### Files
+
+| File | Class | Role |
+|---|---|---|
+| [includes/class-aws-bedrock-client.php](includes/class-aws-bedrock-client.php) | `TL_AWS_Bedrock_Client` | SDK wrapper — single entry point for all Bedrock calls |
+| [lms/lms-rest-apis/ai-content.php](lms/lms-rest-apis/ai-content.php) | `Rest_Lxp_AI_Content` | REST endpoints; prompt builder; original content backup |
+| [lms/class-learnpress-lesson-extension.php](lms/class-learnpress-lesson-extension.php) | `TL_LearnPress_Lesson_Extension` | Registers the "AI Content Gen" side metabox on `lp_lesson` |
+| [admin/js/tiny-lxp-platform-post.js](admin/js/tiny-lxp-platform-post.js) | — | Generate + Reset button click handlers; `tinyLxpSetEditorContent()` helper |
+| [admin/css/tiny-lxp-platform-post.css](admin/css/tiny-lxp-platform-post.css) | — | Button layout + status message styles |
+
+### REST Endpoints
+
+| Method | Route | Callback | Purpose |
+|---|---|---|---|
+| `POST` | `/wp-json/lms/v1/lesson/ai-content` | `Rest_Lxp_AI_Content::generate_lesson_content()` | Sends lesson content to Bedrock; backs up original on first call; returns AI HTML |
+| `GET` | `/wp-json/lms/v1/lesson/original-content` | `Rest_Lxp_AI_Content::get_original_content()` | Returns the pre-generation backup stored in `lxp_lesson_original_content` meta |
+
+**Request params** (`POST`): `post_id` (int), `lesson_content` (string — current editor content).  
+**Request params** (`GET`): `post_id` (int).  
+Both callbacks enforce `current_user_can('edit_post', $post_id)`.
+
+### `TL_AWS_Bedrock_Client`
+
+```php
+TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt = '' )
+// Returns string (generated HTML) or WP_Error on failure.
+```
+
+- Uses `BedrockRuntimeClient::converse()` from `aws/aws-sdk-php`.
+- Model: `TL_AWS_Bedrock_Client::MODEL_ID` (default `anthropic.claude-sonnet-4-6:0`).
+- Region: `TL_AWS_Bedrock_Client::REGION` (default `us-east-1`).
+- `inferenceConfig`: `maxTokens = 4096`, `temperature = 0.3`.
+- Credentials: resolved automatically by the SDK from the EC2 instance IAM role (no manual config needed on EC2). On non-EC2 environments use environment variables or `~/.aws/credentials`.
+- The client instance is cached in a static property for the lifetime of the PHP request.
+
+### Prompt Architecture
+
+The generation uses a **split system/user prompt**:
+
+- **System prompt** (`build_system_prompt()`): Tells Claude it is an expert Instructional Designer and must output only raw HTML (no markdown, no code fences) starting with `<div class="lp-ai-lesson-template">`.
+- **User message** (`build_user_message($lesson_content)`): Contains the original lesson text and a full HTML template with `[PLACEHOLDER]` tokens for Claude to fill. The template defines six fixed sections:
+  1. Hero Header
+  2. Lesson Overview (with metadata table)
+  3. Learning Goals
+  4. Key Ideas (three cards)
+  5. Classroom Example
+  6. Check for Understanding (multiple-choice quiz)
+
+### Original Content Backup
+
+- Meta key: `lxp_lesson_original_content`
+- Written **once** when `generate_lesson_content()` is called and no backup exists yet.
+- Subsequent AI generations do **not** overwrite it — the true original is always preserved.
+- The "Reset to Original" JS button calls `GET /wp-json/lms/v1/lesson/original-content` and restores the editor via `tinyLxpSetEditorContent()`.
+
+### JS Editor Integration
+
+`tinyLxpSetEditorContent(html)` in `admin/js/tiny-lxp-platform-post.js` handles all three WP editor modes:
+1. Block editor: `wp.data.dispatch('core/editor').editPost({ content: html })`
+2. Classic (TinyMCE): `tinymce.get('content').setContent(html)`
+3. Fallback: `document.getElementById('content').value = html`
+
+### Wiring / Load Order
+
+`lms/lms-rest-apis/lms-rest-api.php` requires both new files before `LMS_REST_API::init()`:
+```php
+require_once( LMS__PLUGIN_DIR . '../includes/class-aws-bedrock-client.php' );
+require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
+```
+`Rest_Lxp_AI_Content::init()` is called inside `LMS_REST_API::init()`.
+
+### Extending or Modifying AI Generation
+
+- To change the model: update `TL_AWS_Bedrock_Client::MODEL_ID`. The model must be enabled in the AWS account's Bedrock Model Access settings.
+- To change the region: update `TL_AWS_Bedrock_Client::REGION`.
+- To change the HTML template or sections: edit `Rest_Lxp_AI_Content::build_user_message()`. The `<<<'HTML'` heredoc holds the full template.
+- To change the system-level behaviour instruction: edit `Rest_Lxp_AI_Content::build_system_prompt()`.
+- To adjust token budget or temperature: edit the `inferenceConfig` array in `TL_AWS_Bedrock_Client::invoke_bedrock()`.
+
+---
+
 ## Admin UI Reference
 
 | Menu/Page | Slug | Location |
@@ -200,11 +292,12 @@ Use this sequence before editing:
 2. For CPT behavior: open the matching `lms/class-{entity}-post-type.php` and its parent `lms/class-abstract-tl-post-type.php`. For `lp_course`/`lp_lesson`, inspect `lms/class-learnpress-course-extension.php` and `lms/class-learnpress-lesson-extension.php`.
 3. For repository-backed data access: inspect `lms/repositories/` (`class-grades-repository.php`, `class-trek-event-repository.php`, `class-learnpress-section-repository.php`, `class-lti-metadata-repository.php`) and prefer these over adding inline SQL in REST handlers.
 4. For REST endpoints: open `lms/lms-rest-apis/{entity}.php` and trace registration in `LMS_REST_API::init()`.
-5. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
-6. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
-7. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
-8. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
-9. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
+5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
+6. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
+7. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
+8. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
+9. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
+10. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
 
 **Search strategy**:
 - Use semantic search for concept-level discovery (e.g., "student grade assignment REST").
@@ -326,8 +419,11 @@ wp hook list
 | Curriki Studio | [lms/xapi-constants.php](lms/xapi-constants.php) | `CURRIKI_STUDIO_HOST` |
 | Tsugi | [lms/xapi-constants.php](lms/xapi-constants.php) | `TSUGI_HOST` |
 | LTI settings | WordPress options via `Tiny_LXP_Platform::get_settings_name()` | — |
+| AWS Bedrock | [includes/class-aws-bedrock-client.php](includes/class-aws-bedrock-client.php) | `TL_AWS_Bedrock_Client::REGION`, `TL_AWS_Bedrock_Client::MODEL_ID` |
 
 When changing external service hosts, update constants in [lms/xapi-constants.php](lms/xapi-constants.php) — do not hardcode URLs elsewhere.
+
+**AWS Bedrock configuration**: Region and model ID are class constants in `TL_AWS_Bedrock_Client`. Credentials are **never stored in code or options** — the SDK resolves them automatically from the EC2 instance IAM role via IMDSv2. The plugin will not work in non-EC2 environments unless AWS credentials are configured by another SDK-supported method (environment variables, `~/.aws/credentials`).
 
 ---
 
@@ -342,6 +438,10 @@ When changing external service hosts, update constants in [lms/xapi-constants.ph
 7. **Lesson extension path**: `lp_lesson` behavior is handled through `TL_LearnPress_Lesson_Extension` hooks; do not add a new `class-lesson-post-type.php` registration path unless explicitly doing an architecture migration.
 8. **LP4 lesson URL context**: On LP4 lesson pages (`/{course}/lessons/{lesson}/`), `get_queried_object_id()` returns the **course** post ID, not the lesson ID. `LP_Global::course_item()` is also null when Elementor renders before LP processes its routing. Use URL slug extraction as the reliable fallback: `basename(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))` + `get_page_by_path($slug, OBJECT, LP_LESSON_CPT)`. See `LXP_Lesson_HTML_Widget::get_current_lesson_and_course()`.
 9. **Namespace backslash for LP globals in widgets**: All Elementor widgets live in `namespace Edudeme\Elementor`. Any bare LP class reference (`LP_Global`, `LP_Datetime`, `LP_Section_DB`, etc.) resolves to `Edudeme\Elementor\LP_*` and causes a fatal. Always use the global-namespace prefix: `\LP_Global::course_item()`, `\LP_Datetime::get_string_plural_duration()`, etc.
+10. **AWS SDK PHP version constraint**: `aws/aws-sdk-php` latest (≥3.338) requires PHP ≥8.1. The server runs an older PHP version; Composer resolved to `3.337.3`. Do not run `composer update aws/aws-sdk-php` without verifying the server's PHP version first.
+11. **AI content meta key**: The original lesson content backup is stored under `lxp_lesson_original_content` post meta. It is written only once (on first AI generation) and is never overwritten by subsequent generations. The "Reset to Original" button reads this meta via `GET /wp-json/lms/v1/lesson/original-content`.
+12. **Bedrock model ID**: Currently `anthropic.claude-sonnet-4-6:0` in `TL_AWS_Bedrock_Client::MODEL_ID`. If Bedrock returns a 400 error, update this constant — the model ID must match an enabled model in the AWS account's Bedrock model access settings.
+13. **vendor/ is gitignored**: The `vendor/` directory is excluded from version control (`.gitignore`). After cloning or pulling on a new server, run `composer install` before the plugin will function.
 
 ---
 
