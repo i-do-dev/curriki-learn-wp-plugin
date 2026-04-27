@@ -1,0 +1,86 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans&display=swap");
+@font-face {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: normal;
+  src: local("Arial"), url("./fonts/ARIAL.woff") format("woff");
+}
+
+.trek-main-body-wrapper h1 {
+  font-family: "Nunito", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 24px !important;
+  line-height: 32px;
+  color: #000000;
+}
+.trek-main-body-wrapper h2 {
+  font-family: "Nunito", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 16px !important;
+  line-height: 24px;
+  color: #000000;
+}
+.trek-main-body-wrapper h3 {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 700;
+  font-size: 18px !important;
+  line-height: 24px;
+  color: #000000;
+}
+.trek-main-body-wrapper h4 {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 700;
+  font-size: 16px !important;
+  line-height: 24px;
+  color: #000000;
+}
+.trek-main-body-wrapper h5 {
+  font-family: "Nunito", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 24px;
+  color: #000000;
+}
+
+.trek-main-body-wrapper h6 {
+  font-family: "Nunito", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 24px;
+  color: #000000;
+}
+
+.trek-main-body-wrapper ul li,
+.trek-main-body-wrapper ol li,
+li::marker {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #000000;
+}
+.trek-main-body-wrapper a {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 24px;
+  color: #000000;
+}
+
+.trek-main-body-wrapper p {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #000000;
+}

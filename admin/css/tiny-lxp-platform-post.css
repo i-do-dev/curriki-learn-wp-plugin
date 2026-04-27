@@ -1,0 +1,167 @@
+/* -------------------------------------------------------------------------
+   AI Content Gen metabox
+   ------------------------------------------------------------------------- */
+
+#lxp-ai-content-gen-btn,
+#lxp-ai-content-reset-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#lxp-ai-content-gen-btn:disabled,
+#lxp-ai-content-reset-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#lxp-ai-content-status {
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 18px;
+  word-wrap: break-word;
+}
+
+#lxp-ai-content-status.lxp-ai-status-ok {
+  color: #1a7e1a;
+}
+
+#lxp-ai-content-status.lxp-ai-status-error {
+  color: #cc0000;
+}
+
+.tiny-lxp-platform-modal {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgb(0,0,0);
+  background-color: rgba(0,0,0,0.5);
+}
+
+.tiny-lxp-platform-modal.active {
+  display: block;
+}
+
+.tiny-lxp-platform-modal-content {
+  background-color: #fef8ee;
+  margin: 10% auto;
+  padding: 0 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 400px;
+}
+
+.chip-close {
+  background-color: #bbb; 
+  border: none;
+  color: black;
+  padding: 2px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 25px;
+  margin-top : 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  width : 30px;
+  height: 30px;
+}
+
+.chip-close:hover {background: #d6d6cd;}
+
+.active-chip-close {
+  background-color: #045aaa; 
+  border: none;
+  color: white;
+  padding: 2px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 25px;
+  margin-top : 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  width : 30px;
+  height: 30px;
+}
+
+.active-chip-close:hover {background: #041aaa;}
+
+.playlist-chip {
+  display: inline-block;
+  padding: 0 15px 0 25px;
+  font-size: 16px;
+  border-radius: 25px;
+  background-color: #f1f1f1;
+  margin-right:5px;
+  line-height: 1.1;
+  margin-bottom:5px;
+}
+
+.edit-trek-options {
+  cursor: pointer;
+  background-color: #bbb; 
+  border: none;
+  color: black;
+  padding: 2px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  vertical-align: top !important;
+  font-size: 20px;
+  margin: 10px 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  width : 30px;
+  height: 30px;
+}
+
+.edit-trek-options:hover {background: #d6d6cd;}
+
+.active-edit-trek-option {
+  cursor: pointer;
+  background-color: #045aaa; 
+  border: none;
+  color: white;
+  padding: 2px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  vertical-align: top !important;
+  font-size: 20px;
+  margin: 10px 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  width : 30px;
+  height: 30px;
+}
+.active-edit-trek-option:hover {background: #041aaa;}
+
+
+
+.edit-playlist-chip {
+  display: inline-block;
+  padding: 0 15px 0 25px;
+  font-size: 16px;
+  line-height: 1.1;
+  border-radius: 25px;
+  margin-right:5px;
+  color:white;
+  background-color: #2271b1;
+} 
+
+.currikistudio-copy-status-ok {
+  color: #1d6f42;
+}
+
+.currikistudio-copy-status-error {
+  color: #b32d2e;
+}
+
+
