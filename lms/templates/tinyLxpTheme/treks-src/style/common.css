@@ -1,0 +1,85 @@
+/* Common Style Rules */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;0,1000;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900;1,1000&display=swap");
+@font-face {
+  font-family: "Droid Sans";
+  src: url("../assets/fonts/droid-sans/DroidSans.ttf");
+}
+:root {
+  /* Color Variables */
+  --main-color-black: #000000;
+  --main-color-white: #ffffff;
+  /* Font variables */
+  --main-primary-font: "Nunito", sans-serif;
+  --main-secondary-font: "Droid Sans";
+}
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* body {
+  background-color: #e5e5e5 !important;
+} */
+
+/* Common Class Style */
+.main-container {
+  max-width: 1200px;
+  margin: 0px auto;
+  margin-bottom: 48px;
+  padding: 0px 20px;
+}
+
+.b-space {
+  margin-bottom: 24px !important;
+}
+
+/* buttons */
+.lx-space {
+  padding: 8px 40px !important;
+}
+.bg-gray-3-color {
+  background: #bbbbbb !important;
+}
+.primary-btn {
+  width: fit-content;
+  height: auto;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1fa5d4;
+  font-family: "Nunito";
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ffffff;
+}
+
+.secondary-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 20px;
+  gap: 8px;
+  width: fit-content;
+  height: auto;
+  border-radius: 8px;
+}
+.secondary-btn img {
+  width: auto;
+  height: auto;
+}
+.red-rocket {
+  font-family: "Nunito";
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ca2738;
+  background: rgba(202, 39, 56, 0.06);
+  border: 1px solid #ca2738;
+}
+
+/* calender tab */

@@ -1,0 +1,671 @@
+.assignment-section {
+  max-width: 1440px;
+  padding: 24px 60px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 260px;
+  margin: 0 auto;
+}
+@media (max-width: 1096px) {
+  .assignment-section {
+    gap: 24px !important;
+    padding: 24px;
+  }
+}
+.assignment-section .back-btn {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: none;
+  gap: 16px;
+}
+.back-btn .back-btn-text {
+  margin: 0;
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 24px;
+  color: #757575;
+}
+
+/* Tabs styling */
+.select-section {
+  width: 640px;
+  padding: 0;
+}
+.select-ul {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .select-section {
+    width: 100%;
+  }
+  .select-ul {
+    margin: auto;
+  }
+}
+
+.select-section .select-link {
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: none;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  color: #bbbbbb;
+}
+/* active */
+.tab-content > .active {
+  display: block !important;
+}
+.select-section .select-link.active .select-num {
+  background: linear-gradient(
+      0deg,
+      rgba(31, 165, 212, 0.08),
+      rgba(31, 165, 212, 0.08)
+    ),
+    #f6f7fa;
+  border-radius: 20px;
+  color: #0b5d7a;
+}
+.select-section .select-link.active {
+  color: #0b5d7a;
+}
+.select-section .select-link .select-num {
+  position: relative;
+}
+.select-section .select-link .select-num::before {
+  content: "";
+  position: absolute;
+  width: 185px;
+  top: 20px;
+  right: 0;
+  left: 40px;
+  bottom: 20px;
+  overflow: hidden;
+  height: 1px;
+  background: #bbbbbb;
+}
+@media (min-width: 520px) and (max-width: 620px) {
+  .select-section .select-link .select-num::before {
+    width: 160px;
+  }
+}
+@media (min-width: 458px) and (max-width: 520px) {
+  .select-section .select-link .select-num::before {
+    width: 140px;
+  }
+}
+@media (max-width: 458px) {
+  .select-section .select-link .select-num::before {
+    display: none;
+  }
+}
+.select-section .select-link.active .select-num::before {
+  background: #0b5d7a;
+}
+.third-select-num::before {
+  display: none;
+  overflow: hidden;
+}
+.nav-section ul {
+  align-items: baseline;
+}
+.nav-section ul li {
+  border-bottom: none;
+}
+.select-link .select-num {
+  font-family: "Nunito";
+  font-style: normal;
+  padding: 8px 15px;
+  background: linear-gradient(0deg, #eaedf1, #eaedf1), #f6f7fa;
+  border-radius: 20px;
+  margin: 0 0 8px;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #bbbbbb;
+}
+
+/* Second Tab Details Styling */
+.select-assignment-section {
+  display: flex;
+  min-height: 471px;
+  padding: 0 64px 108px;
+}
+@media (max-width: 1395px) {
+  .select-assignment-section {
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 992px) {
+  .select-assignment-section {
+    padding: 24px;
+    gap: 30px;
+  }
+}
+@media (max-width: 480px) {
+  .select-assignment-section {
+    gap: 10px;
+  }
+}
+.select-trek-box {
+  display: flex;
+  min-width: 608px;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .select-trek-box {
+    width: 100%;
+    min-width: 100%;
+  }
+}
+.tab-vertical-line {
+  min-width: 1px;
+  height: 471px;
+  background: #eaedf1;
+  margin: 0 48px;
+}
+@media (min-width: 580px) and (max-width: 1395px) {
+  .tab-vertical-line {
+    min-width: 471px;
+    height: 1px;
+    background: #eaedf1;
+    margin: 48px 0;
+  }
+}
+@media (max-width: 580px) {
+  .tab-vertical-line {
+    min-width: 100%;
+    height: 1px;
+    margin: 24px 0;
+  }
+}
+.select-calendar-box {
+  background: #ffffff;
+  box-shadow: 0px 2px 16px rgba(31, 165, 212, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+}
+.select-calendar-box .select-calendar-heading {
+  font-size: 16px;
+  line-height: 24px;
+  margin-bottom: 16px;
+}
+.calendar-time-date {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .calendar-time-date {
+    flex-wrap: wrap;
+  }
+}
+.days-box {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.time-date-box {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .time-date-box {
+    flex-wrap: wrap;
+  }
+}
+.all-day-label {
+  display: flex;
+  cursor: pointer;
+  gap: 8px;
+  font-family: "Nunito";
+  font-weight: 500;
+}
+.all-day-label input[type="radio"] {
+  width: 18px;
+  cursor: pointer;
+}
+.date-time {
+  margin: 0;
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  padding: 4px 8px;
+  line-height: 24px;
+  background: rgba(31, 165, 212, 0.16);
+  border-radius: 8px;
+  color: #0b5d7a;
+}
+.to-text {
+  color: #757575;
+  background: none;
+}
+.assign-heading {
+  padding-bottom: 8px;
+}
+.assign-text {
+  background: none;
+  padding: 0 0 24px;
+  color: #1a1a1a;
+}
+.assign-content {
+  width: 100%;
+  gap: 0;
+}
+.trek-label {
+  font-family: "Droid Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+  color: #757575;
+  width: 100%;
+}
+.period-box .dropdown-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #e4e4e4;
+  background: #ffffff;
+  border: 1px solid #bbbbbb;
+  padding: 8px;
+  border-radius: 8px;
+  margin: 0;
+}
+.period-box .second-drop-button {
+  background: #eaedf1;
+  color: #bbbbbb;
+  border: 1px solid #bbbbbb;
+}
+.period-box .second-drop-button:hover {
+  background: #eaedf1;
+  color: #e4e4e4;
+}
+.period-box .dropdown-button:hover {
+  background: #ffffff;
+  color: #bbbbbb;
+}
+.dropdown .dropdown-menu.show {
+  border-radius: 8px;
+}
+.search_box:first-of-type {
+  padding-bottom: 16px;
+}
+.btns-container {
+  justify-content: end;
+  padding: 0 64px 64px;
+  min-height: inherit;
+}
+@media (max-width: 992px) {
+  .btns-container {
+    padding: 24px;
+  }
+}
+.input_section .btn_box {
+  gap: 16px;
+}
+.dropdown-item2 {
+  border: 1px solid #eaedf1 !important;
+  border-radius: 8px;
+  margin: 0 0 8px;
+}
+.dropdown-item2:hover {
+  background: #f6f7fa !important;
+  border-radius: 8px;
+}
+.dropdown-item p {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  padding: 4px 8px;
+}
+.dropdown-item2 p {
+  font-weight: 500;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  line-height: 24px;
+}
+.dropdown-item2 p:hover {
+  background: transparent;
+  color: #1a1a1a;
+}
+.dropdown .dropdown-menu.show {
+  padding: 8px;
+  margin: 14px 0 0 !important;
+}
+
+/* select-tags-body-polygon */
+.select-tags-body-polygon {
+  gap: 12px !important;
+  padding: 16px 12px;
+}
+.polygon-button {
+  padding: 0 !important;
+}
+.recall-button:hover {
+  background: rgba(202, 39, 56, 0.16) !important;
+}
+.practice-button:hover {
+  background: rgba(31, 165, 212, 0.16) !important;
+}
+.apply-button:hover {
+  background: rgba(159, 195, 59, 0.16) !important;
+}
+.apply-body-polygon {
+  background: #9fc33b !important;
+}
+.apply-button .pa-body-detail span {
+  color: #9fc33b;
+}
+
+/* Checkbox Styling */
+.form-check-input[type="checkbox" i] {
+  width: 18px;
+  height: 18px;
+}
+.form-check-input.input-all {
+  border: 2px solid #0b5d7a;
+}
+.form-check-input.form-check-input.input-all:checked {
+  background-color: #0b5d7a;
+}
+.form-check-input.input-recall {
+  border: 2px solid #ca2738;
+}
+.form-check-input.form-check-input.input-recall:checked {
+  background-color: #ca2738;
+}
+.form-check .form-check-input.input-practiceA {
+  border: 2px solid #1fa5d4;
+}
+.form-check-input.input-practiceA:checked {
+  background-color: #1fa5d4;
+}
+.form-check-input.input-practiceB {
+  border: 2px solid #1fa5d4;
+}
+.form-check-input.input-practiceB:checked {
+  background-color: #1fa5d4;
+}
+.form-check-input.input-apply {
+  border: 2px solid #9fc33b;
+}
+.form-check-input.input-apply:checked {
+  background-color: #9fc33b;
+}
+/* End Second Tab Details Styling  */
+
+/* Start Third Tab Styling */
+.third-tab-section {
+  padding: 0 64px 48px;
+}
+@media (max-width: 992px) {
+  .third-tab-section {
+    padding: 24px;
+  }
+}
+.third-tab-date-time {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eaedf1;
+}
+.third-tab-calendar-box .third-calendar-heading {
+  margin: 16px 0 8px;
+}
+.third-trek-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f6f7fa;
+  border-radius: 8px;
+  padding: 4px;
+}
+.apply-poly-body .tags-body-polygon{
+  background-color: #9fc33b;
+}
+.apply-poly-body .tags-body-detail span{
+  color: #9fc33b !important;
+}
+.practice-b-poly-body .tags-body-detail span {
+  color: #1fa5d4 !important;
+}
+.practice-a-poly-body .tags-body-detail span {
+  color: #1fa5d4 !important;
+}
+.overview-trek-box {
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.apply-trek-box {
+  background: rgba(159, 195, 59, 0.16) !important;
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.recall-trek-box {
+  background: rgba(202, 39, 56, 0.16);
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.practice-trek-box {
+  background: rgba(31, 165, 212, 0.16);
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.practice-a-trek-box {
+  background: rgba(31, 165, 212, 0.16);
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.practice-b-trek-box {
+  background: rgba(31, 165, 212, 0.16);
+  margin-bottom: 8px;
+  padding: 12px 8px 12px 12px;
+}
+.tags-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tags-body-detail span {
+  color: #ca2738;
+}
+.tags-body-detail {
+  width: 87%;
+}
+.third-card-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.interdependence-text {
+  font-family: "Nunito";
+  margin: 0;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #1a1a1a;
+}
+.horizontal-line {
+  width: 100%;
+  height: 1px;
+  margin: 16px 0;
+  background: #eaedf1;
+}
+.tags-body-polygon {
+  /*background: #ca2738;*/
+  background: #1fa5d4;
+}
+.pa-poly-body .tags-body-polygon {
+  background: #1fa5d4;
+}
+.practice-a-poly-body .tags-body-polygon {
+  background: #1fa5d4;
+}
+.practice-b-poly-body .tags-body-polygon {
+  background: #1fa5d4;
+}
+.pa-body-detail span {
+  color: #1fa5d4;
+}
+.pratice-a-body-detail span {
+  color: #1fa5d4;
+}
+.pratice-b-body-detail span {
+  color: #1fa5d4;
+}
+
+.overview-poly-body .tags-body-polygon {
+  background: #979797;
+}
+.overview-poly-body .tags-body-detail span {
+  color: #979797;
+}
+/* Select Class Period Student Styling */
+.class-student-box .select-all {
+  border: none;
+  font-family: "Nunito";
+}
+.scroll-box {
+  height: 260px;
+  overflow-y: scroll;
+}
+.student-period {
+  font-family: "Droid Sans";
+  font-size: 12px;
+  padding: 4px;
+  line-height: 16px;
+}
+.class-student-box {
+  align-items: center;
+}
+.class-student-box .student-name {
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  padding: 0;
+  line-height: 20px;
+  color: #757575;
+}
+.class-student-box .student-name:hover {
+  color: #0b5d7a;
+}
+/* Select students profile logos styling*/
+.select-students-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 8px;
+}
+.select-students-logos .student-logo {
+  margin-left: -4px;
+}
+/* End Third Tab Styling */
+
+/* End Tabs styling */
+.new-assignment-section {
+  gap: 0;
+  justify-content: space-between;
+  padding: 0 64px 24px;
+}
+@media (max-width: 992px) {
+  .new-assignment-section {
+    padding: 24px;
+  }
+}
+.new-assignment-heading {
+  font-family: "Nunito";
+  font-style: normal;
+  margin: 0;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 32px;
+  color: #1a1a1a;
+}
+.button-box {
+  display: flex;
+}
+.button-box .assignment-button {
+  width: 80px;
+  font-family: "Droid Sans";
+  font-style: normal;
+  background: transparent;
+  border-style: solid;
+  border-color: #757575;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #757575;
+}
+.button-box .active {
+  background: #0b5d7a;
+  color: #ffffff;
+  border: none;
+}
+.button-box .assignment-button:hover {
+  background: #0b5d7a;
+  color: #ffffff;
+  border: none;
+}
+.day-button {
+  border-radius: 8px 0px 0px 8px;
+  border-width: 1px 0px 1px 1px;
+  padding: 4px 26px;
+}
+.week-button {
+  border-width: 1px 0px;
+  padding: 4px 20.5px;
+}
+.month-button {
+  border-width: 1px 1px 1px 0px;
+  border-radius: 0px 8px 8px 0px;
+  padding: 4px 16px;
+}
+
+/* Calendar section styling */
+.calendar-container {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+.calendar-section {
+  max-width: 100%;
+  padding: 24px 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  align-items: center;
+  justify-content: space-between;
+  /* border-radius: ; */
+}
+.previous-last-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.month-text {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 24px;
+  color: #757575;
+  margin: 0;
+}
+.month-date-text {
+  font-size: 16px;
+  color: #1a1a1a;
+}
+.cursor-img {
+  cursor: pointer;
+}

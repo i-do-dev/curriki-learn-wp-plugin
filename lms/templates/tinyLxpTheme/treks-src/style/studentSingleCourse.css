@@ -1,0 +1,117 @@
+/* Common Style Rules */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;0,1000;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900;1,1000&display=swap");
+@font-face {
+  font-family: "Droid Sans";
+  src: url("../assets/fonts/droid-sans/DroidSans.ttf");
+}
+:root {
+  /* Color Variables */
+  --main-color-black: #000000;
+  --main-color-white: #ffffff;
+  /* Font variables */
+  --main-primary-font: "Nunito", sans-serif;
+  --main-secondary-font: "Droid Sans";
+}
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* body {
+  background-color: #e5e5e5 !important;
+} */
+
+/* Common Class Style */
+.main-container {
+  max-width: 90%;
+  margin: 0px auto;
+  margin-bottom: 48px;
+  padding: 0px 20px;
+}
+/* .accordion-body{
+  border: 1px solid;
+} */
+.polygon-shap {
+  float: left;
+  width: 25px;
+  height: 25px;
+  background-color: #1fa5d4;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.polygon-shap span {
+  display: block;
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ffffff;
+}
+
+.accordion-button {
+  font-weight: 700;
+}
+
+.btn_box .btn {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: #0b5d7a;
+  border-radius: 8px;
+  padding: 8px 40px;
+  border: 1px solid #0b5d7a;
+}
+
+.btn_box .btn:hover {
+  background: #bbbbbb;
+  border: 1px solid #bbbbbb;
+  color: #fff;
+}
+.course-time-box {
+  margin-top: 2%;
+  /* display: flex; */
+  /* gap: 8px; */
+}
+.course-time-box img{
+  margin-left: 20px;
+  margin-right: 20px;
+}
+/* .time-date-box{
+  float: right;
+} */
+.date-time {
+  /* margin: 0; */
+  font-family: "Arial";
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  padding: 4px 8px;
+  line-height: 24px;
+  background: rgba(31, 165, 212, 0.16);
+  border-radius: 8px;
+  color: #0b5d7a;
+}
+
+.course-label {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 32px;
+  color: #000000;
+}
+
+.section-label {
+  /* font-family: 'Nunito';
+  font-style: normal; */
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 32px;
+  /* color: #000000; */
+}
