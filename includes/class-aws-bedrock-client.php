@@ -14,8 +14,30 @@ use GuzzleHttp\Exception\ConnectException;
  */
 class TL_AWS_Bedrock_Client {
 
-	const REGION   = 'us-east-1';
-	const MODEL_ID = 'anthropic.claude-sonnet-4-6:0';
+	const REGION = 'us-east-1';
+
+	/**
+	 * Primary model identifier — global inference profile for Claude Sonnet 4.6.
+	 * Claude 4.x models use a bare provider/name string with no date suffix or `:0`.
+	 * Source: https://platform.claude.com/docs/en/docs/about-claude/models/all-models
+	 */
+	const MODEL_ID = 'anthropic.claude-sonnet-4-6';
+
+	/**
+	 * Cross-region US inference profile for Claude Sonnet 4.6.
+	 * AWS dynamically routes requests across us-east-1 / us-east-2 / us-west-2 for
+	 * higher availability.  Some account or IAM configurations require this format
+	 * rather than the bare global model ID above.
+	 * Used automatically as a fallback when the primary ID is rejected.
+	 */
+	const MODEL_ID_CROSS_REGION = 'us.anthropic.claude-sonnet-4-6-v1:0';
+
+	/**
+	 * WordPress option key that persists whichever model ID was confirmed to work
+	 * at runtime.  Overrides both constants above so future calls skip auto-detect.
+	 * Can also be set manually: update_option( 'tl_bedrock_model_id', 'custom-id' );
+	 */
+	const OPTION_MODEL_ID = 'tl_bedrock_model_id';
 
 	/** @var BedrockRuntimeClient|null  Reused across calls in the same request. */
 	private static $client = null;
@@ -27,14 +49,81 @@ class TL_AWS_Bedrock_Client {
 	/**
 	 * Invoke the Bedrock Converse API and return the text response.
 	 *
+	 * Automatically detects the correct model ID for this AWS account:
+	 *   1. Uses the model ID stored in the WP option (if set).
+	 *   2. Falls back to MODEL_ID (global inference profile).
+	 *   3. On "invalid model identifier" error, retries with MODEL_ID_CROSS_REGION.
+	 *   4. If the cross-region ID succeeds, persists it to the WP option so all
+	 *      subsequent requests go directly there without a retry round-trip.
+	 *
 	 * @param  string          $user_message   Content of the user turn.
 	 * @param  string          $system_prompt  Optional system-level instruction.
 	 * @return string|WP_Error                 Generated text or WP_Error on failure.
 	 */
 	public static function invoke_bedrock( $user_message, $system_prompt = '' ) {
+		$model_id = self::get_model_id();
+		$result   = self::call_converse( $model_id, $user_message, $system_prompt );
+
+		// If the chosen model ID was rejected as invalid, automatically retry with
+		// the cross-region inference profile — unless we already used it.
+		if ( is_wp_error( $result )
+			&& 'bedrock_invalid_model_id' === $result->get_error_code()
+			&& $model_id !== self::MODEL_ID_CROSS_REGION
+		) {
+			$fallback = self::call_converse( self::MODEL_ID_CROSS_REGION, $user_message, $system_prompt );
+
+			if ( ! is_wp_error( $fallback ) ) {
+				// Cross-region ID works — persist it so all future calls skip the retry.
+				update_option( self::OPTION_MODEL_ID, self::MODEL_ID_CROSS_REGION );
+				return $fallback;
+			}
+
+			// Both IDs rejected — return a combined, actionable error message.
+			return new WP_Error(
+				'bedrock_invalid_model_id',
+				$result->get_error_message()
+				. ' Fallback cross-region inference profile "' . self::MODEL_ID_CROSS_REGION
+				. '" was also attempted and failed. '
+				. 'Go to AWS Console → Bedrock → Model Access and enable "Claude Sonnet 4.6" '
+				. 'for region "' . self::REGION . '".',
+				array( 'tried_ids' => array( $model_id, self::MODEL_ID_CROSS_REGION ) )
+			);
+		}
+
+		return $result;
+	}
+
+	// -------------------------------------------------------------------------
+	// Internal
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return the model ID to use for the current call.
+	 *
+	 * Priority: WP option override → MODEL_ID constant.
+	 *
+	 * @return string
+	 */
+	private static function get_model_id() {
+		$option = get_option( self::OPTION_MODEL_ID, '' );
+		return ( is_string( $option ) && '' !== $option ) ? $option : self::MODEL_ID;
+	}
+
+	/**
+	 * Send a single Converse API request with the given model ID.
+	 *
+	 * All exception handling lives here.  invoke_bedrock() uses this method to
+	 * implement the primary-call + cross-region-fallback retry pattern.
+	 *
+	 * @param  string          $model_id       Bedrock model or inference-profile ID.
+	 * @param  string          $user_message   Content of the user turn.
+	 * @param  string          $system_prompt  Optional system-level instruction.
+	 * @return string|WP_Error                 Generated text or WP_Error on failure.
+	 */
+	private static function call_converse( $model_id, $user_message, $system_prompt ) {
 		try {
 			$params = array(
-				'modelId'  => self::MODEL_ID,
+				'modelId'  => $model_id,
 				'messages' => array(
 					array(
 						'role'    => 'user',
@@ -92,7 +181,7 @@ class TL_AWS_Bedrock_Client {
 				case 'AccessDeniedException':
 					// The IAM role exists but lacks bedrock:InvokeModel on this model,
 					// OR the model has not been enabled in Bedrock Model Access settings.
-					$message = 'Access denied to the Bedrock model "' . self::MODEL_ID . '". '
+					$message = 'Access denied to the Bedrock model "' . $model_id . '". '
 						. 'Verify that: (1) the EC2 IAM role has the "bedrock:InvokeModel" '
 						. 'permission for this model ARN, and (2) the model is enabled under '
 						. 'AWS Console → Bedrock → Model Access for region "' . self::REGION . '". '
@@ -101,16 +190,33 @@ class TL_AWS_Bedrock_Client {
 
 				case 'ResourceNotFoundException':
 					// The model ID string does not map to any known model.
-					$message = 'The Bedrock model "' . self::MODEL_ID . '" was not found in '
+					$message = 'The Bedrock model "' . $model_id . '" was not found in '
 						. 'region "' . self::REGION . '". '
-						. 'Check the MODEL_ID constant in TL_AWS_Bedrock_Client and confirm '
-						. 'the model is available in this region. '
+						. 'Check TL_AWS_Bedrock_Client::MODEL_ID or the "' . self::OPTION_MODEL_ID . '" '
+						. 'WP option, and confirm the model is available in this region. '
 						. 'AWS detail: ' . $aws_msg;
 					return new WP_Error( 'bedrock_model_not_found', $message );
 
 				case 'ValidationException':
-					// The request payload was malformed or contained an unsupported parameter.
-					$message = 'The request sent to Bedrock was invalid. '
+					// Distinguish "invalid model identifier" from other validation errors.
+					// The former is retryable with a different model ID format; the latter
+					// indicates a malformed request payload and is not retryable.
+					if ( false !== stripos( $aws_msg, 'model identifier' ) ) {
+						$message = 'The Bedrock model identifier "' . $model_id . '" is invalid '
+							. 'or not accessible in region "' . self::REGION . '". '
+							. 'Valid formats for Claude Sonnet 4.6 are: '
+							. '"' . self::MODEL_ID . '" (global) or '
+							. '"' . self::MODEL_ID_CROSS_REGION . '" (cross-region US). '
+							. 'Ensure the model is enabled under '
+							. 'AWS Console → Bedrock → Model Access for region "' . self::REGION . '". '
+							. 'To override the model ID without a code change, set the '
+							. '"' . self::OPTION_MODEL_ID . '" WordPress option. '
+							. 'AWS detail: ' . $aws_msg;
+						return new WP_Error( 'bedrock_invalid_model_id', $message );
+					}
+
+					// Non-model-ID validation failure — malformed request payload.
+					$message = 'The request sent to Bedrock was invalid (model: "' . $model_id . '"). '
 						. 'This may indicate a mismatch between the Converse API parameters '
 						. 'and the model version. '
 						. 'AWS detail: ' . $aws_msg;
@@ -118,22 +224,22 @@ class TL_AWS_Bedrock_Client {
 
 				case 'ThrottlingException':
 					// Request rate exceeded the account quota for this model.
-					$message = 'AWS Bedrock throttled the request. '
-						. 'The account has exceeded its request quota for model "' . self::MODEL_ID . '". '
+					$message = 'AWS Bedrock throttled the request for model "' . $model_id . '". '
+						. 'The account has exceeded its request quota. '
 						. 'Retry after a short delay or request a quota increase in the AWS console. '
 						. 'AWS detail: ' . $aws_msg;
 					return new WP_Error( 'bedrock_throttled', $message );
 
 				case 'ModelTimeoutException':
 					// The model took too long to generate a response.
-					$message = 'The Bedrock model timed out while generating a response. '
+					$message = 'The Bedrock model "' . $model_id . '" timed out while generating a response. '
 						. 'The lesson content may be too long. Try shortening the input. '
 						. 'AWS detail: ' . $aws_msg;
 					return new WP_Error( 'bedrock_model_timeout', $message );
 
 				case 'ModelNotReadyException':
 					// The model is being provisioned or is temporarily unavailable.
-					$message = 'The Bedrock model "' . self::MODEL_ID . '" is not ready. '
+					$message = 'The Bedrock model "' . $model_id . '" is not ready. '
 						. 'It may still be provisioning or is temporarily unavailable. '
 						. 'Retry in a few minutes. '
 						. 'AWS detail: ' . $aws_msg;
@@ -162,10 +268,6 @@ class TL_AWS_Bedrock_Client {
 			);
 		}
 	}
-
-	// -------------------------------------------------------------------------
-	// Internal
-	// -------------------------------------------------------------------------
 
 	/**
 	 * Return a shared BedrockRuntimeClient instance.
