@@ -25,6 +25,7 @@ Key integrations:
 | `public/` | Public/frontend layer: handles LTI request routing on `parse_request` |
 | `lms/` | All LMS domain logic: CPT classes, REST API classes, admin menu, constants, templates |
 | `lms/lms-rest-apis/` | One file per entity exposing REST endpoints under `/wp-json/lms/v1/` |
+| `lms/repositories/` | Repository classes for DB-backed data access (`TL_Grades_Repository`, `TL_Workbook_Submission_Repository`, etc.) |
 | `lms/templates/` | PHP templates: single-post overrides, page templates, LXP dashboard partials, Edlink partials |
 | `lms/templates/tinyLxpTheme/` | Full theme-like template layer (header, footer, all page-*.php templates, all `lxp/` partials) |
 | `includes/widgets/` | Elementor widget classes and their static CSS/JS/font assets |
@@ -68,6 +69,10 @@ New LTI flow             →  includes/class-tiny-lxp-platform-platform.php or -
 New constants            →  lms/tl-constants.php or lms/xapi-constants.php
 AI Bedrock calls         →  includes/class-aws-bedrock-client.php  (TL_AWS_Bedrock_Client::invoke_bedrock)
 AI REST endpoints        →  lms/lms-rest-apis/ai-content.php  (Rest_Lxp_AI_Content)
+Workbook REST endpoints  →  lms/lms-rest-apis/workbook-submissions.php  (Rest_Lxp_Workbook_Submission)
+Workbook repository      →  lms/repositories/class-workbook-submission-repository.php
+Workbook frontend JS     →  public/js/lxp-workbook.js  (enqueued by Tiny_LXP_Platform_Public::enqueue_workbook_scripts)
+Workbook admin list      →  admin/class-workbook-submission-list-table.php  +  admin/partials/workbook-submission*.php
 ```
 
 ### Architecture Rules
@@ -111,6 +116,7 @@ All endpoints use namespace `lms/v1` → base URL `/wp-json/lms/v1/`. Entry poin
 | File | Class | Entity Coverage |
 |---|---|---|
 | `lms-rest-api.php` | `LMS_REST_API` | Scores, tokens, playlists, Trek sections/events, student assignment helpers, course search |
+| `workbook-submissions.php` | `Rest_Lxp_Workbook_Submission` | Upsert and fetch student workbook answers (`POST/GET /workbook/submission`) |
 | `courses.php` | `Rest_Lxp_Course` | LXP course sections, section lessons |
 | `students.php` | `Rest_Lxp_Student` | CRUD students, settings, grade assignment, bulk import, Edlink sync |
 | `teachers.php` | `Rest_Lxp_Teacher` | CRUD teachers, settings, student list, course restrictions |
@@ -121,7 +127,7 @@ All endpoints use namespace `lms/v1` → base URL `/wp-json/lms/v1/`. Entry poin
 | `schools.php` | `Rest_Lxp_School` | School CRUD, settings |
 | `groups.php` | `Rest_Lxp_Group` | Group CRUD, class groups, group students |
 | `edlink-apis.php` | `Rest_Lxp_Edlink` | OAuth token exchange, provider/district/people sync |
-| `ai-content.php` | `Rest_Lxp_AI_Content` | AI lesson generation via Bedrock; original content backup/restore |
+| `ai-content.php` | `Rest_Lxp_AI_Content` | AI lesson generation via Bedrock; auto-detects standard vs workbook type; original content backup/restore |
 
 **Security note**: All routes use `'permission_callback' => '__return_true'`. Access control is enforced inside callbacks; always verify `current_user_can()` or nonce for write operations.
 
@@ -185,14 +191,14 @@ Designed for Elementor Theme Builder **single `lp_lesson` templates**. LP4 lesso
 
 ### Overview
 
-The AI Content Gen feature allows lesson authors to transform raw lesson text into a richly structured 6-section HTML page using AWS Bedrock (Claude model). It is surfaced as an "AI Content Gen" metabox on the `lp_lesson` admin edit screen.
+The AI Content Gen feature allows lesson authors to transform raw lesson text into a richly structured HTML page using AWS Bedrock (Claude model). It is surfaced as an "AI Content Gen" metabox on the `lp_lesson` admin edit screen. Two lesson types are supported: **standard** (6-section lesson page) and **workbook** (9-section interactive workbook activity). The type is auto-detected from the lesson title and original content.
 
 ### Files
 
 | File | Class | Role |
 |---|---|---|
 | [includes/class-aws-bedrock-client.php](includes/class-aws-bedrock-client.php) | `TL_AWS_Bedrock_Client` | SDK wrapper — single entry point for all Bedrock calls |
-| [lms/lms-rest-apis/ai-content.php](lms/lms-rest-apis/ai-content.php) | `Rest_Lxp_AI_Content` | REST endpoints; prompt builder; original content backup |
+| [lms/lms-rest-apis/ai-content.php](lms/lms-rest-apis/ai-content.php) | `Rest_Lxp_AI_Content` | REST endpoints; prompt builder; lesson type detection; original content backup |
 | [lms/class-learnpress-lesson-extension.php](lms/class-learnpress-lesson-extension.php) | `TL_LearnPress_Lesson_Extension` | Registers the "AI Content Gen" side metabox on `lp_lesson` |
 | [admin/js/tiny-lxp-platform-post.js](admin/js/tiny-lxp-platform-post.js) | — | Generate + Reset button click handlers; `tinyLxpSetEditorContent()` helper |
 | [admin/css/tiny-lxp-platform-post.css](admin/css/tiny-lxp-platform-post.css) | — | Button layout + status message styles |
@@ -201,12 +207,13 @@ The AI Content Gen feature allows lesson authors to transform raw lesson text in
 
 | Method | Route | Callback | Purpose |
 |---|---|---|---|
-| `POST` | `/wp-json/lms/v1/lesson/ai-content` | `Rest_Lxp_AI_Content::generate_lesson_content()` | Sends lesson content to Bedrock; backs up original on first call; returns AI HTML |
+| `POST` | `/wp-json/lms/v1/lesson/ai-content` | `Rest_Lxp_AI_Content::generate_lesson_content()` | Sends lesson content to Bedrock; auto-detects lesson type; backs up original on first call; returns AI HTML + `lesson_type` |
 | `GET` | `/wp-json/lms/v1/lesson/original-content` | `Rest_Lxp_AI_Content::get_original_content()` | Returns the pre-generation backup stored in `lxp_lesson_original_content` meta |
 
 **Request params** (`POST`): `post_id` (int), `lesson_content` (string — current editor content).  
 **Request params** (`GET`): `post_id` (int).  
-Both callbacks enforce `current_user_can('edit_post', $post_id)`.
+Both callbacks enforce `current_user_can('edit_post', $post_id)`.  
+**Response** (`POST`) includes `content` (HTML string) and `lesson_type` (`'standard'` or `'workbook'`).
 
 ### `TL_AWS_Bedrock_Client`
 
@@ -224,10 +231,16 @@ TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt = '' )
 
 ### Prompt Architecture
 
-The generation uses a **split system/user prompt**:
+The generation uses a **split system/user prompt** and auto-detects the lesson type:
 
-- **System prompt** (`build_system_prompt()`): Tells Claude it is an expert Instructional Designer and must output only raw HTML (no markdown, no code fences) starting with `<div class="lp-ai-lesson-template">`.
-- **User message** (`build_user_message($lesson_content)`): Contains the original lesson text and a full HTML template with `[PLACEHOLDER]` tokens for Claude to fill. The template defines six fixed sections:
+**Lesson type detection** (`Rest_Lxp_AI_Content::detect_lesson_type($post_id, $lesson_content)`):
+- Returns `'workbook'` when the lesson **title** contains "workbook" (case-insensitive) OR the **pre-AI content** contains the phrase "Workbook Entry".
+- Otherwise returns `'standard'`.
+- Detection always runs on the **original (pre-AI) content** passed in the request — not on previously-generated HTML.
+
+**Standard lesson** (default):
+- **System prompt** (`build_system_prompt($lesson_title='')`): Instructs Claude to produce a 6-section HTML lesson page; anchors the Hero Header to the lesson title if provided.
+- **User message** (`build_user_message($lesson_content, $lesson_title='')`): Contains `LESSON TITLE: …` prefix, the original content, and a 6-section HTML template with `[PLACEHOLDER]` tokens:
   1. Hero Header
   2. Lesson Overview (with metadata table)
   3. Learning Goals
@@ -235,12 +248,28 @@ The generation uses a **split system/user prompt**:
   5. Classroom Example
   6. Check for Understanding (multiple-choice quiz)
 
+**Workbook lesson**:
+- **System prompt** (`build_workbook_system_prompt($lesson_title='')`): Instructs Claude to produce a 9-section interactive workbook page; mandates that every `[Text Box]` sentinel div is preserved verbatim.
+- **User message** (`build_workbook_user_message($lesson_content, $lesson_title='')`): Contains a 9-section HTML template:
+  1. Hero Header
+  2. Activity Overview (with metadata table)
+  3. Why This Matters
+  4. Reflection Prompt
+  5. Workbook Entry (field blocks with `[Text Box]` sentinel divs)
+  6. Example
+  7. Important Note
+  8. Next Step
+  9. Check for Understanding (multiple-choice quiz)
+
+**`[Text Box]` sentinel pattern**: Workbook Entry field blocks store `[Text Box]` as plain text inside a styled `<div>`. This text is safe to save in WP post content (kses-safe). The frontend JS in `public/js/lxp-workbook.js` converts each sentinel div to a `<textarea>` at runtime — never store `<textarea>` or `<input>` in post content.
+
 ### Original Content Backup
 
 - Meta key: `lxp_lesson_original_content`
 - Written **once** when `generate_lesson_content()` is called and no backup exists yet.
 - Subsequent AI generations do **not** overwrite it — the true original is always preserved.
 - The "Reset to Original" JS button calls `GET /wp-json/lms/v1/lesson/original-content` and restores the editor via `tinyLxpSetEditorContent()`.
+- Lesson type detection also uses this original content (passed as `lesson_content` in the POST body), not the AI-generated HTML.
 
 ### JS Editor Integration
 
@@ -262,9 +291,81 @@ require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
 
 - To change the model: update `TL_AWS_Bedrock_Client::MODEL_ID`. The model must be enabled in the AWS account's Bedrock Model Access settings.
 - To change the region: update `TL_AWS_Bedrock_Client::REGION`.
-- To change the HTML template or sections: edit `Rest_Lxp_AI_Content::build_user_message()`. The `<<<'HTML'` heredoc holds the full template.
-- To change the system-level behaviour instruction: edit `Rest_Lxp_AI_Content::build_system_prompt()`.
+- To change the standard lesson template: edit `Rest_Lxp_AI_Content::build_user_message()`. The `<<<'HTML'` heredoc holds the full template.
+- To change the workbook template: edit `Rest_Lxp_AI_Content::build_workbook_user_message()`. The `<<<'HTML'` heredoc holds the 9-section workbook template.
+- To change the system-level behaviour instructions: edit `Rest_Lxp_AI_Content::build_system_prompt()` (standard) or `build_workbook_system_prompt()` (workbook).
+- To change the lesson type detection logic: edit `Rest_Lxp_AI_Content::detect_lesson_type()`.
 - To adjust token budget or temperature: edit the `inferenceConfig` array in `TL_AWS_Bedrock_Client::invoke_bedrock()`.
+
+---
+
+## Workbook Submissions
+
+### Overview
+
+Workbook submissions persist a student's answers to the `[Text Box]` fields in a workbook-type AI lesson. One row per (student, lesson) pair — resubmission is an upsert. Storage uses a **custom DB table** (not a CPT) created on plugin activation.
+
+### Files
+
+| File | Class | Role |
+|---|---|---|
+| [lms/repositories/class-workbook-submission-repository.php](lms/repositories/class-workbook-submission-repository.php) | `TL_Workbook_Submission_Repository` | All DB access for the `{prefix}lxp_workbook_submissions` table |
+| [lms/lms-rest-apis/workbook-submissions.php](lms/lms-rest-apis/workbook-submissions.php) | `Rest_Lxp_Workbook_Submission` | REST endpoints — upsert and fetch submission |
+| [public/js/lxp-workbook.js](public/js/lxp-workbook.js) | — | Frontend: converts `[Text Box]` to `<textarea>`, pre-fills, Save button |
+| [public/class-tiny-lxp-platform-public.php](public/class-tiny-lxp-platform-public.php) | `Tiny_LXP_Platform_Public` | `enqueue_workbook_scripts()` — enqueues JS on `lp_lesson` pages |
+| [admin/class-workbook-submission-list-table.php](admin/class-workbook-submission-list-table.php) | `TL_Workbook_Submission_List_Table` | Admin list table with course/lesson/user filters |
+| [admin/partials/workbook-submissions-admin.php](admin/partials/workbook-submissions-admin.php) | — | Admin list page partial |
+| [admin/partials/workbook-submission-detail-admin.php](admin/partials/workbook-submission-detail-admin.php) | — | Admin detail view partial |
+| [admin/class-tiny-lxp-platform-admin.php](admin/class-tiny-lxp-platform-admin.php) | `Tiny_LXP_Platform_Admin` | `register_curriki_learn_menu()` + `workbook_submissions_page()` |
+
+### Database Table
+
+Table: `{prefix}lxp_workbook_submissions`  
+Created by `on_activate()` in `TinyLxp-wp-plugin.php`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint unsigned AUTO_INCREMENT` | Primary key |
+| `lesson_id` | `bigint unsigned NOT NULL` | `lp_lesson` post ID |
+| `course_id` | `bigint unsigned NOT NULL` | Parent `lp_course` post ID |
+| `user_id` | `bigint unsigned NOT NULL` | WordPress user ID |
+| `fields` | `longtext NOT NULL` | JSON-encoded `{ label: answer }` pairs |
+| `submitted_at` | `datetime NOT NULL` | Set on first insert |
+| `updated_at` | `datetime NOT NULL` | Updated on every upsert |
+
+Indexes: `UNIQUE KEY lesson_user (lesson_id, user_id)`, `KEY course_id`, `KEY user_id`.
+
+### REST Endpoints
+
+| Method | Route | Callback | Auth | Purpose |
+|---|---|---|---|---|
+| `POST` | `/wp-json/lms/v1/workbook/submission` | `Rest_Lxp_Workbook_Submission::upsert_submission()` | `is_user_logged_in()` | Save/update answers |
+| `GET` | `/wp-json/lms/v1/workbook/submission` | `Rest_Lxp_Workbook_Submission::get_submission()` | `is_user_logged_in()` | Fetch current user's answers |
+
+**POST params**: `lesson_id` (int), `course_id` (int), `fields` (assoc array `{ label: answer }`).  
+**GET params**: `lesson_id` (int).  
+Both return 401 if the user is not logged in. Field labels and values are sanitized with `sanitize_text_field()` / `sanitize_textarea_field()`.
+
+### Frontend JS (`lxp-workbook.js`)
+
+Enqueued on every `lp_lesson` singular page via `Tiny_LXP_Platform_Public::enqueue_workbook_scripts()`.  
+Localised as `lxp_workbook_vars`: `{ rest_url, nonce, lesson_id, course_id }`.
+
+1. Finds the section with `<h3>Workbook Entry</h3>` inside `.lp-ai-lesson-template`.
+2. Replaces every `[Text Box]` sentinel div with a `<textarea>`; derives the label from the preceding `<strong>` element.
+3. On load: GETs `/workbook/submission?lesson_id=N` and pre-fills saved answers.
+4. Injects a Save button at the bottom of the Workbook Entry section.
+5. On Save: POSTs `{ lesson_id, course_id, fields }` to `/workbook/submission`.
+
+### Admin Menu
+
+| Menu | Slug | Position |
+|---|---|---|
+| Curriki Learn (top-level) | `curriki-learn` | 30 |
+| Workbook Submissions (submenu) | `curriki-learn-workbook-submissions` | under Curriki Learn |
+
+Registered by `Tiny_LXP_Platform_Admin::register_curriki_learn_menu()`, hooked to `admin_menu` via the loader.  
+`workbook_submissions_page()` branches on `$_GET['view']`: `'detail'` shows a single submission with all fields; default shows the filterable list.
 
 ---
 
@@ -273,6 +374,8 @@ require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
 | Menu/Page | Slug | Location |
 |---|---|---|
 | LXP Dashboard | `../dashboard` | Top-level WP menu (position 25) |
+| Curriki Learn | `curriki-learn` | Top-level WP menu (position 30) |
+| Workbook Submissions | `curriki-learn-workbook-submissions` | Under Curriki Learn |
 | Edlink Settings | `edlink_options` | Top-level WP menu |
 | Tiny LXP Tools (LTI tool list) | `lti-platform` | Settings submenu |
 | Add Tiny LXP Tool | `lti-platform-edit` | Hidden submenu |
@@ -292,12 +395,13 @@ Use this sequence before editing:
 2. For CPT behavior: open the matching `lms/class-{entity}-post-type.php` and its parent `lms/class-abstract-tl-post-type.php`. For `lp_course`/`lp_lesson`, inspect `lms/class-learnpress-course-extension.php` and `lms/class-learnpress-lesson-extension.php`.
 3. For repository-backed data access: inspect `lms/repositories/` (`class-grades-repository.php`, `class-trek-event-repository.php`, `class-learnpress-section-repository.php`, `class-lti-metadata-repository.php`) and prefer these over adding inline SQL in REST handlers.
 4. For REST endpoints: open `lms/lms-rest-apis/{entity}.php` and trace registration in `LMS_REST_API::init()`.
-5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
-6. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
-7. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
-8. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
-9. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
-10. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
+5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes + lesson type detection) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
+6. For workbook submissions: `lms/repositories/class-workbook-submission-repository.php` (DB) → `lms/lms-rest-apis/workbook-submissions.php` (REST) → `public/js/lxp-workbook.js` (frontend) → `admin/class-workbook-submission-list-table.php` + `admin/partials/workbook-submission*.php` (admin UI).
+7. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
+8. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
+9. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
+10. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
+11. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
 
 **Search strategy**:
 - Use semantic search for concept-level discovery (e.g., "student grade assignment REST").
@@ -442,6 +546,10 @@ When changing external service hosts, update constants in [lms/xapi-constants.ph
 11. **AI content meta key**: The original lesson content backup is stored under `lxp_lesson_original_content` post meta. It is written only once (on first AI generation) and is never overwritten by subsequent generations. The "Reset to Original" button reads this meta via `GET /wp-json/lms/v1/lesson/original-content`.
 12. **Bedrock model ID**: Currently `anthropic.claude-sonnet-4-6:0` in `TL_AWS_Bedrock_Client::MODEL_ID`. If Bedrock returns a 400 error, update this constant — the model ID must match an enabled model in the AWS account's Bedrock model access settings.
 13. **vendor/ is gitignored**: The `vendor/` directory is excluded from version control (`.gitignore`). After cloning or pulling on a new server, run `composer install` before the plugin will function.
+14. **Workbook type detection uses original content**: `detect_lesson_type()` runs on the `lesson_content` parameter of the `POST /lesson/ai-content` request — this is the current editor state before AI generation, not previously-generated HTML. Lesson title is also checked.
+15. **`[Text Box]` sentinel in workbook HTML**: Workbook Entry field blocks in the generated HTML contain `[Text Box]` as plain text inside a styled `<div>`. This is intentional — WP kses would strip `<textarea>` from post content. The frontend JS converts sentinels to interactive `<textarea>` elements at runtime. Never replace sentinels with actual form elements in the PHP template.
+16. **Workbook DB table not created by `dbDelta()`**: The `lxp_workbook_submissions` table is created with a raw `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` call in `on_activate()`, matching the existing `tiny_lms_grades` pattern. Re-trigger creation by deactivating and reactivating the plugin.
+17. **Workbook admin page is in `admin/` not `lms/`**: `TL_Workbook_Submission_List_Table` lives in `admin/class-workbook-submission-list-table.php`; the repository it depends on lives in `lms/repositories/`. The admin page callback does its own `require_once` of both files so they are not double-loaded on every request.
 
 ---
 

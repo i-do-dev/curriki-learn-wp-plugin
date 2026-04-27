@@ -749,4 +749,43 @@ class Tiny_LXP_Platform_Public
         echo('</html>' . "\n");
     }
 
+    /**
+     * Enqueue the workbook interactive JS on lesson single pages.
+     * Hooked to wp_enqueue_scripts via Tiny_LXP_Platform::define_public_hooks().
+     */
+    public function enqueue_workbook_scripts() {
+        if ( ! is_singular( 'lp_lesson' ) ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'lxp-workbook',
+            plugin_dir_url( __FILE__ ) . 'js/lxp-workbook.js',
+            array(),
+            '1.0.0',
+            true
+        );
+
+        // Resolve the parent course ID for the current lesson.
+        $lesson_id = get_the_ID();
+        $course_id = 0;
+        if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
+            $course = learn_press_get_course_by_lesson( $lesson_id );
+            if ( $course ) {
+                $course_id = $course->get_id();
+            }
+        }
+
+        wp_localize_script(
+            'lxp-workbook',
+            'lxp_workbook_vars',
+            array(
+                'rest_url'  => esc_url_raw( rest_url( 'lms/v1/' ) ),
+                'nonce'     => wp_create_nonce( 'wp_rest' ),
+                'lesson_id' => absint( $lesson_id ),
+                'course_id' => absint( $course_id ),
+            )
+        );
+    }
+
 }

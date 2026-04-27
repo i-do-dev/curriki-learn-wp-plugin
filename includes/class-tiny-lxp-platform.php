@@ -210,6 +210,7 @@ class Tiny_LXP_Platform
 
         $this->loader->add_action('admin_init', $plugin_admin, 'settings_init');
         $this->loader->add_action('admin_menu', $plugin_admin, 'options_page');
+        $this->loader->add_action('admin_menu', $plugin_admin, 'register_curriki_learn_menu');
         $this->loader->add_action('network_admin_menu', $plugin_admin, 'network_options_page');
         $this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
         $this->loader->add_action('init', 'Tiny_LXP_Platform_Tool', 'register');
@@ -230,6 +231,7 @@ class Tiny_LXP_Platform
         $lesson_extension = new TL_LearnPress_Lesson_Extension();
 
         $this->loader->add_action('parse_request', $plugin_public, 'parse_request');
+        $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_workbook_scripts');
 		$this->loader->add_filter('post_row_actions', $course_extension, 'modify_list_row_actions', 10, 2);
         $this->loader->add_action('wp_enqueue_scripts', $course_extension, 'enqueue_student_course_styles');
         $this->loader->add_action('add_meta_boxes', $course_extension, 'add_meta_boxes');

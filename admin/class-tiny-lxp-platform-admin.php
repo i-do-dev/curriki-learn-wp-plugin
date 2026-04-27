@@ -301,6 +301,78 @@ class Tiny_LXP_Platform_Admin
         }
     }
 
+    /**
+     * Register the "Curriki Learn" top-level admin menu and the
+     * "Workbook Submissions" submenu page.
+     * Hooked to admin_menu via Tiny_LXP_Platform::define_admin_hooks().
+     */
+    public function register_curriki_learn_menu() {
+        add_menu_page(
+            __( 'Curriki Learn', 'tiny-lxp-platform' ),
+            __( 'Curriki Learn', 'tiny-lxp-platform' ),
+            'manage_options',
+            'curriki-learn',
+            array( $this, 'workbook_submissions_page' ),
+            'dashicons-welcome-learn-more',
+            30
+        );
+
+        add_submenu_page(
+            'curriki-learn',
+            __( 'Workbook Submissions', 'tiny-lxp-platform' ),
+            __( 'Workbook Submissions', 'tiny-lxp-platform' ),
+            'manage_options',
+            'curriki-learn-workbook-submissions',
+            array( $this, 'workbook_submissions_page' )
+        );
+
+        // Remove the auto-created duplicate top-level submenu item.
+        remove_submenu_page( 'curriki-learn', 'curriki-learn' );
+    }
+
+    /**
+     * Render the Workbook Submissions admin page (list or detail view).
+     */
+    public function workbook_submissions_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'tiny-lxp-platform' ) );
+        }
+
+        $view = isset( $_GET['view'] ) ? sanitize_key( $_GET['view'] ) : 'list';
+
+        if ( 'detail' === $view ) {
+            $id = absint( isset( $_GET['id'] ) ? $_GET['id'] : 0 );
+
+            require_once plugin_dir_path( __FILE__ ) . '../lms/repositories/class-workbook-submission-repository.php';
+            $repo       = new TL_Workbook_Submission_Repository();
+            $submission = $id > 0 ? $repo->get_by_id( $id ) : null;
+
+            // Attach joined display fields if row found.
+            if ( $submission ) {
+                $user           = get_userdata( (int) $submission->user_id );
+                $submission->display_name = $user ? $user->display_name : '';
+                $submission->user_email   = $user ? $user->user_email   : '';
+                $lesson_post              = get_post( (int) $submission->lesson_id );
+                $course_post              = get_post( (int) $submission->course_id );
+                $submission->lesson_title = $lesson_post ? $lesson_post->post_title : '';
+                $submission->course_title = $course_post ? $course_post->post_title : '';
+            }
+
+            include plugin_dir_path( __FILE__ ) . 'partials/workbook-submission-detail-admin.php';
+            return;
+        }
+
+        // List view.
+        require_once plugin_dir_path( __FILE__ ) . '../lms/repositories/class-workbook-submission-repository.php';
+        require_once plugin_dir_path( __FILE__ ) . 'class-workbook-submission-list-table.php';
+
+        $repo       = new TL_Workbook_Submission_Repository();
+        $list_table = new TL_Workbook_Submission_List_Table( $repo );
+        $list_table->prepare_items();
+
+        include plugin_dir_path( __FILE__ ) . 'partials/workbook-submissions-admin.php';
+    }
+
     public function network_options_page()
     {
         $menu = add_submenu_page('settings.php', 'Network Tiny LXP Tools', 'Network Tiny LXP Tools', 'manage_options',

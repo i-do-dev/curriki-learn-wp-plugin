@@ -81,12 +81,26 @@ class Rest_Lxp_AI_Content {
 			}
 		}
 
-		$prompt        = self::build_user_message( sanitize_textarea_field( wp_unslash( $lesson_content ) ) );
-		$system_prompt = self::build_system_prompt();
-		$result        = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt );
+		// Fetch the lesson title for richer prompt context.
+		$lesson_title = get_the_title( $post_id );
+
+		// Detect lesson type from the original (pre-AI) content and title.
+		$sanitized_content = sanitize_textarea_field( wp_unslash( $lesson_content ) );
+		$lesson_type       = self::detect_lesson_type( $post_id, $sanitized_content );
+
+		// Choose prompt builders based on detected lesson type.
+		if ( 'workbook' === $lesson_type ) {
+			$prompt        = self::build_workbook_user_message( $sanitized_content, $lesson_title );
+			$system_prompt = self::build_workbook_system_prompt( $lesson_title );
+		} else {
+			$prompt        = self::build_user_message( $sanitized_content, $lesson_title );
+			$system_prompt = self::build_system_prompt( $lesson_title );
+		}
+
+		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt );
 
 		if ( is_wp_error( $result ) ) {
-			$error_code = $result->get_error_code();
+			$error_code  = $result->get_error_code();
 			$http_status = 502;
 			if ( 'bedrock_access_denied' === $error_code ) {
 				$http_status = 403;
@@ -98,7 +112,7 @@ class Rest_Lxp_AI_Content {
 			return new WP_Error( $error_code, $result->get_error_message(), array( 'status' => $http_status ) );
 		}
 
-		return rest_ensure_response( array( 'content' => $result ) );
+		return rest_ensure_response( array( 'content' => $result, 'lesson_type' => $lesson_type ) );
 	}
 
 	/**
@@ -137,9 +151,13 @@ class Rest_Lxp_AI_Content {
 	 *
 	 * @return string
 	 */
-	private static function build_system_prompt() {
+	private static function build_system_prompt( $lesson_title = '' ) {
+		$title_instruction = ! empty( $lesson_title )
+			? ' Use "' . $lesson_title . '" as the primary heading for the Hero Header section.'
+			: '';
+
 		return 'You are an expert Instructional Designer. '
-			. 'Transform the provided lesson text into a high-end HTML lesson page. '
+			. 'Transform the provided lesson text into a high-end HTML lesson page.' . $title_instruction . ' '
 			. 'CRITICAL: Output ONLY the raw HTML code — no markdown, no code fences, no explanation text. '
 			. 'The HTML must start with <div class="lp-ai-lesson-template"> and end with </div>. '
 			. 'Use the following six sections exactly as structured in the template the user provides: '
@@ -155,7 +173,7 @@ class Rest_Lxp_AI_Content {
 	 * @param  string $lesson_content  Sanitized raw lesson content.
 	 * @return string
 	 */
-	private static function build_user_message( $lesson_content ) {
+	private static function build_user_message( $lesson_content, $lesson_title = '' ) {
 		$template = <<<'HTML'
 <div class="lp-ai-lesson-template" style="max-width: 980px; margin: 0 auto;">
 
@@ -163,7 +181,7 @@ class Rest_Lxp_AI_Content {
 <section style="position: relative; margin-bottom: 24px; border-radius: 18px; overflow: hidden; min-height: 320px; background-image: linear-gradient(rgba(32, 22, 55, 0.55), rgba(32, 22, 55, 0.72)), url('https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=1200'); background-size: cover; background-position: center; box-shadow: 0 12px 28px rgba(0,0,0,.10);">
   <div style="padding: 42px 30px; display: flex; align-items: flex-end; min-height: 320px;">
     <div style="max-width: 720px; color: #ffffff;">
-      <p style="margin: 0 0 10px; display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 0.82rem; font-weight: bold; letter-spacing: .04em; text-transform: uppercase;">[PILL_LABEL]</p>
+      <p style="margin: 0 0 10px; display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 0.82rem; font-weight: bold; letter-spacing: .04em; text-transform: uppercase;">[Short Tagline]</p>
       <h2 style="margin: 0 0 12px; color: #ffffff;">[HERO_TITLE]</h2>
       <p style="margin: 0; font-size: 1.05rem; color: rgba(255,255,255,.95);">[HERO_SUBTITLE]</p>
     </div>
@@ -197,6 +215,7 @@ class Rest_Lxp_AI_Content {
       <li>[GOAL_1]</li>
       <li>[GOAL_2]</li>
       <li>[GOAL_3]</li>
+	  <li>[GOAL_N]</li>
     </ul>
   </div>
 </section>
@@ -215,6 +234,10 @@ class Rest_Lxp_AI_Content {
   <div class="has-white-background-color" style="padding: 24px; border: 1px solid rgba(68,46,102,.12); border-radius: 14px;">
     <h4 style="margin-top: 0;">3. [KEY_IDEA_3_TITLE]</h4>
     <p style="margin-bottom: 0;">[KEY_IDEA_3_BODY]</p>
+  </div>
+  <div class="has-white-background-color" style="padding: 24px; border: 1px solid rgba(68,46,102,.12); border-radius: 14px;">
+    <h4 style="margin-top: 0;">N. [KEY_IDEA_N_TITLE]</h4>
+    <p style="margin-bottom: 0;">[KEY_IDEA_N_BODY]</p>
   </div>
 </section>
 
@@ -240,7 +263,7 @@ class Rest_Lxp_AI_Content {
       <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,244,250,.96));">[ANSWER_A]</div>
       <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(248,246,252,.96), rgba(240,236,247,.98));">[ANSWER_B]</div>
       <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,244,250,.96));">[ANSWER_C]</div>
-      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(248,246,252,.96), rgba(240,236,247,.98));">[ANSWER_D]</div>
+      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(248,246,252,.96), rgba(240,236,247,.98));">[ANSWER_N]</div>
     </div>
     <div style="margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,245,203,.95), rgba(255,236,170,.92)); border-left: 5px solid var(--lp-primary-color, #ffb606);">
       <p style="margin: 0;"><strong>Correct answer:</strong> [CORRECT_ANSWER_EXPLANATION]</p>
@@ -251,7 +274,197 @@ class Rest_Lxp_AI_Content {
 </div>
 HTML;
 
-		return "Please transform this lesson text into the HTML template below.\n\n"
+		$title_line = ! empty( $lesson_title ) ? "LESSON TITLE: {$lesson_title}\n\n" : '';
+
+		return "Understand the following lesson content and transform it suitable for effective teaching, while calculating parameters appropriate for example estimated time to complete, key ideas, learning goals, and a quiz question.\n\n"
+			. "IMPORTANT: Transformed lesson content should not deviate from the original meaning and boundaries. The output must be a richly formatted HTML lesson page that strictly follows the structure and styles of the provided template. "
+			. "Transform newly generated lesson text into the HTML template below.\n\n"
+			. $title_line
+			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
+			. "TEMPLATE TO FILL IN:\n{$template}";
+	}
+
+	// -------------------------------------------------------------------------
+	// Workbook lesson type
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Detect whether the lesson should use the standard or workbook template.
+	 * Detection runs on the original pre-AI content and the lesson title.
+	 *
+	 * @param  int    $post_id         The lesson post ID.
+	 * @param  string $lesson_content  Sanitized pre-AI lesson content.
+	 * @return string 'workbook' | 'standard'
+	 */
+	private static function detect_lesson_type( $post_id, $lesson_content ) {
+		if (
+			false !== stripos( get_the_title( $post_id ), 'workbook' ) ||
+			false !== stripos( $lesson_content, 'Workbook Entry' )
+		) {
+			return 'workbook';
+		}
+		return 'standard';
+	}
+
+	/**
+	 * System-level instruction for workbook-type lessons.
+	 *
+	 * @param  string $lesson_title  The lesson title (anchors the Hero Header heading).
+	 * @return string
+	 */
+	private static function build_workbook_system_prompt( $lesson_title = '' ) {
+		$title_instruction = ! empty( $lesson_title )
+			? ' Use "' . $lesson_title . '" as the primary heading for the Hero Header section.'
+			: '';
+
+		return 'You are an expert Instructional Designer specialising in reflective workbook activities. '
+			. 'Transform the provided lesson content into a high-end HTML workbook activity page.' . $title_instruction . ' '
+			. 'CRITICAL: Output ONLY the raw HTML code — no markdown, no code fences, no explanation text. '
+			. 'The HTML must start with <div class="lp-ai-lesson-template"> and end with </div>. '
+			. 'Use the following nine sections exactly as structured in the template the user provides: '
+			. 'Hero Header, Activity Overview, Why This Matters, Reflection Prompt, Workbook Entry, Example, Important Note, Next Step, and Check for Understanding. '
+			. 'Preserve all inline styles verbatim. Use #442e66 for heading colours and #ffb606 for accent borders. '
+			. 'Keep CSS variable references exactly as written: var(--lp-primary-color, #ffb606) and var(--lp-secondary-color, #442e66). '
+			. 'Replace every [PLACEHOLDER] token with content tightly relevant to the original lesson topic. '
+			. 'CRITICAL: Every [Text Box] div MUST remain exactly as-is — do NOT replace it with text or any other content. '
+			. 'These are interactive form field sentinels that JavaScript converts to input fields at runtime. '
+			. 'Derive Workbook Entry field labels from the reflection questions in the original content. '
+			. 'Add or remove Workbook Entry field blocks to match the number of fields in the original.';
+	}
+
+	/**
+	 * Build the user-turn message for workbook-type lessons.
+	 *
+	 * @param  string $lesson_content  Sanitized pre-AI workbook lesson content.
+	 * @param  string $lesson_title    The lesson title.
+	 * @return string
+	 */
+	private static function build_workbook_user_message( $lesson_content, $lesson_title = '' ) {
+		$title_line = ! empty( $lesson_title ) ? "LESSON TITLE: {$lesson_title}\n\n" : '';
+
+		$template = <<<'HTML'
+<div class="lp-ai-lesson-template" style="max-width: 980px; margin: 0 auto;">
+
+<!-- Hero Header -->
+<section style="position: relative; margin-bottom: 24px; border-radius: 18px; overflow: hidden; min-height: 320px; background-image: linear-gradient(rgba(32, 22, 55, 0.55), rgba(32, 22, 55, 0.72)), url('https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=1200'); background-size: cover; background-position: center; box-shadow: 0 12px 28px rgba(0,0,0,.10);">
+  <div style="padding: 42px 30px; display: flex; align-items: flex-end; min-height: 320px;">
+    <div style="max-width: 740px; color: #ffffff;">
+      <p style="margin: 0 0 10px; display: inline-block; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 0.82rem; font-weight: bold; letter-spacing: .04em; text-transform: uppercase;">[Short Tagline]</p>
+      <h2 style="margin: 0 0 12px; color: #ffffff;">[WORKBOOK_HERO_TITLE]</h2>
+      <p style="margin: 0; font-size: 1.05rem; color: rgba(255,255,255,.95);">[WORKBOOK_HERO_SUBTITLE]</p>
+    </div>
+  </div>
+</section>
+
+<!-- Activity Overview -->
+<section class="has-very-light-gray-to-cyan-bluish-gray-gradient-background" style="padding: 24px; border-radius: 16px; margin-bottom: 24px;">
+  <h3 style="margin-top: 0; color: var(--lp-secondary-color, #442e66);">Activity Overview</h3>
+  <p>[ACTIVITY_OVERVIEW_INTRO]</p>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+    <tbody>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(68,46,102,.12); vertical-align: top;"><strong>Activity Type</strong><br>[ACTIVITY_TYPE]</td>
+        <td style="padding: 12px; border: 1px solid rgba(68,46,102,.12); vertical-align: top;"><strong>Estimated Time</strong><br>[ACTIVITY_ESTIMATED_TIME]</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(68,46,102,.12); vertical-align: top;"><strong>Focus</strong><br>[ACTIVITY_FOCUS]</td>
+        <td style="padding: 12px; border: 1px solid rgba(68,46,102,.12); vertical-align: top;"><strong>Outcome</strong><br>[ACTIVITY_OUTCOME]</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Why This Matters -->
+<section style="margin-bottom: 24px;">
+  <h3 style="color: var(--lp-secondary-color, #442e66);">Why This Matters</h3>
+  <div class="has-white-background-color" style="padding: 22px; border-left: 6px solid var(--lp-primary-color, #ffb606); border-radius: 12px; box-shadow: 0 4px 18px rgba(0,0,0,.04);">
+    <p style="margin-top: 0;"><strong>[WHY_MATTERS_HEADING]</strong></p>
+    <p style="margin-bottom: 0;">[WHY_MATTERS_BODY]</p>
+  </div>
+</section>
+
+<!-- Reflection Prompt -->
+<section style="margin-bottom: 24px;">
+  <h3 style="color: var(--lp-secondary-color, #442e66);">Reflection Prompt</h3>
+  <div class="has-white-background-color" style="padding: 24px; border: 1px solid rgba(68,46,102,.12); border-radius: 14px;">
+    <p style="margin-top: 0;">[REFLECTION_INTRO]</p>
+    <ul style="margin-bottom: 0;">
+      <li>[REFLECTION_BULLET_1]</li>
+      <li>[REFLECTION_BULLET_2]</li>
+      <li>[REFLECTION_BULLET_3]</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Workbook Entry -->
+<section style="margin-bottom: 24px;">
+  <h3 style="color: var(--lp-secondary-color, #442e66);">Workbook Entry</h3>
+  <div class="has-white-background-color" style="padding: 24px; border-radius: 14px; border: 1px solid rgba(68,46,102,.12);">
+    <div style="margin-bottom: 18px;">
+      <p style="margin: 0 0 8px;"><strong>[WORKBOOK_FIELD_1_LABEL]</strong></p>
+      <div style="min-height: 54px; border: 1px solid rgba(68,46,102,.18); border-radius: 12px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,244,250,.96)); padding: 14px 16px; color: #666666;">[Text Box]</div>
+    </div>
+    <div>
+      <p style="margin: 0 0 8px;"><strong>[WORKBOOK_FIELD_2_LABEL]</strong></p>
+      <div style="min-height: 54px; border: 1px solid rgba(68,46,102,.18); border-radius: 12px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,244,250,.96)); padding: 14px 16px; color: #666666;">[Text Box]</div>
+    </div>
+  </div>
+</section>
+
+<!-- Example -->
+<section style="margin-bottom: 24px;">
+  <h3 style="color: var(--lp-secondary-color, #442e66);">Example</h3>
+  <blockquote style="margin: 0; padding: 20px 22px; background: rgba(255,182,6,.12); border-left: 5px solid var(--lp-primary-color, #ffb606); border-radius: 12px;">
+    <p style="margin: 0 0 10px;"><strong>Scenario:</strong> [WORKBOOK_EXAMPLE_SCENARIO]</p>
+    <p style="margin: 0;"><strong>[WORKBOOK_EXAMPLE_KEY_LABEL]:</strong> [WORKBOOK_EXAMPLE_KEY_VALUE]</p>
+  </blockquote>
+</section>
+
+<!-- Important Note -->
+<section style="margin-bottom: 24px;">
+  <div style="padding: 22px; border-radius: 14px; background: var(--lp-secondary-color, #442e66); color: #ffffff;">
+    <h3 style="margin-top: 0; color: #ffffff;">Important Note</h3>
+    <p style="margin-bottom: 0;">[IMPORTANT_NOTE_BODY]</p>
+  </div>
+</section>
+
+<!-- Next Step -->
+<section class="has-white-background-color" style="padding: 24px; border: 1px solid rgba(68,46,102,.12); border-radius: 16px; margin-bottom: 28px;">
+  <h3 style="margin-top: 0; color: var(--lp-secondary-color, #442e66);">Next Step</h3>
+  <p style="margin-bottom: 0;">[NEXT_STEP_BODY]</p>
+</section>
+
+<!-- Check for Understanding -->
+<section class="has-white-background-color" style="margin-top: 0; padding: 0; border: 1px solid rgba(68,46,102,.12); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.05);">
+  <div style="padding: 20px 24px; border-bottom: 1px solid rgba(68,46,102,.10); background: linear-gradient(135deg, rgba(68,46,102,.96), rgba(44,30,80,.96)); border-radius: 16px 16px 0 0; color: #ffffff;">
+    <p style="display: inline-block; margin: 0 0 10px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 0.82rem; font-weight: bold; letter-spacing: .04em; text-transform: uppercase;">Check for Understanding</p>
+    <h3 style="margin: 0 0 8px; color: #ffffff;">Quick Knowledge Check</h3>
+    <p style="margin: 0; color: rgba(255,255,255,.92);">Choose the best answer based on this workbook activity.</p>
+  </div>
+  <div style="padding: 24px; background: linear-gradient(135deg, rgba(244,247,250,1), rgba(236,241,246,1));">
+    <p style="margin-top: 0; margin-bottom: 18px; color: #222222; font-size: 1.05rem;"><strong>[WORKBOOK_QUIZ_QUESTION]</strong></p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,244,250,.96));">[WORKBOOK_ANSWER_A]</div>
+      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(248,246,252,.96), rgba(240,236,247,.98));">[WORKBOOK_ANSWER_B]</div>
+      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,244,250,.96));">[WORKBOOK_ANSWER_C]</div>
+      <div style="padding: 12px 14px; border: 1px solid rgba(68,46,102,.16); border-radius: 14px; background: linear-gradient(180deg, rgba(248,246,252,.96), rgba(240,236,247,.98));">[WORKBOOK_ANSWER_D]</div>
+    </div>
+    <div style="margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,245,203,.95), rgba(255,236,170,.92)); border-left: 5px solid var(--lp-primary-color, #ffb606);">
+      <p style="margin: 0;"><strong>Correct answer:</strong> [WORKBOOK_CORRECT_ANSWER_EXPLANATION]</p>
+    </div>
+  </div>
+</section>
+
+</div>
+HTML;
+
+		return "Understand the following workbook lesson content and transform it into an interactive workbook activity page suitable for effective reflection and learning.\n\n"
+			. "IMPORTANT: The output must strictly follow the structure and styles of the provided template. "
+			. "Replace every [PLACEHOLDER] token with content tightly relevant to the original lesson topic. "
+			. "CRITICAL: Every [Text Box] div MUST remain exactly as written — do NOT replace it with any text or content. "
+			. "Derive Workbook Entry field labels from the reflection questions in the original content. "
+			. "Add or remove Workbook Entry field blocks to match the number of fields in the original.\n\n"
+			. $title_line
 			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
 			. "TEMPLATE TO FILL IN:\n{$template}";
 	}
