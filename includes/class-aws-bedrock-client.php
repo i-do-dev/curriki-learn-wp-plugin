@@ -17,20 +17,22 @@ class TL_AWS_Bedrock_Client {
 	const REGION = 'us-east-1';
 
 	/**
-	 * Primary model identifier — global inference profile for Claude Sonnet 4.6.
-	 * Claude 4.x models use a bare provider/name string with no date suffix or `:0`.
+	 * Primary model identifier — global cross-region inference profile for Claude Sonnet 4.6.
+	 * The "global." prefix instructs Bedrock to route the request across all available
+	 * commercial regions for maximum availability. Bare model IDs (without a prefix)
+	 * are restricted to provisioned throughput on Claude 4.x and will return a
+	 * ValidationException on on-demand calls.
 	 * Source: https://platform.claude.com/docs/en/docs/about-claude/models/all-models
 	 */
-	const MODEL_ID = 'anthropic.claude-sonnet-4-6';
+	const MODEL_ID = 'global.anthropic.claude-sonnet-4-6';
 
 	/**
-	 * Cross-region US inference profile for Claude Sonnet 4.6.
-	 * AWS dynamically routes requests across us-east-1 / us-east-2 / us-west-2 for
-	 * higher availability.  Some account or IAM configurations require this format
-	 * rather than the bare global model ID above.
-	 * Used automatically as a fallback when the primary ID is rejected.
+	 * US cross-region inference profile for Claude Sonnet 4.6.
+	 * Routes requests across us-east-1 / us-east-2 / us-west-2 only.
+	 * Used as an automatic fallback when the global profile is rejected,
+	 * e.g. on accounts or source regions that do not support the global profile.
 	 */
-	const MODEL_ID_CROSS_REGION = 'us.anthropic.claude-sonnet-4-6-v1:0';
+	const MODEL_ID_CROSS_REGION = 'us.anthropic.claude-sonnet-4-6';
 
 	/**
 	 * WordPress option key that persists whichever model ID was confirmed to work
@@ -198,10 +200,20 @@ class TL_AWS_Bedrock_Client {
 					return new WP_Error( 'bedrock_model_not_found', $message );
 
 				case 'ValidationException':
-					// Distinguish "invalid model identifier" from other validation errors.
-					// The former is retryable with a different model ID format; the latter
-					// indicates a malformed request payload and is not retryable.
-					if ( false !== stripos( $aws_msg, 'model identifier' ) ) {
+					// Distinguish model-ID related errors (retryable with a different model ID
+					// format) from generic payload validation errors (not retryable).
+					//
+					// AWS returns at least two distinct messages that both require switching
+					// to a cross-region inference profile:
+					//   (a) "The provided model identifier is invalid."
+					//   (b) "Invocation of model ID ... with on-demand throughput isn't
+					//        supported. Retry your request with the ID or ARN of an
+					//        inference profile that contains this model."
+					$is_model_id_error = false !== stripos( $aws_msg, 'model identifier' )
+						|| false !== stripos( $aws_msg, 'on-demand throughput' )
+						|| false !== stripos( $aws_msg, 'inference profile' );
+
+					if ( $is_model_id_error ) {
 						$message = 'The Bedrock model identifier "' . $model_id . '" is invalid '
 							. 'or not accessible in region "' . self::REGION . '". '
 							. 'Valid formats for Claude Sonnet 4.6 are: '
