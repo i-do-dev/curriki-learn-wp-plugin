@@ -420,7 +420,11 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         success: function (response) {
           var html = response && response.content ? response.content : '';
           tinyLxpSetEditorContent(html);
-          tinyLxpSetAiStatus('Content generated. Review and click \u201cUpdate\u201d to save.', false);
+          var statusMsg = 'Content generated. Review and click \u201cUpdate\u201d to save.';
+          if (response && response.template_id) {
+            statusMsg += ' (Template ' + response.template_id + ' applied)';
+          }
+          tinyLxpSetAiStatus(statusMsg, false);
         },
         error: function (xhr) {
           var msg = 'Generation failed.';

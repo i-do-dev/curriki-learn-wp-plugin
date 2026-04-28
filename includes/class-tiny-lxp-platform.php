@@ -232,6 +232,7 @@ class Tiny_LXP_Platform
 
         $this->loader->add_action('parse_request', $plugin_public, 'parse_request');
         $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_workbook_scripts');
+        $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_capstone_scripts');
 		$this->loader->add_filter('post_row_actions', $course_extension, 'modify_list_row_actions', 10, 2);
         $this->loader->add_action('wp_enqueue_scripts', $course_extension, 'enqueue_student_course_styles');
         $this->loader->add_action('add_meta_boxes', $course_extension, 'add_meta_boxes');

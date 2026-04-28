@@ -788,4 +788,38 @@ class Tiny_LXP_Platform_Public
         );
     }
 
+    public function enqueue_capstone_scripts() {
+        if ( ! is_singular( 'lp_lesson' ) ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'lxp-capstone',
+            plugin_dir_url( __FILE__ ) . 'js/lxp-capstone.js',
+            array(),
+            '1.0.0',
+            true
+        );
+
+        $lesson_id = get_the_ID();
+        $course_id = 0;
+        if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
+            $course = learn_press_get_course_by_lesson( $lesson_id );
+            if ( $course ) {
+                $course_id = $course->get_id();
+            }
+        }
+
+        wp_localize_script(
+            'lxp-capstone',
+            'lxp_capstone_vars',
+            array(
+                'rest_url'  => esc_url_raw( rest_url( 'lms/v1/' ) ),
+                'nonce'     => wp_create_nonce( 'wp_rest' ),
+                'lesson_id' => absint( $lesson_id ),
+                'course_id' => absint( $course_id ),
+            )
+        );
+    }
+
 }

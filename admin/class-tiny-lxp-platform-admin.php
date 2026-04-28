@@ -326,6 +326,15 @@ class Tiny_LXP_Platform_Admin
             array( $this, 'workbook_submissions_page' )
         );
 
+        add_submenu_page(
+            'curriki-learn',
+            __( 'Capstone Submissions', 'tiny-lxp-platform' ),
+            __( 'Capstone Submissions', 'tiny-lxp-platform' ),
+            'manage_options',
+            'curriki-learn-capstone-submissions',
+            array( $this, 'capstone_submissions_page' )
+        );
+
         // Remove the auto-created duplicate top-level submenu item.
         remove_submenu_page( 'curriki-learn', 'curriki-learn' );
     }
@@ -371,6 +380,48 @@ class Tiny_LXP_Platform_Admin
         $list_table->prepare_items();
 
         include plugin_dir_path( __FILE__ ) . 'partials/workbook-submissions-admin.php';
+    }
+
+    /**
+     * Render the Capstone Submissions admin page (list or detail view).
+     */
+    public function capstone_submissions_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'tiny-lxp-platform' ) );
+        }
+
+        $view = isset( $_GET['view'] ) ? sanitize_key( $_GET['view'] ) : 'list';
+
+        if ( 'detail' === $view ) {
+            $id = absint( isset( $_GET['id'] ) ? $_GET['id'] : 0 );
+
+            require_once plugin_dir_path( __FILE__ ) . '../lms/repositories/class-capstone-submission-repository.php';
+            $repo       = new TL_Capstone_Submission_Repository();
+            $submission = $id > 0 ? $repo->get_by_id( $id ) : null;
+
+            if ( $submission ) {
+                $user           = get_userdata( (int) $submission->user_id );
+                $submission->display_name = $user ? $user->display_name : '';
+                $submission->user_email   = $user ? $user->user_email   : '';
+                $lesson_post              = get_post( (int) $submission->lesson_id );
+                $course_post              = get_post( (int) $submission->course_id );
+                $submission->lesson_title = $lesson_post ? $lesson_post->post_title : '';
+                $submission->course_title = $course_post ? $course_post->post_title : '';
+            }
+
+            include plugin_dir_path( __FILE__ ) . 'partials/capstone-submission-detail-admin.php';
+            return;
+        }
+
+        // List view.
+        require_once plugin_dir_path( __FILE__ ) . '../lms/repositories/class-capstone-submission-repository.php';
+        require_once plugin_dir_path( __FILE__ ) . 'class-capstone-submission-list-table.php';
+
+        $repo       = new TL_Capstone_Submission_Repository();
+        $list_table = new TL_Capstone_Submission_List_Table( $repo );
+        $list_table->prepare_items();
+
+        include plugin_dir_path( __FILE__ ) . 'partials/capstone-submissions-admin.php';
     }
 
     public function network_options_page()
