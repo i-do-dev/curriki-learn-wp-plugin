@@ -191,7 +191,7 @@ Designed for Elementor Theme Builder **single `lp_lesson` templates**. LP4 lesso
 
 ### Overview
 
-The AI Content Gen feature allows lesson authors to transform raw lesson text into a richly structured HTML page using AWS Bedrock (Claude model). It is surfaced as an "AI Content Gen" metabox on the `lp_lesson` admin edit screen. Two lesson types are supported: **standard** (6-section lesson page) and **workbook** (9-section interactive workbook activity). The type is auto-detected from the lesson title and original content.
+The AI Content Gen feature allows lesson authors to transform raw lesson text into a richly structured HTML page using AWS Bedrock (Claude model). It is surfaced as an "AI Content Gen" metabox on the `lp_lesson` admin edit screen. Two lesson types are supported: **standard** (two-pass classify+generate against one of 15 structural templates) and **workbook** (9-section interactive workbook activity). The type is auto-detected from the lesson title and original content.
 
 ### Files
 
@@ -207,13 +207,13 @@ The AI Content Gen feature allows lesson authors to transform raw lesson text in
 
 | Method | Route | Callback | Purpose |
 |---|---|---|---|
-| `POST` | `/wp-json/lms/v1/lesson/ai-content` | `Rest_Lxp_AI_Content::generate_lesson_content()` | Sends lesson content to Bedrock; auto-detects lesson type; backs up original on first call; returns AI HTML + `lesson_type` |
+| `POST` | `/wp-json/lms/v1/lesson/ai-content` | `Rest_Lxp_AI_Content::generate_lesson_content()` | Sends lesson content to Bedrock; auto-detects lesson type; backs up original on first call; returns AI HTML + `lesson_type` (+ `template_id` for standard) |
 | `GET` | `/wp-json/lms/v1/lesson/original-content` | `Rest_Lxp_AI_Content::get_original_content()` | Returns the pre-generation backup stored in `lxp_lesson_original_content` meta |
 
 **Request params** (`POST`): `post_id` (int), `lesson_content` (string — current editor content).  
 **Request params** (`GET`): `post_id` (int).  
 Both callbacks enforce `current_user_can('edit_post', $post_id)`.  
-**Response** (`POST`) includes `content` (HTML string) and `lesson_type` (`'standard'` or `'workbook'`).
+**Response** (`POST`) includes `content` (HTML string), `lesson_type` (`'standard'` or `'workbook'`), and — for standard lessons only — `template_id` (`'01'`–`'15'`). The admin JS displays `"(Template XX applied)"` in the status message when `template_id` is present.
 
 ### `TL_AWS_Bedrock_Client`
 
@@ -238,15 +238,37 @@ The generation uses a **split system/user prompt** and auto-detects the lesson t
 - Otherwise returns `'standard'`.
 - Detection always runs on the **original (pre-AI) content** passed in the request — not on previously-generated HTML.
 
-**Standard lesson** (default):
-- **System prompt** (`build_system_prompt($lesson_title='')`): Instructs Claude to produce a 6-section HTML lesson page; anchors the Hero Header to the lesson title if provided.
-- **User message** (`build_user_message($lesson_content, $lesson_title='')`): Contains `LESSON TITLE: …` prefix, the original content, and a 6-section HTML template with `[PLACEHOLDER]` tokens:
-  1. Hero Header
-  2. Lesson Overview (with metadata table)
-  3. Learning Goals
-  4. Key Ideas (three cards)
-  5. Classroom Example
-  6. Check for Understanding (multiple-choice quiz)
+**Standard lesson — two-pass flow**:
+- **Pass 1 — Template classification** (`classify_template($lesson_title, $lesson_content)`):
+  - Sends lesson title + content + the 15-entry `$template_manifest` to Bedrock with a tightly constrained system prompt.
+  - Bedrock returns a two-digit ID (`'01'`–`'15'`). Falls back to `'01'` on error or invalid response.
+  - The manifest is structural (not subject-specific): each entry describes the HTML layout pattern for that template.
+- **Pass 2 — Content generation** (`get_template($id)` → `build_template_system_prompt()` → `build_template_user_message()`):
+  - `get_template()` returns the full HTML template heredoc for the classified ID via a switch statement calling `_tpl_01()` through `_tpl_15()`.
+  - Every template shares the same shell: **Hero Header → Learning Outcomes → Opening Hook → template-specific core sections → Capstone Activity**.
+  - Shared helper methods: `hero_html()`, `meta_table_html()` (now returns Learning Outcomes + Opening Hook), `capstone_html()`, `quiz_html()` (retired — returns `''`).
+  - **No quiz or "Check for Understanding" section** appears in standard templates — the lessons end with the Capstone Activity only.
+  - `build_template_system_prompt()` instructs Claude to: fill `[OUTCOME_1]`–`[OUTCOME_4]` with actionable outcomes, fill `[OPENING_HOOK_STATEMENT]` with a framing statement, preserve `[Capstone Box]` exactly, and **never add a quiz section**.
+
+**15-template manifest** (structural patterns — topic-agnostic):
+
+| ID | Structural Description |
+|---|---|
+| 01 | Stats/evidence grid + numbered consequence cards + myth-vs-reality two-column |
+| 02 | Goal-alignment cards + strategy-to-mission mapping |
+| 03 | Role-split two-column + opportunity/boundary table |
+| 04 | Compliance rule cards + do/never list + violation/risk two-column |
+| 05 | Criteria-based evaluation grid + tier/access decision cards |
+| 06 | Adoption-stats block + supportive/problematic contrast + gap warning dark block |
+| 07 | Failure-reason icon grid + alert block + alternatives row |
+| 08 | Curated option cards + access/tier grid |
+| 09 | Audience-split cards + domain grid + stability/flexibility dark block |
+| 10 | Three-tier framework cards + implementation icon cards + goal-matching |
+| 11 | Standards-definition block + proper/improper conduct comparison |
+| 12 | Cognitive-framing card + augments/bypasses contrast + visible-thinking row |
+| 13 | Audience-specific message cards + communication-channel grid |
+| 14 | Bridge-mapping grid + alignment checklist |
+| 15 | Numbered component grid + writing-guidelines dark block + living-document cycle |
 
 **Workbook lesson**:
 - **System prompt** (`build_workbook_system_prompt($lesson_title='')`): Instructs Claude to produce a 9-section interactive workbook page; mandates that every `[Text Box]` sentinel div is preserved verbatim.
@@ -291,11 +313,90 @@ require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
 
 - To change the model: update `TL_AWS_Bedrock_Client::MODEL_ID`. The model must be enabled in the AWS account's Bedrock Model Access settings.
 - To change the region: update `TL_AWS_Bedrock_Client::REGION`.
-- To change the standard lesson template: edit `Rest_Lxp_AI_Content::build_user_message()`. The `<<<'HTML'` heredoc holds the full template.
+- To change a standard template's core sections: edit the corresponding `_tpl_01()` through `_tpl_15()` private method in `Rest_Lxp_AI_Content`. Each template's shell (Learning Outcomes + Opening Hook + Capstone) is shared via helper methods.
+- To change the shared Learning Outcomes + Opening Hook sections: edit `Rest_Lxp_AI_Content::meta_table_html()` (the method was repurposed; the name is legacy).
+- To change the Capstone Activity section: edit `Rest_Lxp_AI_Content::capstone_html()`.
+- To add a new standard template (16th, etc.): add a new `_tpl_16()` method, add a case to `get_template()`, and add an entry to `$template_manifest`.
+- To change the template system prompt: edit `Rest_Lxp_AI_Content::build_template_system_prompt()`. The no-quiz rule and LO requirement are enforced here.
+- To change the template user message: edit `Rest_Lxp_AI_Content::build_template_user_message()`.
 - To change the workbook template: edit `Rest_Lxp_AI_Content::build_workbook_user_message()`. The `<<<'HTML'` heredoc holds the 9-section workbook template.
-- To change the system-level behaviour instructions: edit `Rest_Lxp_AI_Content::build_system_prompt()` (standard) or `build_workbook_system_prompt()` (workbook).
+- To change workbook system-level behaviour: edit `Rest_Lxp_AI_Content::build_workbook_system_prompt()`.
 - To change the lesson type detection logic: edit `Rest_Lxp_AI_Content::detect_lesson_type()`.
 - To adjust token budget or temperature: edit the `inferenceConfig` array in `TL_AWS_Bedrock_Client::invoke_bedrock()`.
+
+---
+
+## Capstone Submissions
+
+### Overview
+
+Capstone submissions persist a student's written response to the `[Capstone Box]` field in any AI-generated standard lesson. One row per (student, lesson) pair — resubmission is an upsert. Storage uses a **custom DB table** created on plugin activation.
+
+### Files
+
+| File | Class | Role |
+|---|---|---|
+| [lms/repositories/class-capstone-submission-repository.php](lms/repositories/class-capstone-submission-repository.php) | `TL_Capstone_Submission_Repository` | All DB access for the `{prefix}lxp_capstone_submissions` table |
+| [lms/lms-rest-apis/capstone-submissions.php](lms/lms-rest-apis/capstone-submissions.php) | `Rest_Lxp_Capstone_Submission` | REST endpoints — upsert and fetch submission |
+| [public/js/lxp-capstone.js](public/js/lxp-capstone.js) | — | Frontend: converts `[Capstone Box]` sentinel to `<textarea>`, pre-fills, Save button |
+| [public/class-tiny-lxp-platform-public.php](public/class-tiny-lxp-platform-public.php) | `Tiny_LXP_Platform_Public` | `enqueue_capstone_scripts()` — enqueues JS on `lp_lesson` pages |
+| [admin/class-capstone-submission-list-table.php](admin/class-capstone-submission-list-table.php) | `TL_Capstone_Submission_List_Table` | Admin list table with course/lesson/user filters |
+| [admin/partials/capstone-submissions-admin.php](admin/partials/capstone-submissions-admin.php) | — | Admin list page partial |
+| [admin/partials/capstone-submission-detail-admin.php](admin/partials/capstone-submission-detail-admin.php) | — | Admin detail view partial |
+| [lms/templates/tinyLxpTheme/page-capstone-journal.php](lms/templates/tinyLxpTheme/page-capstone-journal.php) | — | Student-facing Capstone Journal page |
+
+### Database Table
+
+Table: `{prefix}lxp_capstone_submissions`  
+Created by `on_activate()` in `TinyLxp-wp-plugin.php`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint unsigned AUTO_INCREMENT` | Primary key |
+| `lesson_id` | `bigint unsigned NOT NULL` | `lp_lesson` post ID |
+| `course_id` | `bigint unsigned NOT NULL` | Parent `lp_course` post ID |
+| `user_id` | `bigint unsigned NOT NULL` | WordPress user ID |
+| `response` | `longtext NOT NULL` | Student's written capstone response |
+| `submitted_at` | `datetime NOT NULL` | Set on first insert |
+| `updated_at` | `datetime NOT NULL` | Updated on every upsert |
+
+Indexes: `UNIQUE KEY lesson_user (lesson_id, user_id)`, `KEY course_id`, `KEY user_id`.
+
+### REST Endpoints
+
+| Method | Route | Callback | Auth | Purpose |
+|---|---|---|---|---|
+| `POST` | `/wp-json/lms/v1/capstone/submission` | `Rest_Lxp_Capstone_Submission::upsert_submission()` | `is_user_logged_in()` | Save/update capstone response |
+| `GET` | `/wp-json/lms/v1/capstone/submission` | `Rest_Lxp_Capstone_Submission::get_submission()` | `is_user_logged_in()` | Fetch current user's response |
+| `GET` | `/wp-json/lms/v1/capstone/journal` | `Rest_Lxp_Capstone_Submission::get_journal()` | `is_user_logged_in()` | Fetch all capstone submissions for the current user |
+
+**POST params**: `lesson_id` (int), `course_id` (int), `response` (string).  
+**GET params**: `lesson_id` (int) for `/submission`; none for `/journal`.  
+All return 401 if the user is not logged in.
+
+### Frontend JS (`lxp-capstone.js`)
+
+Enqueued on every `lp_lesson` singular page via `Tiny_LXP_Platform_Public::enqueue_capstone_scripts()`.  
+Localised as `lxp_capstone_vars`: `{ rest_url, nonce, lesson_id, course_id }`.
+
+1. Finds the Capstone Activity section inside `.lp-ai-lesson-template` by looking for its heading.
+2. Replaces every `[Capstone Box]` sentinel div with a `<textarea>`.
+3. On load: GETs `/capstone/submission?lesson_id=N` and pre-fills any saved response.
+4. Injects a Save button at the bottom of the capstone section.
+5. On Save: POSTs `{ lesson_id, course_id, response }` to `/capstone/submission`.
+
+### `[Capstone Box]` sentinel pattern
+
+The Capstone Activity section in AI-generated HTML contains `[Capstone Box]` as plain text inside a styled `<div>`. WP kses strips `<textarea>` from post content, so the sentinel is used instead. The frontend JS converts it to an interactive `<textarea>` at runtime. Never store `<textarea>` or `<input>` in post content.
+
+### Admin Menu
+
+| Menu | Slug | Position |
+|---|---|---|
+| Curriki Learn (top-level) | `curriki-learn` | 30 |
+| Capstone Submissions (submenu) | `curriki-learn-capstone-submissions` | under Curriki Learn |
+
+`capstone_submissions_page()` branches on `$_GET['view']`: `'detail'` shows a single submission; default shows the filterable list.
 
 ---
 
@@ -375,6 +476,7 @@ Registered by `Tiny_LXP_Platform_Admin::register_curriki_learn_menu()`, hooked t
 |---|---|---|
 | LXP Dashboard | `../dashboard` | Top-level WP menu (position 25) |
 | Curriki Learn | `curriki-learn` | Top-level WP menu (position 30) |
+| Capstone Submissions | `curriki-learn-capstone-submissions` | Under Curriki Learn |
 | Workbook Submissions | `curriki-learn-workbook-submissions` | Under Curriki Learn |
 | Edlink Settings | `edlink_options` | Top-level WP menu |
 | Tiny LXP Tools (LTI tool list) | `lti-platform` | Settings submenu |
@@ -395,13 +497,14 @@ Use this sequence before editing:
 2. For CPT behavior: open the matching `lms/class-{entity}-post-type.php` and its parent `lms/class-abstract-tl-post-type.php`. For `lp_course`/`lp_lesson`, inspect `lms/class-learnpress-course-extension.php` and `lms/class-learnpress-lesson-extension.php`.
 3. For repository-backed data access: inspect `lms/repositories/` (`class-grades-repository.php`, `class-trek-event-repository.php`, `class-learnpress-section-repository.php`, `class-lti-metadata-repository.php`) and prefer these over adding inline SQL in REST handlers.
 4. For REST endpoints: open `lms/lms-rest-apis/{entity}.php` and trace registration in `LMS_REST_API::init()`.
-5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes + lesson type detection) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
-6. For workbook submissions: `lms/repositories/class-workbook-submission-repository.php` (DB) → `lms/lms-rest-apis/workbook-submissions.php` (REST) → `public/js/lxp-workbook.js` (frontend) → `admin/class-workbook-submission-list-table.php` + `admin/partials/workbook-submission*.php` (admin UI).
-7. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
-8. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
-9. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
-10. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
-11. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
+5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes + two-pass classifier + 15 templates + lesson type detection) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
+6. For capstone submissions: `lms/repositories/class-capstone-submission-repository.php` (DB) → `lms/lms-rest-apis/capstone-submissions.php` (REST) → `public/js/lxp-capstone.js` (frontend) → `admin/class-capstone-submission-list-table.php` + `admin/partials/capstone-submission*.php` (admin UI) → `lms/templates/tinyLxpTheme/page-capstone-journal.php` (student journal page).
+7. For workbook submissions: `lms/repositories/class-workbook-submission-repository.php` (DB) → `lms/lms-rest-apis/workbook-submissions.php` (REST) → `public/js/lxp-workbook.js` (frontend) → `admin/class-workbook-submission-list-table.php` + `admin/partials/workbook-submission*.php` (admin UI).
+8. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
+9. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
+10. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
+11. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
+12. For hook registration: `includes/class-tiny-lxp-platform.php::define_admin_hooks()` / `define_public_hooks()` → `includes/class-tiny-lxp-platform-loader.php::run()`.
 
 **Search strategy**:
 - Use semantic search for concept-level discovery (e.g., "student grade assignment REST").
@@ -550,6 +653,10 @@ When changing external service hosts, update constants in [lms/xapi-constants.ph
 15. **`[Text Box]` sentinel in workbook HTML**: Workbook Entry field blocks in the generated HTML contain `[Text Box]` as plain text inside a styled `<div>`. This is intentional — WP kses would strip `<textarea>` from post content. The frontend JS converts sentinels to interactive `<textarea>` elements at runtime. Never replace sentinels with actual form elements in the PHP template.
 16. **Workbook DB table not created by `dbDelta()`**: The `lxp_workbook_submissions` table is created with a raw `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` call in `on_activate()`, matching the existing `tiny_lms_grades` pattern. Re-trigger creation by deactivating and reactivating the plugin.
 17. **Workbook admin page is in `admin/` not `lms/`**: `TL_Workbook_Submission_List_Table` lives in `admin/class-workbook-submission-list-table.php`; the repository it depends on lives in `lms/repositories/`. The admin page callback does its own `require_once` of both files so they are not double-loaded on every request.
+18. **AI standard templates have no quiz**: Standard (15-template) AI lessons end with a Capstone Activity only. `quiz_html()` is retired and returns `''`. Never add a "Check for Understanding" quiz to standard templates — the no-quiz rule is enforced in `build_template_system_prompt()`.
+19. **`[Capstone Box]` sentinel in standard templates**: Capstone Activity sections contain `[Capstone Box]` as plain text inside a styled `<div>` — never replace it with form elements in PHP. `lxp-capstone.js` converts it to a `<textarea>` at runtime. Same pattern as `[Text Box]` sentinels in workbook templates.
+20. **`meta_table_html()` method name is legacy**: This shared helper was originally the Lesson Overview metadata table. It was repurposed to return Learning Outcomes + Opening Hook sections. Do not re-add Lesson Overview metadata table logic here without updating all 15 template functions.
+21. **Capstone DB table follows workbook pattern**: `lxp_capstone_submissions` is created with `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` in `on_activate()`. Re-trigger creation by deactivating and reactivating the plugin. Schema: `(id, lesson_id, course_id, user_id, response, submitted_at, updated_at)` with `UNIQUE KEY lesson_user (lesson_id, user_id)`.
 
 ---
 

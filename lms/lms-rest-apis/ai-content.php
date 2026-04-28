@@ -441,23 +441,29 @@ HTML;
 HTML;
 	}
 
-	/** Reusable metadata table HTML chunk. */
+	/**
+	 * Learning Outcomes + Opening Hook sections.
+	 * Inserted immediately after the hero header in every standard template.
+	 * Replaces the old "Lesson Overview" metadata table.
+	 */
 	private static function meta_table_html() {
 		return <<<'HTML'
-<!-- Overview -->
-<section style="padding:22px;border-radius:14px;background:rgba(68,46,102,.04);border:1px solid rgba(68,46,102,.1);margin-bottom:22px;">
-  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);">Lesson Overview</h3>
-  <p style="margin-bottom:14px;">[OVERVIEW_PARAGRAPH]</p>
-  <table style="width:100%;border-collapse:collapse;">
-    <tr>
-      <td style="padding:10px 12px;border:1px solid rgba(68,46,102,.12);"><strong>Audience</strong><br>[AUDIENCE]</td>
-      <td style="padding:10px 12px;border:1px solid rgba(68,46,102,.12);"><strong>Estimated Time</strong><br>[ESTIMATED_TIME]</td>
-    </tr>
-    <tr>
-      <td style="padding:10px 12px;border:1px solid rgba(68,46,102,.12);"><strong>Focus</strong><br>[LESSON_FOCUS]</td>
-      <td style="padding:10px 12px;border:1px solid rgba(68,46,102,.12);"><strong>Takeaway</strong><br>[TAKEAWAY]</td>
-    </tr>
-  </table>
+<!-- Learning Outcomes -->
+<section style="margin-bottom:22px;padding:22px;border-left:6px solid var(--lp-primary-color,#ffb606);background:rgba(255,182,6,.06);border-radius:0 14px 14px 0;">
+  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);text-transform:uppercase;letter-spacing:.04em;font-size:.9rem;">Learning Outcomes</h3>
+  <p style="margin-top:0;margin-bottom:12px;">By the end of this lesson, you will be able to:</p>
+  <ul style="margin:0;padding-left:20px;">
+    <li style="margin-bottom:8px;">[OUTCOME_1]</li>
+    <li style="margin-bottom:8px;">[OUTCOME_2]</li>
+    <li style="margin-bottom:8px;">[OUTCOME_3]</li>
+    <li style="margin-bottom:0;">[OUTCOME_4]</li>
+  </ul>
+</section>
+<!-- Opening Hook -->
+<section style="margin-bottom:22px;">
+  <blockquote style="margin:0;padding:22px 26px;background:rgba(68,46,102,.04);border-left:5px solid var(--lp-primary-color,#ffb606);border-radius:0 14px 14px 0;">
+    <p style="margin:0;font-size:1.08rem;line-height:1.7;color:#333;">[OPENING_HOOK_STATEMENT]</p>
+  </blockquote>
 </section>
 HTML;
 	}
@@ -480,30 +486,15 @@ HTML;
 HTML;
 	}
 
-	/** Reusable quiz section HTML chunk. */
+	/**
+	 * Quiz / "Check for Understanding" section — retired.
+	 * Standard templates no longer include a quiz; the ai-lessons source pattern
+	 * ends with the Capstone Activity only.
+	 *
+	 * @return string  Always empty.
+	 */
 	private static function quiz_html() {
-		return <<<'HTML'
-<!-- Check for Understanding -->
-<section style="margin-top:22px;border:1px solid rgba(68,46,102,.12);border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.05);">
-  <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(68,46,102,.96),rgba(44,30,80,.96));color:#fff;">
-    <p style="display:inline-block;margin:0 0 8px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.14);font-size:0.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;">Check for Understanding</p>
-    <h3 style="margin:0 0 6px;color:#fff;">Quick Knowledge Check</h3>
-    <p style="margin:0;color:rgba(255,255,255,.88);">Choose the best answer based on the lesson.</p>
-  </div>
-  <div style="padding:22px 24px;background:linear-gradient(135deg,rgba(244,247,250,1),rgba(236,241,246,1));">
-    <p style="margin:0 0 16px;color:#222;font-size:1.05rem;"><strong>[QUIZ_QUESTION]</strong></p>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
-      <div style="padding:12px 14px;border:1px solid rgba(68,46,102,.16);border-radius:12px;background:#fff;">[ANSWER_A]</div>
-      <div style="padding:12px 14px;border:1px solid rgba(68,46,102,.16);border-radius:12px;background:rgba(248,246,252,.96);">[ANSWER_B]</div>
-      <div style="padding:12px 14px;border:1px solid rgba(68,46,102,.16);border-radius:12px;background:#fff;">[ANSWER_C]</div>
-      <div style="padding:12px 14px;border:1px solid rgba(68,46,102,.16);border-radius:12px;background:rgba(248,246,252,.96);">[ANSWER_D]</div>
-    </div>
-    <div style="margin-top:16px;padding:12px 16px;border-radius:10px;background:rgba(255,245,203,.95);border-left:5px solid var(--lp-primary-color,#ffb606);">
-      <p style="margin:0;"><strong>Correct answer:</strong> [CORRECT_ANSWER_EXPLANATION]</p>
-    </div>
-  </div>
-</section>
-HTML;
+		return '';
 	}
 
 	// ---------------------------------------------------------------------------------
@@ -1480,17 +1471,20 @@ HTML;
 			: '';
 
 		return 'You are an expert Instructional Designer.' . $title_instruction . ' '
-			. 'You will receive a lesson content and an HTML template. Transform the lesson content into the template. '
+			. 'You will receive lesson content and an HTML template. Transform the lesson content into the template. '
 			. 'CRITICAL: Output ONLY the raw HTML code — no markdown, no code fences, no explanation. '
 			. 'The HTML must start exactly with <div class="lp-ai-lesson-template"> and end with </div>. '
 			. 'Replace every [PLACEHOLDER] token with content tightly relevant to the original lesson topic. '
 			. 'Preserve ALL inline styles exactly as written — do not add, remove or alter any style attributes. '
 			. 'Keep CSS variable references exactly as written: var(--lp-primary-color, #ffb606) and var(--lp-secondary-color, #442e66). '
-			. 'CRITICAL: Preserve the [Capstone Box] sentinel exactly as written inside its <div> — do NOT replace it with any text. '
+			. 'REQUIRED: Replace [OUTCOME_1] through [OUTCOME_4] in the Learning Outcomes section with 3-4 specific, actionable outcomes derived from the lesson content. '
+			. 'REQUIRED: Replace [OPENING_HOOK_STATEMENT] with a compelling, context-setting statement drawn directly from the lesson topic. '
+			. 'CRITICAL: Preserve the [Capstone Box] sentinel exactly as written inside its <div> — do NOT replace it with any text or form element. '
+			. 'FORBIDDEN: Do NOT add any "Check for Understanding", quiz, or multiple-choice question section. '
 			. 'Do NOT add Tailwind classes, Font Awesome, or any external CSS/JS references. '
 			. 'READING TIME CONSTRAINT: Total reading time MUST NOT exceed 15 minutes. '
-			. 'Calibrate depth and number of items per section based on the complexity of the original content. '
-			. 'Set [ESTIMATED_TIME] accordingly (e.g. "8 min" — never more than "15 min").';
+			. 'Calibrate depth and number of items per section based on the complexity of the original content — simpler topics should produce shorter output. '
+			. 'Set any time-related placeholder token accordingly (e.g. "8 min" — never more than "15 min").';
 	}
 
 	/**
@@ -1506,6 +1500,8 @@ HTML;
 		return "Transform the following lesson content into the provided HTML template. "
 			. "Replace every [PLACEHOLDER] token with content derived from the original lesson. "
 			. "Do not alter any HTML structure, inline styles, or CSS variable names. "
+			. "Fill [OUTCOME_1] through [OUTCOME_4] with specific, actionable learning outcomes from the lesson. "
+			. "Fill [OPENING_HOOK_STATEMENT] with a compelling framing statement relevant to the lesson topic. "
 			. "Preserve the [Capstone Box] sentinel exactly as-is inside its parent <div>.\n\n"
 			. $title_line
 			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
