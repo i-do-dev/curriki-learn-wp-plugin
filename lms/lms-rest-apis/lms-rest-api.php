@@ -4,6 +4,8 @@ require_once( LMS__PLUGIN_DIR . '../includes/class-aws-bedrock-client.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
 require_once( LMS__PLUGIN_DIR . 'repositories/class-workbook-submission-repository.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/workbook-submissions.php' );
+require_once( LMS__PLUGIN_DIR . 'repositories/class-capstone-submission-repository.php' );
+require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/capstone-submissions.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/districts.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/teachers.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/students.php' );
@@ -73,6 +75,7 @@ class LMS_REST_API
 		Rest_Lxp_Edlink_API::init();
 		Rest_Lxp_AI_Content::init();
 		Rest_Lxp_Workbook_Submission::init();
+		Rest_Lxp_Capstone_Submission::init();
 
 		register_rest_route('lms/v1', '/scores', array(
 			array(

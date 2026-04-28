@@ -85,6 +85,8 @@ function tinyLxp_page_templates($template) {
             $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-edlink-integration.php';
         } elseif (is_page('learner-courses')) {
             $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-learner-courses.php';
+        } elseif (is_page('capstone-journal')) {
+            $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-capstone-journal.php';
         }
     }
     // $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/single-tl_course.php';
