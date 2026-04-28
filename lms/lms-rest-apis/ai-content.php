@@ -164,7 +164,11 @@ class Rest_Lxp_AI_Content {
 			. 'Hero Header, Lesson Overview, Learning Goals, Key Ideas, Classroom Example, and Check for Understanding. '
 			. 'Preserve all inline styles verbatim. Use #442e66 for heading colours and #ffb606 for accent borders. '
 			. 'Keep CSS variable references exactly as written: var(--lp-primary-color, #ffb606) and var(--lp-secondary-color, #442e66). '
-			. 'Replace every [PLACEHOLDER] with content that is tightly relevant to the original lesson topic.';
+			. 'Replace every [PLACEHOLDER] with content that is tightly relevant to the original lesson topic. '
+			. 'READING TIME CONSTRAINT: The total reading time of the generated lesson MUST NOT exceed 15 minutes. '
+			. 'Calibrate the depth and length of each section (number of goals, key ideas, example detail, quiz complexity) '
+			. 'based on the complexity and scope of the original content so that a learner can read and complete the lesson in 15 minutes or less. '
+			. 'Set the Estimated Time metadata field accordingly (e.g. "8 min", "12 min" — never more than "15 min").';
 	}
 
 	/**
@@ -278,6 +282,7 @@ HTML;
 
 		return "Understand the following lesson content and transform it suitable for effective teaching, while calculating parameters appropriate for example estimated time to complete, key ideas, learning goals, and a quiz question.\n\n"
 			. "IMPORTANT: Transformed lesson content should not deviate from the original meaning and boundaries. The output must be a richly formatted HTML lesson page that strictly follows the structure and styles of the provided template. "
+			. "READING TIME CONSTRAINT: The total reading time of the generated lesson MUST NOT exceed 15 minutes. Calibrate the number of bullet points, key ideas, and the depth of explanations based on the complexity of the original content — simpler topics should result in shorter output. "
 			. "Transform newly generated lesson text into the HTML template below.\n\n"
 			. $title_line
 			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
@@ -329,7 +334,11 @@ HTML;
 			. 'CRITICAL: Every [Text Box] div MUST remain exactly as-is — do NOT replace it with text or any other content. '
 			. 'These are interactive form field sentinels that JavaScript converts to input fields at runtime. '
 			. 'Derive Workbook Entry field labels from the reflection questions in the original content. '
-			. 'Add or remove Workbook Entry field blocks to match the number of fields in the original.';
+			. 'Add or remove Workbook Entry field blocks to match the number of fields in the original. '
+			. 'READING TIME CONSTRAINT: The total reading and completion time of the generated workbook MUST NOT exceed 15 minutes. '
+			. 'Calibrate the depth of each section (reflection bullets, workbook entry fields, example detail, quiz complexity) '
+			. 'based on the complexity and scope of the original content so a learner can finish the activity in 15 minutes or less. '
+			. 'Set the Estimated Time metadata field accordingly (e.g. "10 min" — never more than "15 min").';
 	}
 
 	/**
@@ -463,7 +472,8 @@ HTML;
 			. "Replace every [PLACEHOLDER] token with content tightly relevant to the original lesson topic. "
 			. "CRITICAL: Every [Text Box] div MUST remain exactly as written — do NOT replace it with any text or content. "
 			. "Derive Workbook Entry field labels from the reflection questions in the original content. "
-			. "Add or remove Workbook Entry field blocks to match the number of fields in the original.\n\n"
+			. "Add or remove Workbook Entry field blocks to match the number of fields in the original. "
+			. "READING TIME CONSTRAINT: The total reading and completion time MUST NOT exceed 15 minutes. Calibrate content depth and the number of workbook fields based on the complexity of the original — simpler topics should result in fewer fields and shorter explanations.\n\n"
 			. $title_line
 			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
 			. "TEMPLATE TO FILL IN:\n{$template}";
