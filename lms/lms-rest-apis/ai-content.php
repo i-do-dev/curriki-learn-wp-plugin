@@ -1358,7 +1358,7 @@ HTML;
 {$meta}
 <!-- Document Components -->
 <section style="margin-bottom:22px;">
-  <h3 style="color:var(--lp-secondary-color,#442e66);">[COMPONENTS_HEADING]</h3>
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[COMPONENTS_N_HEADING]</h3>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
     <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
       <div style="font-size:1.5rem;font-weight:800;color:var(--lp-primary-color,#ffb606);margin-bottom:6px;">01</div>
@@ -1387,8 +1387,8 @@ HTML;
     </div>
     <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
       <div style="font-size:1.5rem;font-weight:800;color:var(--lp-primary-color,#ffb606);margin-bottom:6px;">06</div>
-      <p style="margin:0 0 4px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[COMPONENT_6_TITLE]</p>
-      <p style="margin:0;font-size:0.85rem;color:#555;">[COMPONENT_6_DESC]</p>
+      <p style="margin:0 0 4px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[COMPONENT_N_TITLE]</p>
+      <p style="margin:0;font-size:0.85rem;color:#555;">[COMPONENT_N_DESC]</p>
     </div>
   </div>
 </section>
