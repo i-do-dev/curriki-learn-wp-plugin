@@ -806,15 +806,6 @@ class Tiny_LXP_Platform_Public
             true
         );
 
-        // Resolve the parent course ID for the current lesson.
-        $course_id = 0;
-        if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
-            $course = learn_press_get_course_by_lesson( $lesson_id );
-            if ( $course ) {
-                $course_id = $course->get_id();
-            }
-        }
-
         wp_localize_script(
             'lxp-workbook',
             'lxp_workbook_vars',
@@ -822,7 +813,6 @@ class Tiny_LXP_Platform_Public
                 'rest_url'  => esc_url_raw( rest_url( 'lms/v1/' ) ),
                 'nonce'     => wp_create_nonce( 'wp_rest' ),
                 'lesson_id' => absint( $lesson_id ),
-                'course_id' => absint( $course_id ),
             )
         );
     }
@@ -841,14 +831,6 @@ class Tiny_LXP_Platform_Public
             true
         );
 
-        $course_id = 0;
-        if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
-            $course = learn_press_get_course_by_lesson( $lesson_id );
-            if ( $course ) {
-                $course_id = $course->get_id();
-            }
-        }
-
         wp_localize_script(
             'lxp-capstone',
             'lxp_capstone_vars',
@@ -856,7 +838,6 @@ class Tiny_LXP_Platform_Public
                 'rest_url'  => esc_url_raw( rest_url( 'lms/v1/' ) ),
                 'nonce'     => wp_create_nonce( 'wp_rest' ),
                 'lesson_id' => absint( $lesson_id ),
-                'course_id' => absint( $course_id ),
             )
         );
     }
