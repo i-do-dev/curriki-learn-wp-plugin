@@ -44,6 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *      {{lp_section_number}}              — Zero-padded ordinal: 01, 02, 03…
  *      {{lp_section_index}}               — Plain 1-based index: 1, 2, 3…
  *      {{lp_section_title}}               — LP section name
+ *      {{lp_section_description}}         — LP section description (may be empty)
  *      {{lp_section_first_lesson_title}}  — First lesson post title
  *      {{lp_section_first_lesson_excerpt}}— First lesson post excerpt
  *      {{lp_section_first_lesson_url}}    — First lesson permalink
@@ -271,6 +272,7 @@ class LXP_Course_HTML_Widget extends Widget_Base {
 				'number'               => str_pad( $index, 2, '0', STR_PAD_LEFT ),
 				'is_last'              => ( $index === $total ),
 				'title'                => esc_html( $section['section_name'] ?? '' ),
+				'description'          => wp_kses_post( $section['section_description'] ?? '' ),
 				'first_lesson_title'   => $first_item ? esc_html( $first_item['post_title'] ?? '' ) : '',
 				'first_lesson_excerpt' => $first_item ? wp_kses_post( $first_item['post_excerpt'] ?? '' ) : '',
 				'first_lesson_url'     => $first_lesson_url,
@@ -323,6 +325,7 @@ class LXP_Course_HTML_Widget extends Widget_Base {
 							'{{lp_section_number}}',
 							'{{lp_section_index}}',
 							'{{lp_section_title}}',
+							'{{lp_section_description}}',
 							'{{lp_section_first_lesson_title}}',
 							'{{lp_section_first_lesson_excerpt}}',
 							'{{lp_section_first_lesson_url}}',
@@ -331,6 +334,7 @@ class LXP_Course_HTML_Widget extends Widget_Base {
 							$section['number'],
 							(string) $section['index'],
 							$section['title'],
+							$section['description'],
 							$section['first_lesson_title'],
 							$section['first_lesson_excerpt'],
 							$section['first_lesson_url'],
