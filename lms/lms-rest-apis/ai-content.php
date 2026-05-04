@@ -451,7 +451,7 @@ HTML;
   </div>
   <div style="padding:22px 24px;background:#faf9fc;">
     <p style="margin:0 0 10px;font-weight:600;color:var(--lp-secondary-color,#442e66);">Your Response:</p>
-    <div style="min-height:80px;border:1px solid rgba(68,46,102,.2);border-radius:12px;background:#fff;padding:14px 16px;color:#999;">[Capstone Box]</div>
+    <div class="lxp-capstone-box" style="min-height:80px;border:1px solid rgba(68,46,102,.2);border-radius:12px;background:#fff;padding:14px 16px;color:#999;">[Capstone Box]</div>
   </div>
 </section>
 HTML;

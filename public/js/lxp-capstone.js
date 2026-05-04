@@ -26,42 +26,24 @@
 		}
 
 		// -------------------------------------------------------------------------
-		// Find the Capstone Activity section. Check multiple heading levels in case
-		// the AI uses h2 or h3 for the section title.
+		// Find the [Capstone Box] sentinel div.
+		//
+		// Primary: query by class="lxp-capstone-box" stamped by capstone_html() on
+		// newly-generated lessons — fast, no DOM traversal needed.
+		// Fallback: text-match on leaf divs for lessons generated before the class
+		// was added (backwards compatibility with existing content in the DB).
 		// -------------------------------------------------------------------------
-		var capstoneSection = null;
-		var headings = template.querySelectorAll( 'h2, h3, h4' );
-		headings.forEach( function ( h ) {
-			if ( h.textContent.trim().toLowerCase().indexOf( 'capstone' ) !== -1 ) {
-				// Walk up to find the nearest section or container div.
-				var node = h.parentElement;
-				while ( node && node !== template ) {
-					if ( node.tagName === 'SECTION' || node.tagName === 'DIV' ) {
-						capstoneSection = node;
-						break;
-					}
-					node = node.parentElement;
-				}
-				if ( ! capstoneSection ) {
-					capstoneSection = h.parentElement;
-				}
-			}
-		} );
+		var sentinelDiv = template.querySelector( '.lxp-capstone-box' );
 
-		if ( ! capstoneSection ) {
-			return; // No Capstone Activity section on this lesson.
+		if ( ! sentinelDiv ) {
+			// Fallback for legacy AI-generated lessons without the class.
+			var allDivs = template.querySelectorAll( 'div' );
+			allDivs.forEach( function ( div ) {
+				if ( ! sentinelDiv && div.children.length === 0 && div.textContent.trim() === '[Capstone Box]' ) {
+					sentinelDiv = div;
+				}
+			} );
 		}
-
-		// -------------------------------------------------------------------------
-		// Find the [Capstone Box] sentinel div and replace with a <textarea>.
-		// -------------------------------------------------------------------------
-		var sentinelDiv = null;
-		var allDivs = capstoneSection.querySelectorAll( 'div' );
-		allDivs.forEach( function ( div ) {
-			if ( div.textContent.trim() === '[Capstone Box]' ) {
-				sentinelDiv = div;
-			}
-		} );
 
 		if ( ! sentinelDiv ) {
 			return; // Sentinel not found — lesson may not have AI content yet.
