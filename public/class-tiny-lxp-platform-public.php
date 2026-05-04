@@ -750,11 +750,51 @@ class Tiny_LXP_Platform_Public
     }
 
     /**
+     * Resolve the lp_lesson post ID for the current request.
+     *
+     * LearnPress 4 serves lessons at /{course}/lessons/{lesson-slug}/, where WordPress
+     * treats the queried object as the lp_course post — not lp_lesson. This means
+     * is_singular('lp_lesson') returns false and get_the_ID() returns the course ID on
+     * those URLs. This helper covers both the LP4 path and any true singular lp_lesson
+     * context (e.g. direct post preview).
+     *
+     * Strategy A: True singular lp_lesson — return get_the_ID() directly.
+     * Strategy B: Singular lp_course whose URI contains /lessons/ — extract the last
+     *             path segment and look up the lp_lesson post by slug.
+     *
+     * @return int  lp_lesson post ID, or 0 if the current page is not a lesson page.
+     */
+    private function resolve_lesson_id_for_enqueue() {
+        // Strategy A: true singular lp_lesson (direct access, preview, etc.).
+        if ( is_singular( 'lp_lesson' ) ) {
+            return absint( get_the_ID() );
+        }
+
+        // Strategy B: LP4 lesson URL — queried object is the parent lp_course.
+        if ( is_singular( 'lp_course' ) ) {
+            $uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+            $path = parse_url( $uri, PHP_URL_PATH );
+            if ( $path && strpos( $path, '/lessons/' ) !== false ) {
+                $lesson_slug = basename( rtrim( $path, '/' ) );
+                if ( $lesson_slug ) {
+                    $lesson_post = get_page_by_path( $lesson_slug, OBJECT, 'lp_lesson' );
+                    if ( $lesson_post ) {
+                        return absint( $lesson_post->ID );
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * Enqueue the workbook interactive JS on lesson single pages.
      * Hooked to wp_enqueue_scripts via Tiny_LXP_Platform::define_public_hooks().
      */
     public function enqueue_workbook_scripts() {
-        if ( ! is_singular( 'lp_lesson' ) ) {
+        $lesson_id = $this->resolve_lesson_id_for_enqueue();
+        if ( $lesson_id <= 0 ) {
             return;
         }
 
@@ -767,7 +807,6 @@ class Tiny_LXP_Platform_Public
         );
 
         // Resolve the parent course ID for the current lesson.
-        $lesson_id = get_the_ID();
         $course_id = 0;
         if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
             $course = learn_press_get_course_by_lesson( $lesson_id );
@@ -789,7 +828,8 @@ class Tiny_LXP_Platform_Public
     }
 
     public function enqueue_capstone_scripts() {
-        if ( ! is_singular( 'lp_lesson' ) ) {
+        $lesson_id = $this->resolve_lesson_id_for_enqueue();
+        if ( $lesson_id <= 0 ) {
             return;
         }
 
@@ -801,7 +841,6 @@ class Tiny_LXP_Platform_Public
             true
         );
 
-        $lesson_id = get_the_ID();
         $course_id = 0;
         if ( function_exists( 'learn_press_get_course_by_lesson' ) ) {
             $course = learn_press_get_course_by_lesson( $lesson_id );
