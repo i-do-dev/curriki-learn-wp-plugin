@@ -91,9 +91,10 @@ class Rest_Lxp_AI_Content {
 		$template_id = self::classify_template( $lesson_title, $sanitized_content );
 
 		// Pass 2: Fill the selected template with lesson-specific content.
-		$template_html = self::get_template( $template_id );
-		$system_prompt = self::build_template_system_prompt( $lesson_title );
-		$prompt        = self::build_template_user_message( $sanitized_content, $lesson_title, $template_html );
+		$template_html    = self::get_template( $template_id );
+		$component_count  = ( '15' === $template_id ) ? self::detect_component_count( $sanitized_content ) : 0;
+		$system_prompt    = self::build_template_system_prompt( $lesson_title );
+		$prompt           = self::build_template_user_message( $sanitized_content, $lesson_title, $template_html, $component_count );
 
 		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt );
 
@@ -466,6 +467,27 @@ HTML;
 	 */
 	private static function quiz_html() {
 		return '';
+	}
+
+	/**
+	 * Detect the intended number of component cards for Template 15 from the lesson content.
+	 *
+	 * Scans the original lesson content for a count-noun phrase (e.g. "15 components",
+	 * "7 key principles") so incidental numbers (years, dates, etc.) are ignored and
+	 * only semantically meaningful counts are returned.
+	 *
+	 * @param  string $lesson_content  The original (pre-AI) lesson content.
+	 * @return int  Component count in [3, 30], or 6 when no count is detectable.
+	 */
+	private static function detect_component_count( $lesson_content ) {
+		$count_noun_pattern = '/\b(\d+)\s+(?:component|step|principle|element|part|type|way|factor|point|item|section|rule|stage|phase|aspect|concept|skill|strategy|pillar|layer|dimension|area|domain|category|criterion|criteria|key|core|essential|fundamental|basic|important|critical|major|main)s?\b/i';
+		if ( preg_match( $count_noun_pattern, $lesson_content, $matches ) ) {
+			$n = (int) $matches[1];
+			if ( $n >= 3 && $n <= 30 ) {
+				return $n;
+			}
+		}
+		return 6;
 	}
 
 	// ---------------------------------------------------------------------------------
@@ -1447,6 +1469,7 @@ HTML;
 			. 'The HTML must start exactly with <div class="lp-ai-lesson-template"> and end with </div>. '
 			. 'Replace every [PLACEHOLDER] token with content tightly relevant to the original lesson topic. '
 			. 'Preserve ALL inline styles exactly as written — do not add, remove or alter any style attributes. '
+			. 'EXCEPTION: For the Document Components grid in Template 15, you MAY replicate the card <div> pattern to produce the exact number of component cards stated in the user message — adding more card divs than shown in the template is permitted and required when a count is given. '
 			. 'Keep CSS variable references exactly as written: var(--lp-primary-color, #ffb606) and var(--lp-secondary-color, #442e66). '
 			. 'REQUIRED: Replace [OUTCOME_1] through [OUTCOME_4] in the Learning Outcomes section with 3-4 specific, actionable outcomes derived from the lesson content. '
 			. 'REQUIRED: Replace [OPENING_HOOK_STATEMENT] with a compelling, context-setting statement drawn directly from the lesson topic. '
@@ -1461,19 +1484,31 @@ HTML;
 	/**
 	 * Build the user-turn message for the template-filling generation pass.
 	 *
-	 * @param  string $lesson_content  Sanitized lesson content.
-	 * @param  string $lesson_title    The lesson title.
-	 * @param  string $template_html   The selected template HTML with [PLACEHOLDER] tokens.
+	 * @param  string $lesson_content   Sanitized lesson content.
+	 * @param  string $lesson_title     The lesson title.
+	 * @param  string $template_html    The selected template HTML with [PLACEHOLDER] tokens.
+	 * @param  int    $component_count  For Template 15 only: number of component cards to generate. 0 = not applicable.
 	 * @return string
 	 */
-	private static function build_template_user_message( $lesson_content, $lesson_title, $template_html ) {
+	private static function build_template_user_message( $lesson_content, $lesson_title, $template_html, $component_count = 0 ) {
 		$title_line = ! empty( $lesson_title ) ? "LESSON TITLE: {$lesson_title}\n\n" : '';
+
+		$component_instruction = '';
+		if ( $component_count > 0 ) {
+			$component_instruction = "TEMPLATE 15 — COMPONENT GRID: The lesson heading references {$component_count} components. "
+				. "Generate exactly {$component_count} card <div> blocks inside the Document Components grid section. "
+				. "Replicate the card <div> pattern already shown in the template for every additional card beyond those provided. "
+				. "Number each card badge sequentially (01, 02, … " . sprintf( '%02d', $component_count ) . "). "
+				. "You MUST produce all {$component_count} cards — do not stop early.\n\n";
+		}
+
 		return "Transform the following lesson content into the provided HTML template. "
 			. "Replace every [PLACEHOLDER] token with content derived from the original lesson. "
 			. "Do not alter any HTML structure, inline styles, or CSS variable names. "
 			. "Fill [OUTCOME_1] through [OUTCOME_4] with specific, actionable learning outcomes from the lesson. "
 			. "Fill [OPENING_HOOK_STATEMENT] with a compelling framing statement relevant to the lesson topic. "
 			. "Preserve the [Capstone Box] sentinel exactly as-is inside its parent <div>.\n\n"
+			. $component_instruction
 			. $title_line
 			. "ORIGINAL LESSON CONTENT:\n{$lesson_content}\n\n"
 			. "TEMPLATE TO FILL IN:\n{$template_html}";
