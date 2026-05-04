@@ -75,14 +75,17 @@ class Rest_Lxp_Capstone_Submission {
 		}
 
 		$lesson_id = absint( $request->get_param( 'lesson_id' ) );
-		$course_id = absint( $request->get_param( 'course_id' ) );
 		$response  = $request->get_param( 'response' );
 
 		if ( $lesson_id <= 0 ) {
 			return new WP_Error( 'invalid_lesson_id', 'A valid lesson_id is required.', array( 'status' => 400 ) );
 		}
+
+		// Derive course_id server-side from the lesson association.
+		$section_repo = new TL_LearnPress_Section_Repository();
+		$course_id    = $section_repo->get_course_id_by_item_id( $lesson_id );
 		if ( $course_id <= 0 ) {
-			return new WP_Error( 'invalid_course_id', 'A valid course_id is required.', array( 'status' => 400 ) );
+			return new WP_Error( 'invalid_course_id', 'Could not resolve a course for this lesson.', array( 'status' => 400 ) );
 		}
 		if ( null === $response || '' === trim( $response ) ) {
 			return new WP_Error( 'invalid_response', 'A non-empty response is required.', array( 'status' => 400 ) );

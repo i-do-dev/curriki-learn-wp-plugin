@@ -138,7 +138,6 @@
 				},
 				body: JSON.stringify( {
 					lesson_id: vars.lesson_id,
-					course_id: vars.course_id,
 					response:  response
 				} )
 			} )
