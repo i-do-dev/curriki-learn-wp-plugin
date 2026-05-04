@@ -338,8 +338,8 @@ Capstone submissions persist a student's written response to the `[Capstone Box]
 |---|---|---|
 | [lms/repositories/class-capstone-submission-repository.php](lms/repositories/class-capstone-submission-repository.php) | `TL_Capstone_Submission_Repository` | All DB access for the `{prefix}lxp_capstone_submissions` table |
 | [lms/lms-rest-apis/capstone-submissions.php](lms/lms-rest-apis/capstone-submissions.php) | `Rest_Lxp_Capstone_Submission` | REST endpoints — upsert and fetch submission |
-| [public/js/lxp-capstone.js](public/js/lxp-capstone.js) | — | Frontend: converts `[Capstone Box]` sentinel to `<textarea>`, pre-fills, Save button |
-| [public/class-tiny-lxp-platform-public.php](public/class-tiny-lxp-platform-public.php) | `Tiny_LXP_Platform_Public` | `enqueue_capstone_scripts()` — enqueues JS on `lp_lesson` pages |
+| [public/js/lxp-capstone.js](public/js/lxp-capstone.js) | — | Frontend: finds `.lxp-capstone-box` (with legacy text fallback), converts `[Capstone Box]` sentinel to `<textarea>`, pre-fills, Save button |
+| [public/class-tiny-lxp-platform-public.php](public/class-tiny-lxp-platform-public.php) | `Tiny_LXP_Platform_Public` | `enqueue_capstone_scripts()` — enqueues JS on LP4 lesson URLs using a lesson-ID resolver helper |
 | [admin/class-capstone-submission-list-table.php](admin/class-capstone-submission-list-table.php) | `TL_Capstone_Submission_List_Table` | Admin list table with course/lesson/user filters |
 | [admin/partials/capstone-submissions-admin.php](admin/partials/capstone-submissions-admin.php) | — | Admin list page partial |
 | [admin/partials/capstone-submission-detail-admin.php](admin/partials/capstone-submission-detail-admin.php) | — | Admin detail view partial |
@@ -376,18 +376,20 @@ All return 401 if the user is not logged in.
 
 ### Frontend JS (`lxp-capstone.js`)
 
-Enqueued on every `lp_lesson` singular page via `Tiny_LXP_Platform_Public::enqueue_capstone_scripts()`.  
+Enqueued on LP4 lesson URLs via `Tiny_LXP_Platform_Public::enqueue_capstone_scripts()`.  
 Localised as `lxp_capstone_vars`: `{ rest_url, nonce, lesson_id, course_id }`.
 
-1. Finds the Capstone Activity section inside `.lp-ai-lesson-template` by looking for its heading.
-2. Replaces every `[Capstone Box]` sentinel div with a `<textarea>`.
-3. On load: GETs `/capstone/submission?lesson_id=N` and pre-fills any saved response.
-4. Injects a Save button at the bottom of the capstone section.
-5. On Save: POSTs `{ lesson_id, course_id, response }` to `/capstone/submission`.
+1. Resolves the current lesson ID on LP4 lesson URLs (`/{course}/lessons/{lesson-slug}/`) before localising script vars.
+2. Finds the capstone sentinel inside `.lp-ai-lesson-template` by querying `.lxp-capstone-box`.
+3. Falls back to text-matching leaf divs containing `[Capstone Box]` for legacy lessons generated before the class was added.
+4. Replaces the sentinel div with a `<textarea>`.
+5. On load: GETs `/capstone/submission?lesson_id=N` and pre-fills any saved response.
+6. Injects a Save button at the bottom of the capstone section.
+7. On Save: POSTs `{ lesson_id, course_id, response }` to `/capstone/submission`.
 
 ### `[Capstone Box]` sentinel pattern
 
-The Capstone Activity section in AI-generated HTML contains `[Capstone Box]` as plain text inside a styled `<div>`. WP kses strips `<textarea>` from post content, so the sentinel is used instead. The frontend JS converts it to an interactive `<textarea>` at runtime. Never store `<textarea>` or `<input>` in post content.
+The Capstone Activity section in AI-generated HTML contains `[Capstone Box]` as plain text inside a styled `<div class="lxp-capstone-box">`. WP kses strips `<textarea>` from post content, so the sentinel is used instead. The frontend JS converts it to an interactive `<textarea>` at runtime. Never store `<textarea>` or `<input>` in post content. Keep the `lxp-capstone-box` class on new standard templates; `lxp-capstone.js` only text-matches as a backwards-compatibility fallback for older lessons already stored in the database.
 
 ### Admin Menu
 
@@ -654,9 +656,10 @@ When changing external service hosts, update constants in [lms/xapi-constants.ph
 16. **Workbook DB table not created by `dbDelta()`**: The `lxp_workbook_submissions` table is created with a raw `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` call in `on_activate()`, matching the existing `tiny_lms_grades` pattern. Re-trigger creation by deactivating and reactivating the plugin.
 17. **Workbook admin page is in `admin/` not `lms/`**: `TL_Workbook_Submission_List_Table` lives in `admin/class-workbook-submission-list-table.php`; the repository it depends on lives in `lms/repositories/`. The admin page callback does its own `require_once` of both files so they are not double-loaded on every request.
 18. **AI standard templates have no quiz**: Standard (15-template) AI lessons end with a Capstone Activity only. `quiz_html()` is retired and returns `''`. Never add a "Check for Understanding" quiz to standard templates — the no-quiz rule is enforced in `build_template_system_prompt()`.
-19. **`[Capstone Box]` sentinel in standard templates**: Capstone Activity sections contain `[Capstone Box]` as plain text inside a styled `<div>` — never replace it with form elements in PHP. `lxp-capstone.js` converts it to a `<textarea>` at runtime. Same pattern as `[Text Box]` sentinels in workbook templates.
-20. **`meta_table_html()` method name is legacy**: This shared helper was originally the Lesson Overview metadata table. It was repurposed to return Learning Outcomes + Opening Hook sections. Do not re-add Lesson Overview metadata table logic here without updating all 15 template functions.
-21. **Capstone DB table follows workbook pattern**: `lxp_capstone_submissions` is created with `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` in `on_activate()`. Re-trigger creation by deactivating and reactivating the plugin. Schema: `(id, lesson_id, course_id, user_id, response, submitted_at, updated_at)` with `UNIQUE KEY lesson_user (lesson_id, user_id)`.
+19. **`[Capstone Box]` sentinel in standard templates**: Capstone Activity sections contain `[Capstone Box]` as plain text inside a styled `<div class="lxp-capstone-box">` — never replace it with form elements in PHP. `lxp-capstone.js` converts it to a `<textarea>` at runtime. Keep the class on newly-generated lessons; the JS only text-matches old lessons as a legacy fallback. Same pattern as `[Text Box]` sentinels in workbook templates.
+20. **LP4 lesson frontend context**: `enqueue_capstone_scripts()` and `enqueue_workbook_scripts()` cannot rely on `is_singular('lp_lesson')` alone. LP4 lesson URLs are usually routed in `lp_course` context, so the public layer resolves the lesson ID from the URL when needed before localising script vars.
+21. **`meta_table_html()` method name is legacy**: This shared helper was originally the Lesson Overview metadata table. It was repurposed to return Learning Outcomes + Opening Hook sections. Do not re-add Lesson Overview metadata table logic here without updating all 15 template functions.
+22. **Capstone DB table follows workbook pattern**: `lxp_capstone_submissions` is created with `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` in `on_activate()`. Re-trigger creation by deactivating and reactivating the plugin. Schema: `(id, lesson_id, course_id, user_id, response, submitted_at, updated_at)` with `UNIQUE KEY lesson_user (lesson_id, user_id)`.
 
 ---
 
