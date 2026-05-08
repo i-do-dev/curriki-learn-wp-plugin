@@ -123,9 +123,14 @@
 				return;
 			}
 
-			var remaining = parseInt( data.remaining_capstone_count, 10 );
+			var remaining = parseInt( data.remaining_module_count, 10 );
+			var unitLabel = 'module';
 			if ( isNaN( remaining ) ) {
-				remaining = 0;
+				remaining = parseInt( data.remaining_capstone_count, 10 );
+				unitLabel = 'lesson capstone';
+				if ( isNaN( remaining ) ) {
+					remaining = 0;
+				}
 			}
 
 			if ( remaining <= 0 ) {
@@ -137,7 +142,7 @@
 
 			var text = document.createElement( 'p' );
 			text.textContent = 'Great effort. To unlock your Learner Workbook, go back and complete the remaining '
-				+ remaining + ' lesson capstone' + ( remaining === 1 ? '' : 's' ) + '.';
+				+ remaining + ' ' + unitLabel + ( remaining === 1 ? '' : 's' ) + '.';
 			text.style.cssText = 'margin:0 0 10px 0;color:#2f2f2f;font-size:.95rem;line-height:1.5;';
 			workbookCtaWrap.appendChild( text );
 

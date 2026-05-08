@@ -85,29 +85,46 @@ if ( $course_id > 0 ) {
 $course_post  = $course_id > 0 ? get_post( $course_id ) : null;
 $course_title = $course_post ? esc_html( $course_post->post_title ) : 'Course';
 
-$total_lessons = count( $lessons );
+// -------------------------------------------------------------------------
+// Aggregate totals and group lessons by module/section.
+// -------------------------------------------------------------------------
+$total_lessons     = count( $lessons );
 $completed_lessons = 0;
 $remaining_lessons = 0;
-$continue_url = '';
+$continue_url      = '';
 
-if ( ! empty( $lessons ) ) {
-	foreach ( $lessons as $lesson ) {
-		$is_completed = ! empty( $lesson->response );
-		if ( $is_completed ) {
-			$completed_lessons++;
-			continue;
-		}
+// modules_map: ordered array keyed by module_id, each entry holds module
+// metadata and the ordered list of its lessons.
+$modules_map = array();
 
+foreach ( $lessons as $lesson ) {
+	$is_completed = ! empty( $lesson->response );
+	if ( $is_completed ) {
+		$completed_lessons++;
+	} else {
 		$remaining_lessons++;
 		if ( '' === $continue_url ) {
-			if ( $course_post ) {
-				$continue_url = home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' );
-			} else {
-				$continue_url = get_permalink( (int) $lesson->lesson_id );
-			}
+			$continue_url = $course_post
+				? home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
+				: get_permalink( (int) $lesson->lesson_id );
 		}
 	}
+
+	$mod_id = isset( $lesson->module_id ) ? (int) $lesson->module_id : 0;
+	if ( ! isset( $modules_map[ $mod_id ] ) ) {
+		$modules_map[ $mod_id ] = array(
+			'id'      => $mod_id,
+			'name'    => ( isset( $lesson->module_name ) && '' !== $lesson->module_name )
+			             ? $lesson->module_name
+			             : 'Lessons',
+			'lessons' => array(),
+		);
+	}
+	$modules_map[ $mod_id ]['lessons'][] = $lesson;
 }
+
+$total_modules     = count( $modules_map );
+$module_index      = 0; // used for module numbering in the UI
 
 get_header();
 ?>
@@ -298,6 +315,44 @@ get_header();
 .lxp-workbook-notice-success strong {
 	color: #1e824c;
 }
+/* Module / section grouping */
+.lxp-module-block {
+	margin-bottom: 32px;
+}
+.lxp-module-header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin-bottom: 12px;
+}
+.lxp-module-number {
+	width: 34px;
+	height: 34px;
+	border-radius: 8px;
+	background: var(--lp-secondary-color, #442e66);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.78rem;
+	font-weight: 700;
+	flex-shrink: 0;
+	letter-spacing: .03em;
+}
+.lxp-module-title {
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: var(--lp-secondary-color, #442e66);
+}
+.lxp-module-progress {
+	font-size: 0.82rem;
+	color: #888;
+	margin-left: auto;
+	white-space: nowrap;
+}
+.lxp-module-lessons {
+	padding-left: 0;
+}
 </style>
 
 <div class="lxp-journal-wrap">
@@ -344,7 +399,8 @@ get_header();
 	<?php if ( $course_id > 0 ) : ?>
 	<p class="lxp-journal-subtitle" style="margin-bottom:20px;">
 		<strong><?php echo $course_title; ?></strong>
-		&mdash; <?php echo count( $lessons ); ?> lesson<?php echo count( $lessons ) !== 1 ? 's' : ''; ?>
+		&mdash; <?php echo (int) $total_modules; ?> module<?php echo 1 !== $total_modules ? 's' : ''; ?>,
+		<?php echo (int) $total_lessons; ?> lesson<?php echo 1 !== $total_lessons ? 's' : ''; ?>
 	</p>
 	<?php endif; ?>
 
@@ -354,47 +410,65 @@ get_header();
 	</div>
 	<?php else : ?>
 
-	<?php $idx = 0; foreach ( $lessons as $lesson ) :
-		$idx++;
-		$submitted  = ! empty( $lesson->response );
-		$lesson_url = '';
-		if ( $course_post ) {
-			$lesson_url = home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' );
-		} else {
-			$lesson_url = get_permalink( (int) $lesson->lesson_id );
+	<?php
+	$global_idx = 0;
+	foreach ( $modules_map as $module ) :
+		$module_index++;
+		$mod_lessons    = $module['lessons'];
+		$mod_total      = count( $mod_lessons );
+		$mod_completed  = 0;
+		foreach ( $mod_lessons as $ml ) {
+			if ( ! empty( $ml->response ) ) $mod_completed++;
 		}
 	?>
-	<div class="lxp-lesson-row<?php echo $submitted ? ' is-open' : ''; ?>" id="lxp-row-<?php echo $idx; ?>">
-		<div class="lxp-lesson-header" onclick="lxpToggleRow(this.closest('.lxp-lesson-row'))">
-			<div class="lxp-lesson-number"><?php echo $idx; ?></div>
-			<div class="lxp-lesson-info">
-				<div class="lxp-lesson-name"><?php echo esc_html( $lesson->lesson_title ); ?></div>
-				<?php if ( $submitted ) : ?>
-				<div class="lxp-lesson-meta">
-					Submitted <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->submitted_at ) ) ); ?>
-					<?php if ( $lesson->updated_at !== $lesson->submitted_at ) : ?>
-					&middot; Updated <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->updated_at ) ) ); ?>
+	<div class="lxp-module-block">
+		<div class="lxp-module-header">
+			<div class="lxp-module-number">M<?php echo $module_index; ?></div>
+			<div class="lxp-module-title"><?php echo esc_html( $module['name'] ); ?></div>
+			<div class="lxp-module-progress"><?php echo $mod_completed; ?> / <?php echo $mod_total; ?> completed</div>
+		</div>
+		<div class="lxp-module-lessons">
+		<?php foreach ( $mod_lessons as $lesson ) :
+			$global_idx++;
+			$submitted  = ! empty( $lesson->response );
+			$lesson_url = $course_post
+				? home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
+				: get_permalink( (int) $lesson->lesson_id );
+		?>
+		<div class="lxp-lesson-row<?php echo $submitted ? ' is-open' : ''; ?>" id="lxp-row-<?php echo $global_idx; ?>">
+			<div class="lxp-lesson-header" onclick="lxpToggleRow(this.closest('.lxp-lesson-row'))">
+				<div class="lxp-lesson-number"><?php echo $global_idx; ?></div>
+				<div class="lxp-lesson-info">
+					<div class="lxp-lesson-name"><?php echo esc_html( $lesson->lesson_title ); ?></div>
+					<?php if ( $submitted ) : ?>
+					<div class="lxp-lesson-meta">
+						Submitted <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->submitted_at ) ) ); ?>
+						<?php if ( $lesson->updated_at !== $lesson->submitted_at ) : ?>
+						&middot; Updated <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->updated_at ) ) ); ?>
+						<?php endif; ?>
+					</div>
 					<?php endif; ?>
 				</div>
-				<?php endif; ?>
+				<div class="lxp-lesson-status">
+					<?php if ( $submitted ) : ?>
+					<span class="lxp-badge lxp-badge-submitted">&#10003; Completed</span>
+					<?php else : ?>
+					<span class="lxp-badge lxp-badge-pending">Not completed</span>
+					<?php endif; ?>
+					<a href="<?php echo esc_url( $lesson_url ); ?>" class="lxp-go-lesson" onclick="event.stopPropagation()">Go to Lesson</a>
+					<span class="lxp-chevron">&#9660;</span>
+				</div>
 			</div>
-			<div class="lxp-lesson-status">
-				<?php if ( $submitted ) : ?>
-				<span class="lxp-badge lxp-badge-submitted">&#10003; Completed</span>
-				<?php else : ?>
-				<span class="lxp-badge lxp-badge-pending">Not completed</span>
-				<?php endif; ?>
-				<a href="<?php echo esc_url( $lesson_url ); ?>" class="lxp-go-lesson" onclick="event.stopPropagation()">Go to Lesson</a>
-				<span class="lxp-chevron">&#9660;</span>
+			<?php if ( $submitted ) : ?>
+			<div class="lxp-response-body">
+				<div class="lxp-response-label">Your Workbook Entry</div>
+				<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
 			</div>
+			<?php endif; ?>
 		</div>
-		<?php if ( $submitted ) : ?>
-		<div class="lxp-response-body">
-			<div class="lxp-response-label">Your Workbook Entry</div>
-			<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
-		</div>
-		<?php endif; ?>
-	</div>
+		<?php endforeach; ?>
+		</div><!-- .lxp-module-lessons -->
+	</div><!-- .lxp-module-block -->
 	<?php endforeach; ?>
 	<?php endif; ?>
 </div>
