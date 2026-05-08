@@ -56,13 +56,31 @@ function tinyLxp_page_templates($template) {
 
     if ( $is_dynamic_workbook_route ) {
         $course_slug = sanitize_title( $path_segments[1] );
+        $wb_course_title = '';
         if ( '' !== $course_slug ) {
             $course_post = get_page_by_path( $course_slug, OBJECT, TL_COURSE_CPT );
             if ( $course_post ) {
                 $_GET['course_slug'] = $course_slug;
                 $_GET['course_id']   = (string) absint( $course_post->ID );
+                $wb_course_title     = $course_post->post_title;
             }
         }
+
+        // Fix WP_Query 404 state so WordPress doesn't send a 404 header
+        // and themes don't render a "Page not found" title.
+        global $wp_query;
+        if ( $wp_query ) {
+            $wp_query->is_404  = false;
+            $wp_query->is_page = true;
+        }
+
+        // Override the browser <title> to "Workbook — Course Title".
+        add_filter( 'document_title_parts', function( $parts ) use ( $wb_course_title ) {
+            $parts['title'] = $wb_course_title
+                ? 'Workbook &mdash; ' . esc_html( $wb_course_title )
+                : 'Learner Workbook';
+            return $parts;
+        } );
 
         return plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-capstone-journal.php';
     }
