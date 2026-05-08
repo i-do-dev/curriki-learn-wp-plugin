@@ -27,24 +27,31 @@ $course_slug = isset( $_GET['course_slug'] ) ? sanitize_title( wp_unslash( $_GET
 // -------------------------------------------------------------------------
 $enrolled_courses = array();
 
-if ( function_exists( 'learn_press_get_user' ) ) {
-	$lp_user = learn_press_get_user( $user_id );
-	if ( $lp_user ) {
-		$course_ids = $lp_user->get_course_ids();
-		if ( ! empty( $course_ids ) ) {
-			$posts = get_posts( array(
-				'post_type'      => 'lp_course',
-				'post__in'       => $course_ids,
-				'posts_per_page' => -1,
-				'post_status'    => 'publish',
-			) );
-			foreach ( $posts as $p ) {
-				$enrolled_courses[] = array(
-					'id'    => $p->ID,
-					'title' => $p->post_title,
-					'slug'  => $p->post_name,
-				);
-			}
+// LP4 canonical API: LP_User_Items_DB::get_user_courses() with LP_User_Items_Filter.
+// LP_User has no bulk get_course_ids() method — only per-course checks exist on it.
+if ( class_exists( 'LP_User_Items_DB' ) && class_exists( 'LP_User_Items_Filter' ) ) {
+	$lp_user_items_db    = LP_User_Items_DB::getInstance();
+	$filter              = new LP_User_Items_Filter();
+	$filter->user_id     = $user_id;
+	$filter->only_fields = array( 'ui.item_id' );
+	$filter->statues     = array( LP_COURSE_ENROLLED, LP_COURSE_FINISHED );
+	$total_rows          = 0;
+	$results             = $lp_user_items_db->get_user_courses( $filter, $total_rows );
+	$enrolled_ids        = is_array( $results ) ? wp_list_pluck( $results, 'item_id' ) : array();
+
+	if ( ! empty( $enrolled_ids ) ) {
+		$posts = get_posts( array(
+			'post_type'      => 'lp_course',
+			'post__in'       => array_map( 'absint', $enrolled_ids ),
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+		) );
+		foreach ( $posts as $p ) {
+			$enrolled_courses[] = array(
+				'id'    => $p->ID,
+				'title' => $p->post_title,
+				'slug'  => $p->post_name,
+			);
 		}
 	}
 }
