@@ -111,7 +111,7 @@ foreach ( $lessons as $lesson ) {
 		$remaining_lessons++;
 		if ( '' === $continue_url ) {
 			$continue_url = $course_post
-				? home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
+				? home_url( '/courses/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
 				: get_permalink( (int) $lesson->lesson_id );
 		}
 	}
@@ -418,7 +418,7 @@ get_header();
 			$global_idx++;
 			$submitted  = ! empty( $lesson->response );
 			$lesson_url = $course_post
-				? home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
+				? home_url( '/courses/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
 				: get_permalink( (int) $lesson->lesson_id );
 		?>
 		<div class="lxp-lesson-row<?php echo $submitted ? ' is-open' : ''; ?>" id="lxp-row-<?php echo $global_idx; ?>">
