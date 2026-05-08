@@ -392,65 +392,46 @@ get_header();
 
 	<?php if ( empty( $lessons ) ) : ?>
 	<div class="lxp-empty-state">
-		<p><?php $course_id > 0 ? print( 'No lessons found for this course.' ) : print( 'Select a course to view your workbook.' ); ?></p>
+		<p><?php $course_id > 0 ? print( 'No capstone submissions yet for this course.' ) : print( 'Select a course to view your workbook.' ); ?></p>
 	</div>
 	<?php else : ?>
 
 	<?php
 	$global_idx = 0;
 	foreach ( $modules_map as $module ) :
+		// Only show modules that have at least one submitted lesson.
+		$submitted_lessons = array_filter( $module['lessons'], function( $l ) {
+			return ! empty( $l->response );
+		} );
+		if ( empty( $submitted_lessons ) ) continue;
 		$module_index++;
-		$mod_lessons    = $module['lessons'];
-		$mod_total      = count( $mod_lessons );
-		$mod_completed  = 0;
-		foreach ( $mod_lessons as $ml ) {
-			if ( ! empty( $ml->response ) ) $mod_completed++;
-		}
 	?>
 	<div class="lxp-module-block">
 		<div class="lxp-module-header">
 			<div class="lxp-module-number">M<?php echo $module_index; ?></div>
 			<div class="lxp-module-title"><?php echo esc_html( $module['name'] ); ?></div>
-			<div class="lxp-module-progress"><?php echo $mod_completed; ?> / <?php echo $mod_total; ?> completed</div>
 		</div>
 		<div class="lxp-module-lessons">
-		<?php foreach ( $mod_lessons as $lesson ) :
+		<?php foreach ( $submitted_lessons as $lesson ) :
 			$global_idx++;
-			$submitted  = ! empty( $lesson->response );
-			$lesson_url = $course_post
-				? home_url( '/courses/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' )
-				: get_permalink( (int) $lesson->lesson_id );
 		?>
-		<div class="lxp-lesson-row<?php echo $submitted ? ' is-open' : ''; ?>" id="lxp-row-<?php echo $global_idx; ?>">
-			<div class="lxp-lesson-header" onclick="lxpToggleRow(this.closest('.lxp-lesson-row'))">
+		<div class="lxp-lesson-row" id="lxp-row-<?php echo $global_idx; ?>">
+			<div class="lxp-lesson-header">
 				<div class="lxp-lesson-number"><?php echo $global_idx; ?></div>
 				<div class="lxp-lesson-info">
 					<div class="lxp-lesson-name"><?php echo esc_html( $lesson->lesson_title ); ?></div>
-					<?php if ( $submitted ) : ?>
 					<div class="lxp-lesson-meta">
 						Submitted <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->submitted_at ) ) ); ?>
 						<?php if ( $lesson->updated_at !== $lesson->submitted_at ) : ?>
 						&middot; Updated <?php echo esc_html( date_i18n( 'M j, Y', strtotime( $lesson->updated_at ) ) ); ?>
 						<?php endif; ?>
 					</div>
-					<?php endif; ?>
-				</div>
-				<div class="lxp-lesson-status">
-					<?php if ( $submitted ) : ?>
-					<span class="lxp-badge lxp-badge-submitted">&#10003; Completed</span>
-					<?php else : ?>
-					<span class="lxp-badge lxp-badge-pending">Not completed</span>
-					<?php endif; ?>
-					<a href="<?php echo esc_url( $lesson_url ); ?>" class="lxp-go-lesson" onclick="event.stopPropagation()">Go to Lesson</a>
-					<span class="lxp-chevron">&#9660;</span>
 				</div>
 			</div>
-			<?php if ( $submitted ) : ?>
-			<div class="lxp-response-body">
+			<div class="lxp-response-body" style="display:block;">
 				<div class="lxp-response-label">Your Workbook Entry</div>
 				<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
 			</div>
-			<?php endif; ?>
 		</div>
 		<?php endforeach; ?>
 		</div><!-- .lxp-module-lessons -->
@@ -458,15 +439,5 @@ get_header();
 	<?php endforeach; ?>
 	<?php endif; ?>
 </div>
-
-<script>
-function lxpToggleRow(row) {
-	if ( row.classList.contains('is-open') ) {
-		row.classList.remove('is-open');
-	} else {
-		row.classList.add('is-open');
-	}
-}
-</script>
 
 <?php get_footer(); ?>
