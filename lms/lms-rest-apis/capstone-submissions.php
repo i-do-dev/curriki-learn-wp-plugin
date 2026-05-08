@@ -209,15 +209,33 @@ class Rest_Lxp_Capstone_Submission {
 		$user_id    = get_current_user_id();
 		$submission = self::repo()->get_by_lesson_user( $lesson_id, $user_id );
 
+		// Resolve last-lesson flag and workbook URL so the frontend can show
+		// the Preview Workbook button on the last lesson of the course.
+		$is_last      = false;
+		$workbook_url = '';
+		$section_repo = new TL_LearnPress_Section_Repository();
+		$course_id    = $section_repo->get_course_id_by_item_id( $lesson_id );
+		if ( $course_id > 0 ) {
+			$completion   = self::get_completion_state( $course_id, $lesson_id, $user_id );
+			$is_last      = (bool) $completion['is_last_lesson_in_sequence'];
+			$workbook_url = (string) $completion['workbook_url'];
+		}
+
 		if ( ! $submission ) {
-			return rest_ensure_response( array( 'response' => null ) );
+			return rest_ensure_response( array(
+				'response'                   => null,
+				'is_last_lesson_in_sequence' => $is_last,
+				'workbook_url'               => $workbook_url,
+			) );
 		}
 
 		return rest_ensure_response( array(
-			'id'           => (int) $submission->id,
-			'response'     => $submission->response,
-			'submitted_at' => $submission->submitted_at,
-			'updated_at'   => $submission->updated_at,
+			'id'                         => (int) $submission->id,
+			'response'                   => $submission->response,
+			'submitted_at'               => $submission->submitted_at,
+			'updated_at'                 => $submission->updated_at,
+			'is_last_lesson_in_sequence' => $is_last,
+			'workbook_url'               => $workbook_url,
 		) );
 	}
 

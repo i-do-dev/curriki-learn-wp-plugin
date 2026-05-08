@@ -112,94 +112,19 @@
 			workbookCtaWrap.innerHTML = '';
 		}
 
-		function getCourseUrlFromLessonPath() {
-			var match = window.location.pathname.match( /^\/([^\/]+)\/lessons\/[^\/]+\/?$/ );
-			return match && match[1] ? '/' + match[1] + '/' : null;
-		}
-
-		function showIncompleteProgressCta( data ) {
-			if ( ! data ) {
-				hideWorkbookCta();
-				return;
-			}
-
-			var remaining = parseInt( data.remaining_module_count, 10 );
-			var unitLabel = 'module';
-			if ( isNaN( remaining ) ) {
-				remaining = parseInt( data.remaining_capstone_count, 10 );
-				unitLabel = 'lesson capstone';
-				if ( isNaN( remaining ) ) {
-					remaining = 0;
-				}
-			}
-
-			if ( remaining <= 0 ) {
-				hideWorkbookCta();
-				return;
-			}
-
-			workbookCtaWrap.innerHTML = '';
-
-			var text = document.createElement( 'p' );
-			text.textContent = 'Great effort. To unlock your Learner Workbook, go back and complete the remaining '
-				+ remaining + ' ' + unitLabel + ( remaining === 1 ? '' : 's' ) + '.';
-			text.style.cssText = 'margin:0 0 10px 0;color:#2f2f2f;font-size:.95rem;line-height:1.5;';
-			workbookCtaWrap.appendChild( text );
-
-			var actions = document.createElement( 'div' );
-			actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
-
-			var courseUrl = getCourseUrlFromLessonPath();
-			if ( courseUrl ) {
-				var link = document.createElement( 'a' );
-				link.href = courseUrl;
-				link.textContent = 'Continue Course';
-				link.style.cssText =
-					'display:inline-block;padding:10px 16px;border-radius:8px;' +
-					'background:var(--lp-secondary-color,#442e66);color:#fff;' +
-					'text-decoration:none;font-weight:600;font-size:.92rem;';
-				actions.appendChild( link );
-			}
-
-			if ( data.workbook_url ) {
-				var previewLink = document.createElement( 'a' );
-				previewLink.href = data.workbook_url;
-				previewLink.textContent = 'View Workbook Preview';
-				previewLink.style.cssText =
-					'display:inline-block;padding:10px 16px;border-radius:8px;' +
-					'background:#fff;color:var(--lp-secondary-color,#442e66);' +
-					'text-decoration:none;font-weight:600;font-size:.92rem;' +
-					'border:1px solid rgba(68,46,102,.35);';
-				actions.appendChild( previewLink );
-			}
-
-			if ( actions.children.length > 0 ) {
-				workbookCtaWrap.appendChild( actions );
-			}
-
-			workbookCtaWrap.style.display = 'block';
-		}
-
-		function showWorkbookCta( workbookUrl ) {
+		function showPreviewWorkbookBtn( workbookUrl ) {
 			if ( ! workbookUrl ) {
 				hideWorkbookCta();
 				return;
 			}
-
 			workbookCtaWrap.innerHTML = '';
-			var text = document.createElement( 'p' );
-			text.textContent = 'You completed all lesson reflections. Open your workbook to review everything in one place.';
-			text.style.cssText = 'margin:0 0 10px 0;color:#2f2f2f;font-size:.95rem;line-height:1.5;';
-
 			var link = document.createElement( 'a' );
 			link.href = workbookUrl;
-			link.textContent = 'View Workbook';
+			link.textContent = 'Preview Workbook';
 			link.style.cssText =
 				'display:inline-block;padding:10px 16px;border-radius:8px;' +
 				'background:var(--lp-secondary-color,#442e66);color:#fff;' +
 				'text-decoration:none;font-weight:600;font-size:.92rem;';
-
-			workbookCtaWrap.appendChild( text );
 			workbookCtaWrap.appendChild( link );
 			workbookCtaWrap.style.display = 'block';
 		}
@@ -215,10 +140,9 @@
 			if ( data && data.response ) {
 				textarea.value = data.response;
 				showStatus( 'Last saved: ' + formatDate( data.updated_at ), false );
-			}
-		} )
-		.catch( function () {
-			// Silently fail — pre-fill is best-effort.
+					if ( data.is_last_lesson_in_sequence && data.workbook_url ) {
+						showPreviewWorkbookBtn( data.workbook_url );
+					}
 		} );
 
 		// -------------------------------------------------------------------------
@@ -257,10 +181,8 @@
 			.then( function ( data ) {
 				showStatus( 'Response saved successfully!', false );
 
-				if ( data && data.should_show_workbook_cta && data.workbook_url ) {
-					showWorkbookCta( data.workbook_url );
-				} else if ( data && data.is_last_lesson_in_sequence && ! data.has_completed_all_capstones ) {
-					showIncompleteProgressCta( data );
+					if ( data && data.is_last_lesson_in_sequence && data.workbook_url ) {
+						showPreviewWorkbookBtn( data.workbook_url );
 				} else {
 					hideWorkbookCta();
 				}
