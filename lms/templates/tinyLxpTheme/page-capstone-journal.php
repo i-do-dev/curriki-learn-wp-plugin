@@ -1,11 +1,12 @@
 <?php
 /**
- * Template: Capstone Journal
+ * Template: Learner Workbook
  *
- * Displays all lessons in a course with the current student's capstone submission
- * status. Accessible to lxp_student and lxp_teacher roles.
+ * Displays all lessons in a course with the current student's reflection entries.
+ * Accessible to lxp_student and lxp_teacher roles.
  *
- * Loaded by tinyLxp_page_templates() when is_page('capstone-journal').
+ * Loaded by tinyLxp_page_templates() for capstone-journal, learner-workbook,
+ * and dynamic /courses/{course-slug}/learner-workbook routes.
  * Requires: TL_Capstone_Submission_Repository
  */
 
@@ -18,6 +19,7 @@ require_once plugin_dir_path( __FILE__ ) . '../../repositories/class-capstone-su
 
 $user_id   = get_current_user_id();
 $course_id = absint( isset( $_GET['course_id'] ) ? $_GET['course_id'] : 0 );
+$course_slug = isset( $_GET['course_slug'] ) ? sanitize_title( wp_unslash( $_GET['course_slug'] ) ) : '';
 
 // -------------------------------------------------------------------------
 // Build enrolled courses list for the selector.
@@ -37,7 +39,11 @@ if ( function_exists( 'learn_press_get_user' ) ) {
 				'post_status'    => 'publish',
 			) );
 			foreach ( $posts as $p ) {
-				$enrolled_courses[] = array( 'id' => $p->ID, 'title' => $p->post_title );
+				$enrolled_courses[] = array(
+					'id'    => $p->ID,
+					'title' => $p->post_title,
+					'slug'  => $p->post_name,
+				);
 			}
 		}
 	}
@@ -47,7 +53,18 @@ if ( function_exists( 'learn_press_get_user' ) ) {
 if ( empty( $enrolled_courses ) && current_user_can( 'edit_posts' ) && $course_id > 0 ) {
 	$p = get_post( $course_id );
 	if ( $p ) {
-		$enrolled_courses[] = array( 'id' => $p->ID, 'title' => $p->post_title );
+		$enrolled_courses[] = array(
+			'id'    => $p->ID,
+			'title' => $p->post_title,
+			'slug'  => $p->post_name,
+		);
+	}
+}
+
+if ( $course_id <= 0 && '' !== $course_slug ) {
+	$course_post_by_slug = get_page_by_path( $course_slug, OBJECT, 'lp_course' );
+	if ( $course_post_by_slug ) {
+		$course_id = (int) $course_post_by_slug->ID;
 	}
 }
 
@@ -228,15 +245,20 @@ get_header();
 </style>
 
 <div class="lxp-journal-wrap">
-	<h1 class="lxp-journal-title">Capstone Journal</h1>
-	<p class="lxp-journal-subtitle">Review your capstone responses for each lesson in this course.</p>
+	<h1 class="lxp-journal-title">Learner Workbook</h1>
+	<p class="lxp-journal-subtitle">Review your lesson reflections for this course in one place.</p>
 
 	<?php if ( count( $enrolled_courses ) > 1 ) : ?>
 	<div class="lxp-course-selector">
 		<label for="lxp-course-select">Course:</label>
-		<select id="lxp-course-select" onchange="window.location.href='?course_id='+this.value">
+		<select id="lxp-course-select" onchange="if(this.value){window.location.href=this.value;}">
 			<?php foreach ( $enrolled_courses as $ec ) : ?>
-			<option value="<?php echo absint( $ec['id'] ); ?>"<?php selected( absint( $ec['id'] ), $course_id ); ?>>
+			<?php
+			$course_url = ! empty( $ec['slug'] )
+				? home_url( '/courses/' . $ec['slug'] . '/learner-workbook/' )
+				: add_query_arg( 'course_id', absint( $ec['id'] ), home_url( '/capstone-journal/' ) );
+			?>
+			<option value="<?php echo esc_url( $course_url ); ?>"<?php selected( absint( $ec['id'] ), $course_id ); ?>>
 				<?php echo esc_html( $ec['title'] ); ?>
 			</option>
 			<?php endforeach; ?>
@@ -253,7 +275,7 @@ get_header();
 
 	<?php if ( empty( $lessons ) ) : ?>
 	<div class="lxp-empty-state">
-		<p><?php $course_id > 0 ? print( 'No lessons found for this course.' ) : print( 'Select a course to view your journal.' ); ?></p>
+		<p><?php $course_id > 0 ? print( 'No lessons found for this course.' ) : print( 'Select a course to view your workbook.' ); ?></p>
 	</div>
 	<?php else : ?>
 
@@ -283,9 +305,9 @@ get_header();
 			</div>
 			<div class="lxp-lesson-status">
 				<?php if ( $submitted ) : ?>
-				<span class="lxp-badge lxp-badge-submitted">&#10003; Submitted</span>
+				<span class="lxp-badge lxp-badge-submitted">&#10003; Completed</span>
 				<?php else : ?>
-				<span class="lxp-badge lxp-badge-pending">Not submitted</span>
+				<span class="lxp-badge lxp-badge-pending">Not completed</span>
 				<?php endif; ?>
 				<a href="<?php echo esc_url( $lesson_url ); ?>" class="lxp-go-lesson" onclick="event.stopPropagation()">Go to Lesson</a>
 				<span class="lxp-chevron">&#9660;</span>
@@ -293,7 +315,7 @@ get_header();
 		</div>
 		<?php if ( $submitted ) : ?>
 		<div class="lxp-response-body">
-			<div class="lxp-response-label">Your Capstone Response</div>
+			<div class="lxp-response-label">Your Workbook Entry</div>
 			<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
 		</div>
 		<?php endif; ?>

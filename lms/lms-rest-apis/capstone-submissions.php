@@ -20,6 +20,52 @@ class Rest_Lxp_Capstone_Submission {
 		return self::$repo;
 	}
 
+	private static function build_workbook_url( $course_id ) {
+		$course_post = get_post( absint( $course_id ) );
+		if ( ! $course_post || empty( $course_post->post_name ) ) {
+			return add_query_arg( 'course_id', absint( $course_id ), home_url( '/capstone-journal/' ) );
+		}
+
+		return home_url( '/courses/' . $course_post->post_name . '/learner-workbook/' );
+	}
+
+	private static function get_completion_state( $course_id, $lesson_id, $user_id ) {
+		$rows = self::repo()->get_course_summary( $course_id, $user_id );
+
+		$total_lessons     = count( $rows );
+		$submitted_lessons = 0;
+
+		foreach ( $rows as $row ) {
+			if ( isset( $row->response ) && '' !== trim( (string) $row->response ) ) {
+				$submitted_lessons++;
+			}
+		}
+
+		$last_lesson_id = 0;
+		if ( ! empty( $rows ) ) {
+			$last_row       = end( $rows );
+			$last_lesson_id = isset( $last_row->lesson_id ) ? (int) $last_row->lesson_id : 0;
+			reset( $rows );
+		}
+
+		$is_last_lesson_in_sequence = $last_lesson_id > 0 && $last_lesson_id === absint( $lesson_id );
+		$has_completed_all          = $total_lessons > 0 && $submitted_lessons === $total_lessons;
+
+		$course_post = get_post( absint( $course_id ) );
+		$course_slug = $course_post ? (string) $course_post->post_name : '';
+
+		return array(
+			'course_id'                    => absint( $course_id ),
+			'course_slug'                  => $course_slug,
+			'total_lessons'                => (int) $total_lessons,
+			'submitted_lessons'            => (int) $submitted_lessons,
+			'is_last_lesson_in_sequence'   => (bool) $is_last_lesson_in_sequence,
+			'has_completed_all_capstones'  => (bool) $has_completed_all,
+			'should_show_workbook_cta'     => (bool) ( $is_last_lesson_in_sequence && $has_completed_all ),
+			'workbook_url'                 => self::build_workbook_url( $course_id ),
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Route registration
 	// -------------------------------------------------------------------------
@@ -62,7 +108,7 @@ class Rest_Lxp_Capstone_Submission {
 	/**
 	 * Upsert the logged-in user's capstone submission for a lesson.
 	 *
-	 * @param  WP_REST_Request $request  Required: lesson_id (int), course_id (int), response (string).
+	 * @param  WP_REST_Request $request  Required: lesson_id (int), response (string).
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function upsert_submission( WP_REST_Request $request ) {
@@ -102,7 +148,9 @@ class Rest_Lxp_Capstone_Submission {
 			return new WP_Error( 'db_error', 'Failed to save capstone submission.', array( 'status' => 500 ) );
 		}
 
-		return rest_ensure_response( array( 'id' => $row_id, 'saved' => true ) );
+		$completion = self::get_completion_state( $course_id, $lesson_id, $user_id );
+
+		return rest_ensure_response( array_merge( array( 'id' => $row_id, 'saved' => true ), $completion ) );
 	}
 
 	/**
