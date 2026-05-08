@@ -60,11 +60,12 @@ class TL_AWS_Bedrock_Client {
 	 *
 	 * @param  string          $user_message   Content of the user turn.
 	 * @param  string          $system_prompt  Optional system-level instruction.
+	 * @param  int             $max_tokens     Maximum output tokens. Default 4096.
 	 * @return string|WP_Error                 Generated text or WP_Error on failure.
 	 */
-	public static function invoke_bedrock( $user_message, $system_prompt = '' ) {
+	public static function invoke_bedrock( $user_message, $system_prompt = '', $max_tokens = 4096 ) {
 		$model_id = self::get_model_id();
-		$result   = self::call_converse( $model_id, $user_message, $system_prompt );
+		$result   = self::call_converse( $model_id, $user_message, $system_prompt, $max_tokens );
 
 		// If the chosen model ID was rejected as invalid, automatically retry with
 		// the cross-region inference profile — unless we already used it.
@@ -72,7 +73,7 @@ class TL_AWS_Bedrock_Client {
 			&& 'bedrock_invalid_model_id' === $result->get_error_code()
 			&& $model_id !== self::MODEL_ID_CROSS_REGION
 		) {
-			$fallback = self::call_converse( self::MODEL_ID_CROSS_REGION, $user_message, $system_prompt );
+			$fallback = self::call_converse( self::MODEL_ID_CROSS_REGION, $user_message, $system_prompt, $max_tokens );
 
 			if ( ! is_wp_error( $fallback ) ) {
 				// Cross-region ID works — persist it so all future calls skip the retry.
@@ -120,9 +121,10 @@ class TL_AWS_Bedrock_Client {
 	 * @param  string          $model_id       Bedrock model or inference-profile ID.
 	 * @param  string          $user_message   Content of the user turn.
 	 * @param  string          $system_prompt  Optional system-level instruction.
+	 * @param  int             $max_tokens     Maximum output tokens. Default 4096.
 	 * @return string|WP_Error                 Generated text or WP_Error on failure.
 	 */
-	private static function call_converse( $model_id, $user_message, $system_prompt ) {
+	private static function call_converse( $model_id, $user_message, $system_prompt, $max_tokens = 4096 ) {
 		try {
 			$params = array(
 				'modelId'  => $model_id,
@@ -133,7 +135,7 @@ class TL_AWS_Bedrock_Client {
 					),
 				),
 				'inferenceConfig' => array(
-					'maxTokens'   => 4096,
+					'maxTokens'   => $max_tokens,
 					'temperature' => 0.3,
 				),
 			);
