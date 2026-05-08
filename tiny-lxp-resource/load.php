@@ -42,6 +42,31 @@ TL_Assingment_Submission_Post_Type::instance();
 function tinyLxp_page_templates($template) {
     // Check if the current page is a specific page
     require_once plugin_dir_path(dirname( __FILE__ )). '/lms/templates/tinyLxpTheme/lxp/functions.php';
+
+    $request_path = '';
+    if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
+        $request_path = (string) parse_url( wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH );
+        $request_path = trim( $request_path, '/' );
+    }
+
+    $path_segments = $request_path ? array_values( array_filter( explode( '/', $request_path ) ) ) : array();
+    $is_dynamic_workbook_route = count( $path_segments ) === 3
+        && 'courses' === $path_segments[0]
+        && 'learner-workbook' === $path_segments[2];
+
+    if ( $is_dynamic_workbook_route ) {
+        $course_slug = sanitize_title( $path_segments[1] );
+        if ( '' !== $course_slug ) {
+            $course_post = get_page_by_path( $course_slug, OBJECT, TL_COURSE_CPT );
+            if ( $course_post ) {
+                $_GET['course_slug'] = $course_slug;
+                $_GET['course_id']   = (string) absint( $course_post->ID );
+            }
+        }
+
+        return plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-capstone-journal.php';
+    }
+
     if (is_page('login')) {
         $template = plugin_dir_path(dirname( __FILE__ )).'/lms/templates/tinyLxpTheme/page-login.php';
     }
@@ -85,7 +110,7 @@ function tinyLxp_page_templates($template) {
             $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-edlink-integration.php';
         } elseif (is_page('learner-courses')) {
             $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-learner-courses.php';
-        } elseif (is_page('capstone-journal')) {
+        } elseif (is_page('capstone-journal') || is_page('learner-workbook')) {
             $template = plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-capstone-journal.php';
         }
     }

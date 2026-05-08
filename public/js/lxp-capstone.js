@@ -89,6 +89,14 @@
 		textarea.insertAdjacentElement( 'afterend', statusMsg );
 		statusMsg.insertAdjacentElement( 'afterend', saveBtn );
 
+		var workbookCtaWrap = document.createElement( 'div' );
+		workbookCtaWrap.id = 'lxp-workbook-cta';
+		workbookCtaWrap.style.cssText =
+			'display:none;margin-top:14px;padding:14px 16px;' +
+			'border:1px solid rgba(68,46,102,.18);border-radius:12px;' +
+			'background:rgba(68,46,102,.04);';
+		saveBtn.insertAdjacentElement( 'afterend', workbookCtaWrap );
+
 		// -------------------------------------------------------------------------
 		// On load: pre-fill any previously saved response.
 		// -------------------------------------------------------------------------
@@ -97,6 +105,35 @@
 			statusMsg.style.color = isError
 				? '#c0392b'
 				: 'var(--lp-secondary-color,#442e66)';
+		}
+
+		function hideWorkbookCta() {
+			workbookCtaWrap.style.display = 'none';
+			workbookCtaWrap.innerHTML = '';
+		}
+
+		function showWorkbookCta( workbookUrl ) {
+			if ( ! workbookUrl ) {
+				hideWorkbookCta();
+				return;
+			}
+
+			workbookCtaWrap.innerHTML = '';
+			var text = document.createElement( 'p' );
+			text.textContent = 'You completed all lesson reflections. Open your workbook to review everything in one place.';
+			text.style.cssText = 'margin:0 0 10px 0;color:#2f2f2f;font-size:.95rem;line-height:1.5;';
+
+			var link = document.createElement( 'a' );
+			link.href = workbookUrl;
+			link.textContent = 'View Workbook';
+			link.style.cssText =
+				'display:inline-block;padding:10px 16px;border-radius:8px;' +
+				'background:var(--lp-secondary-color,#442e66);color:#fff;' +
+				'text-decoration:none;font-weight:600;font-size:.92rem;';
+
+			workbookCtaWrap.appendChild( text );
+			workbookCtaWrap.appendChild( link );
+			workbookCtaWrap.style.display = 'block';
 		}
 
 		fetch( vars.rest_url + 'lesson/capstone-submission?lesson_id=' + vars.lesson_id, {
@@ -149,10 +186,17 @@
 				}
 				return res.json();
 			} )
-			.then( function () {
+			.then( function ( data ) {
 				showStatus( 'Response saved successfully!', false );
+
+				if ( data && data.should_show_workbook_cta && data.workbook_url ) {
+					showWorkbookCta( data.workbook_url );
+				} else {
+					hideWorkbookCta();
+				}
 			} )
 			.catch( function ( err ) {
+				hideWorkbookCta();
 				showStatus( 'Save failed: ' + err.message, true );
 			} )
 			.finally( function () {
