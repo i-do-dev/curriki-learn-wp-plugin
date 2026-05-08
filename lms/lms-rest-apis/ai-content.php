@@ -96,7 +96,8 @@ class Rest_Lxp_AI_Content {
 		$system_prompt    = self::build_template_system_prompt( $lesson_title );
 		$prompt           = self::build_template_user_message( $sanitized_content, $lesson_title, $template_html, $component_count );
 
-		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt );
+		$max_tokens = ( '15' === $template_id ) ? 8192 : 4096;
+		$result     = TL_AWS_Bedrock_Client::invoke_bedrock( $prompt, $system_prompt, $max_tokens );
 
 		if ( is_wp_error( $result ) ) {
 			$error_code  = $result->get_error_code();
