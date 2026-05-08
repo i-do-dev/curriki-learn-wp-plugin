@@ -362,8 +362,7 @@ get_header();
 </style>
 
 <div class="lxp-journal-wrap">
-	<h1 class="lxp-journal-title">Learner Workbook</h1>
-	<p class="lxp-journal-subtitle">Review your lesson reflections for this course in one place.</p>
+	<h1 class="lxp-journal-title">Workbook<?php echo $course_title ? ' &mdash; ' . $course_title : ''; ?></h1>
 
 	<?php if ( $total_lessons > 0 && $remaining_lessons > 0 ) : ?>
 	<div class="lxp-workbook-notice">
@@ -384,28 +383,9 @@ get_header();
 	</div>
 	<?php endif; ?>
 
-	<?php if ( count( $enrolled_courses ) > 1 ) : ?>
-	<div class="lxp-course-selector">
-		<label for="lxp-course-select">Course:</label>
-		<select id="lxp-course-select" onchange="if(this.value){window.location.href=this.value;}">
-			<?php foreach ( $enrolled_courses as $ec ) : ?>
-			<?php
-			$course_url = ! empty( $ec['slug'] )
-				? home_url( '/courses/' . $ec['slug'] . '/learner-workbook/' )
-				: add_query_arg( 'course_id', absint( $ec['id'] ), home_url( '/capstone-journal/' ) );
-			?>
-			<option value="<?php echo esc_url( $course_url ); ?>"<?php selected( absint( $ec['id'] ), $course_id ); ?>>
-				<?php echo esc_html( $ec['title'] ); ?>
-			</option>
-			<?php endforeach; ?>
-		</select>
-	</div>
-	<?php endif; ?>
-
 	<?php if ( $course_id > 0 ) : ?>
 	<p class="lxp-journal-subtitle" style="margin-bottom:20px;">
-		<strong><?php echo $course_title; ?></strong>
-		&mdash; <?php echo (int) $total_modules; ?> module<?php echo 1 !== $total_modules ? 's' : ''; ?>,
+		<?php echo (int) $total_modules; ?> module<?php echo 1 !== $total_modules ? 's' : ''; ?>,
 		<?php echo (int) $total_lessons; ?> lesson<?php echo 1 !== $total_lessons ? 's' : ''; ?>
 	</p>
 	<?php endif; ?>
