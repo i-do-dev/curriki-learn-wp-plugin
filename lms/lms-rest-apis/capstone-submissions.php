@@ -50,6 +50,7 @@ class Rest_Lxp_Capstone_Submission {
 
 		$is_last_lesson_in_sequence = $last_lesson_id > 0 && $last_lesson_id === absint( $lesson_id );
 		$has_completed_all          = $total_lessons > 0 && $submitted_lessons === $total_lessons;
+		$remaining_capstones        = max( 0, $total_lessons - $submitted_lessons );
 
 		$course_post = get_post( absint( $course_id ) );
 		$course_slug = $course_post ? (string) $course_post->post_name : '';
@@ -59,9 +60,11 @@ class Rest_Lxp_Capstone_Submission {
 			'course_slug'                  => $course_slug,
 			'total_lessons'                => (int) $total_lessons,
 			'submitted_lessons'            => (int) $submitted_lessons,
+			'remaining_capstone_count'     => (int) $remaining_capstones,
 			'is_last_lesson_in_sequence'   => (bool) $is_last_lesson_in_sequence,
 			'has_completed_all_capstones'  => (bool) $has_completed_all,
 			'should_show_workbook_cta'     => (bool) ( $is_last_lesson_in_sequence && $has_completed_all ),
+			'should_show_incomplete_cta'   => (bool) ( $is_last_lesson_in_sequence && ! $has_completed_all ),
 			'workbook_url'                 => self::build_workbook_url( $course_id ),
 		);
 	}

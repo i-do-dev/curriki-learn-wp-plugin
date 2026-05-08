@@ -85,6 +85,30 @@ if ( $course_id > 0 ) {
 $course_post  = $course_id > 0 ? get_post( $course_id ) : null;
 $course_title = $course_post ? esc_html( $course_post->post_title ) : 'Course';
 
+$total_lessons = count( $lessons );
+$completed_lessons = 0;
+$remaining_lessons = 0;
+$continue_url = '';
+
+if ( ! empty( $lessons ) ) {
+	foreach ( $lessons as $lesson ) {
+		$is_completed = ! empty( $lesson->response );
+		if ( $is_completed ) {
+			$completed_lessons++;
+			continue;
+		}
+
+		$remaining_lessons++;
+		if ( '' === $continue_url ) {
+			if ( $course_post ) {
+				$continue_url = home_url( '/' . $course_post->post_name . '/lessons/' . $lesson->lesson_slug . '/' );
+			} else {
+				$continue_url = get_permalink( (int) $lesson->lesson_id );
+			}
+		}
+	}
+}
+
 get_header();
 ?>
 
@@ -242,11 +266,62 @@ get_header();
 	padding: 60px 20px;
 	color: #888;
 }
+.lxp-workbook-notice {
+	margin: 0 0 20px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	border: 1px solid rgba(68,46,102,.18);
+	background: rgba(68,46,102,.04);
+	color: #2f2f2f;
+	font-size: .95rem;
+	line-height: 1.5;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.lxp-workbook-notice a {
+	display: inline-block;
+	padding: 9px 14px;
+	border-radius: 8px;
+	background: var(--lp-secondary-color, #442e66);
+	color: #fff;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: .9rem;
+}
+.lxp-workbook-notice-success {
+	border-color: rgba(30,130,76,.24);
+	background: rgba(30,130,76,.08);
+}
+.lxp-workbook-notice-success strong {
+	color: #1e824c;
+}
 </style>
 
 <div class="lxp-journal-wrap">
 	<h1 class="lxp-journal-title">Learner Workbook</h1>
 	<p class="lxp-journal-subtitle">Review your lesson reflections for this course in one place.</p>
+
+	<?php if ( $total_lessons > 0 && $remaining_lessons > 0 ) : ?>
+	<div class="lxp-workbook-notice">
+		<span>
+			You have completed <?php echo (int) $completed_lessons; ?> of <?php echo (int) $total_lessons; ?> lesson capstone<?php echo 1 === $total_lessons ? '' : 's'; ?>.
+			Complete the remaining <?php echo (int) $remaining_lessons; ?> to unlock your full workbook journey.
+		</span>
+		<?php if ( ! empty( $continue_url ) ) : ?>
+		<a href="<?php echo esc_url( $continue_url ); ?>">Continue Course</a>
+		<?php endif; ?>
+	</div>
+	<?php elseif ( $total_lessons > 0 ) : ?>
+	<div class="lxp-workbook-notice lxp-workbook-notice-success">
+		<span>
+			<strong>Workbook complete.</strong>
+			You finished all <?php echo (int) $total_lessons; ?> lesson capstone<?php echo 1 === $total_lessons ? '' : 's'; ?> in this course.
+		</span>
+	</div>
+	<?php endif; ?>
 
 	<?php if ( count( $enrolled_courses ) > 1 ) : ?>
 	<div class="lxp-course-selector">
