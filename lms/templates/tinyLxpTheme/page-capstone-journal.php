@@ -30,14 +30,13 @@ $enrolled_courses = array();
 // LP4 canonical API: LP_User_Items_DB::get_user_courses() with LP_User_Items_Filter.
 // LP_User has no bulk get_course_ids() method — only per-course checks exist on it.
 if ( class_exists( 'LP_User_Items_DB' ) && class_exists( 'LP_User_Items_Filter' ) ) {
-	$lp_user_items_db    = LP_User_Items_DB::getInstance();
-	$filter              = new LP_User_Items_Filter();
-	$filter->user_id     = $user_id;
-	$filter->only_fields = array( 'ui.item_id' );
-	$filter->statues     = array( LP_COURSE_ENROLLED, LP_COURSE_FINISHED );
-	$total_rows          = 0;
-	$results             = $lp_user_items_db->get_user_courses( $filter, $total_rows );
-	$enrolled_ids        = is_array( $results ) ? wp_list_pluck( $results, 'item_id' ) : array();
+	$lp_user_items_db = LP_User_Items_DB::getInstance();
+	$filter           = new LP_User_Items_Filter();
+	$filter->user_id  = $user_id;
+	$filter->statues  = array( LP_COURSE_ENROLLED, LP_COURSE_FINISHED );
+	$total_rows       = 0;
+	$results          = $lp_user_items_db->get_user_courses( $filter, $total_rows );
+	$enrolled_ids     = is_array( $results ) ? wp_list_pluck( $results, 'item_id' ) : array();
 
 	if ( ! empty( $enrolled_ids ) ) {
 		$posts = get_posts( array(
