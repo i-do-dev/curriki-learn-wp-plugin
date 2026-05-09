@@ -2,8 +2,8 @@
 /**
  * Template: Learner Workbook
  *
- * Displays all lessons in a course with the current student's reflection entries.
- * Accessible to lxp_student and lxp_teacher roles.
+ * Displays all lessons in a course with the current user's reflection entries.
+ * Admins can also view a selected user's workbook via the view_user_id query arg.
  *
  * Loaded by tinyLxp_page_templates() for capstone-journal, learner-workbook,
  * and dynamic /courses/{course-slug}/learner-workbook routes.
@@ -17,8 +17,21 @@ if ( ! is_user_logged_in() ) {
 
 require_once plugin_dir_path( __FILE__ ) . '../../repositories/class-capstone-submission-repository.php';
 
-$user_id   = get_current_user_id();
-$course_id = absint( isset( $_GET['course_id'] ) ? $_GET['course_id'] : 0 );
+$viewer_user_id   = get_current_user_id();
+$requested_user_id = absint( isset( $_GET['view_user_id'] ) ? $_GET['view_user_id'] : 0 );
+$target_user      = get_userdata( $viewer_user_id );
+$is_admin_view    = false;
+
+if ( $requested_user_id > 0 && current_user_can( 'manage_options' ) ) {
+	$requested_user = get_userdata( $requested_user_id );
+	if ( $requested_user ) {
+		$target_user   = $requested_user;
+		$is_admin_view = $requested_user_id !== $viewer_user_id;
+	}
+}
+
+$user_id     = $target_user ? (int) $target_user->ID : $viewer_user_id;
+$course_id   = absint( isset( $_GET['course_id'] ) ? $_GET['course_id'] : 0 );
 $course_slug = isset( $_GET['course_slug'] ) ? sanitize_title( wp_unslash( $_GET['course_slug'] ) ) : '';
 
 // -------------------------------------------------------------------------
@@ -168,6 +181,16 @@ get_header();
 	font-size: 0.97rem;
 	cursor: pointer;
 	min-width: 260px;
+}
+.lxp-admin-view-notice {
+	margin: 0 0 20px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	border: 1px solid rgba(68,46,102,.18);
+	background: rgba(68,46,102,.05);
+	color: #2f2f2f;
+	font-size: 0.95rem;
+	line-height: 1.5;
 }
 .lxp-lesson-row {
 	background: #fff;
@@ -390,10 +413,15 @@ get_header();
 
 <div class="lxp-journal-wrap">
 	<h1 class="lxp-journal-title">Workbook<?php echo $course_title ? ' &mdash; ' . $course_title : ''; ?></h1>
+	<?php if ( $is_admin_view && $target_user ) : ?>
+	<div class="lxp-admin-view-notice">
+		<?php echo esc_html( sprintf( 'Viewing workbook for %s.', $target_user->display_name ) ); ?>
+	</div>
+	<?php endif; ?>
 
 	<?php if ( empty( $lessons ) ) : ?>
 	<div class="lxp-empty-state">
-		<p><?php $course_id > 0 ? print( 'No capstone submissions yet for this course.' ) : print( 'Select a course to view your workbook.' ); ?></p>
+		<p><?php $course_id > 0 ? print( 'No workbook entries yet for this course.' ) : print( 'Select a course to view the workbook.' ); ?></p>
 	</div>
 	<?php else : ?>
 
@@ -430,7 +458,7 @@ get_header();
 				</div>
 			</div>
 			<div class="lxp-response-body" style="display:block;">
-				<div class="lxp-response-label">Your Workbook Entry</div>
+				<div class="lxp-response-label"><?php echo esc_html( $is_admin_view ? 'Workbook Entry' : 'Your Workbook Entry' ); ?></div>
 				<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
 			</div>
 		</div>
