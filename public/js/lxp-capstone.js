@@ -94,7 +94,7 @@
 		workbookCtaWrap.style.cssText =
 			'display:none;margin-top:14px;padding:14px 16px;' +
 			'border:1px solid rgba(68,46,102,.18);border-radius:12px;' +
-			'background:rgba(68,46,102,.04);';
+			'background:rgba(68,46,102,.04);text-align:center;';
 		saveBtn.insertAdjacentElement( 'afterend', workbookCtaWrap );
 
 		// -------------------------------------------------------------------------
@@ -120,11 +120,15 @@
 			workbookCtaWrap.innerHTML = '';
 			var link = document.createElement( 'a' );
 			link.href = workbookUrl;
+			// prepend view icon to link text
+			var icon = document.createElement( 'span' );
+			icon.textContent = '\uD83D\uDC41\uFE0F'; // 👁️
 			link.textContent = 'Preview Workbook';
 			link.style.cssText =
 				'display:inline-block;padding:10px 16px;border-radius:8px;' +
 				'background:var(--lp-secondary-color,#442e66);color:#fff;' +
 				'text-decoration:none;font-weight:600;font-size:.92rem;';
+			link.prepend( icon );
 			workbookCtaWrap.appendChild( link );
 			workbookCtaWrap.style.display = 'block';
 		}
