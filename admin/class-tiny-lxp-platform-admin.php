@@ -303,7 +303,7 @@ class Tiny_LXP_Platform_Admin
 
     /**
      * Register the "Curriki Learn" top-level admin menu and the
-     * "Workbook Submissions" submenu page.
+     * "Workbooks" submenu page.
      * Hooked to admin_menu via Tiny_LXP_Platform::define_admin_hooks().
      */
     public function register_curriki_learn_menu() {
@@ -312,31 +312,123 @@ class Tiny_LXP_Platform_Admin
             __( 'Curriki Learn', 'tiny-lxp-platform' ),
             'manage_options',
             'curriki-learn',
-            array( $this, 'workbook_submissions_page' ),
+            array( $this, 'workbooks_page' ),
             'dashicons-welcome-learn-more',
             30
         );
 
         add_submenu_page(
             'curriki-learn',
-            __( 'Workbook Submissions', 'tiny-lxp-platform' ),
-            __( 'Workbook Submissions', 'tiny-lxp-platform' ),
+            __( 'Workbooks', 'tiny-lxp-platform' ),
+            __( 'Workbooks', 'tiny-lxp-platform' ),
             'manage_options',
-            'curriki-learn-workbook-submissions',
-            array( $this, 'workbook_submissions_page' )
-        );
-
-        add_submenu_page(
-            'curriki-learn',
-            __( 'Capstone Submissions', 'tiny-lxp-platform' ),
-            __( 'Capstone Submissions', 'tiny-lxp-platform' ),
-            'manage_options',
-            'curriki-learn-capstone-submissions',
-            array( $this, 'capstone_submissions_page' )
+            'curriki-learn-workbooks',
+            array( $this, 'workbooks_page' )
         );
 
         // Remove the auto-created duplicate top-level submenu item.
         remove_submenu_page( 'curriki-learn', 'curriki-learn' );
+    }
+
+    /**
+     * Get the LearnPress courses that are relevant to a user's workbook.
+     *
+     * @param int $user_id Selected user ID.
+     * @return array<int, array<string, mixed>>
+     */
+    private function get_workbook_courses_for_user( $user_id ) {
+        $user_id = absint( $user_id );
+        if ( $user_id <= 0 ) {
+            return array();
+        }
+
+        if ( ! class_exists( 'LP_User_Items_DB' ) || ! class_exists( 'LP_User_Items_Filter' ) ) {
+            return array();
+        }
+
+        $lp_user_items_db = LP_User_Items_DB::getInstance();
+        $filter           = new LP_User_Items_Filter();
+        $filter->user_id  = $user_id;
+        $filter->statues  = array( LP_COURSE_ENROLLED, LP_COURSE_FINISHED );
+        $total_rows       = 0;
+        $results          = $lp_user_items_db->get_user_courses( $filter, $total_rows );
+        $course_ids       = is_array( $results ) ? array_map( 'absint', wp_list_pluck( $results, 'item_id' ) ) : array();
+
+        if ( empty( $course_ids ) ) {
+            return array();
+        }
+
+        $posts   = get_posts(
+            array(
+                'post_type'      => 'lp_course',
+                'post__in'       => $course_ids,
+                'orderby'        => 'post__in',
+                'posts_per_page' => -1,
+                'post_status'    => 'publish',
+            )
+        );
+        $courses = array();
+
+        foreach ( $posts as $post ) {
+            $courses[] = array(
+                'id'    => (int) $post->ID,
+                'title' => (string) $post->post_title,
+                'slug'  => (string) $post->post_name,
+            );
+        }
+
+        return $courses;
+    }
+
+    /**
+     * Build the frontend workbook URL for a selected user and course.
+     *
+     * @param array<string, mixed> $course Course data with id and slug keys.
+     * @param int                  $user_id Selected user ID.
+     * @return string
+     */
+    private function get_admin_workbook_url( $course, $user_id ) {
+        $user_id   = absint( $user_id );
+        $course_id = isset( $course['id'] ) ? absint( $course['id'] ) : 0;
+        $slug      = isset( $course['slug'] ) ? sanitize_title( (string) $course['slug'] ) : '';
+
+        if ( '' !== $slug ) {
+            return add_query_arg( 'view_user_id', $user_id, home_url( '/courses/' . $slug . '/learner-workbook/' ) );
+        }
+
+        return add_query_arg(
+            array(
+                'course_id'     => $course_id,
+                'view_user_id'  => $user_id,
+            ),
+            home_url( '/capstone-journal/' )
+        );
+    }
+
+    /**
+     * Render the admin Workbooks page.
+     */
+    public function workbooks_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'tiny-lxp-platform' ) );
+        }
+
+        $selected_user_id = absint( isset( $_GET['workbook_user_id'] ) ? $_GET['workbook_user_id'] : 0 );
+        $selected_user    = $selected_user_id > 0 ? get_userdata( $selected_user_id ) : false;
+        $users            = get_users(
+            array(
+                'orderby' => 'display_name',
+                'order'   => 'ASC',
+            )
+        );
+        $courses          = $selected_user ? $this->get_workbook_courses_for_user( $selected_user_id ) : array();
+
+        foreach ( $courses as &$course ) {
+            $course['workbook_url'] = $this->get_admin_workbook_url( $course, $selected_user_id );
+        }
+        unset( $course );
+
+        include plugin_dir_path( __FILE__ ) . 'partials/workbooks-admin.php';
     }
 
     /**
