@@ -140,7 +140,7 @@
 			if ( data && data.response ) {
 				textarea.value = data.response;
 				showStatus( 'Last saved: ' + formatDate( data.updated_at ), false );
-					if ( data.is_last_lesson_in_sequence && data.workbook_url ) {
+					if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
 						showPreviewWorkbookBtn( data.workbook_url );
 					}
 		} );
@@ -181,7 +181,7 @@
 			.then( function ( data ) {
 				showStatus( 'Response saved successfully!', false );
 
-					if ( data && data.is_last_lesson_in_sequence && data.workbook_url ) {
+					if ( data && ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
 						showPreviewWorkbookBtn( data.workbook_url );
 				} else {
 					hideWorkbookCta();

@@ -74,6 +74,8 @@ class Rest_Lxp_Capstone_Submission {
 		}
 
 		$is_last_lesson_in_sequence = $last_lesson_id > 0 && $last_lesson_id === absint( $lesson_id );
+		$lesson_post                = get_post( absint( $lesson_id ) );
+		$is_workbook_lesson         = $lesson_post && false !== stripos( $lesson_post->post_title, 'workbook' );
 		$has_completed_all          = $total_lessons > 0 && $submitted_lessons === $total_lessons;
 		$remaining_capstones        = max( 0, $total_lessons - $submitted_lessons );
 		$remaining_modules          = max( 0, $total_modules - $completed_modules );
@@ -94,6 +96,7 @@ class Rest_Lxp_Capstone_Submission {
 			'has_completed_all_capstones'  => (bool) $has_completed_all,
 			'should_show_workbook_cta'     => (bool) ( $is_last_lesson_in_sequence && $has_completed_all ),
 			'should_show_incomplete_cta'   => (bool) ( $is_last_lesson_in_sequence && ! $has_completed_all ),
+			'is_workbook_lesson'           => (bool) $is_workbook_lesson,
 			'workbook_url'                 => self::build_workbook_url( $course_id ),
 		);
 	}
@@ -211,20 +214,23 @@ class Rest_Lxp_Capstone_Submission {
 
 		// Resolve last-lesson flag and workbook URL so the frontend can show
 		// the Preview Workbook button on the last lesson of the course.
-		$is_last      = false;
-		$workbook_url = '';
-		$section_repo = new TL_LearnPress_Section_Repository();
-		$course_id    = $section_repo->get_course_id_by_item_id( $lesson_id );
+		$is_last            = false;
+		$is_workbook_lesson = false;
+		$workbook_url       = '';
+		$section_repo       = new TL_LearnPress_Section_Repository();
+		$course_id          = $section_repo->get_course_id_by_item_id( $lesson_id );
 		if ( $course_id > 0 ) {
-			$completion   = self::get_completion_state( $course_id, $lesson_id, $user_id );
-			$is_last      = (bool) $completion['is_last_lesson_in_sequence'];
-			$workbook_url = (string) $completion['workbook_url'];
+			$completion         = self::get_completion_state( $course_id, $lesson_id, $user_id );
+			$is_last            = (bool) $completion['is_last_lesson_in_sequence'];
+			$is_workbook_lesson = (bool) $completion['is_workbook_lesson'];
+			$workbook_url       = (string) $completion['workbook_url'];
 		}
 
 		if ( ! $submission ) {
 			return rest_ensure_response( array(
 				'response'                   => null,
 				'is_last_lesson_in_sequence' => $is_last,
+				'is_workbook_lesson'         => $is_workbook_lesson,
 				'workbook_url'               => $workbook_url,
 			) );
 		}
@@ -235,6 +241,7 @@ class Rest_Lxp_Capstone_Submission {
 			'submitted_at'               => $submission->submitted_at,
 			'updated_at'                 => $submission->updated_at,
 			'is_last_lesson_in_sequence' => $is_last,
+			'is_workbook_lesson'         => $is_workbook_lesson,
 			'workbook_url'               => $workbook_url,
 		) );
 	}
