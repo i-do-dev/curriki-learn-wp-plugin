@@ -366,12 +366,12 @@ Indexes: `UNIQUE KEY lesson_user (lesson_id, user_id)`, `KEY course_id`, `KEY us
 
 | Method | Route | Callback | Auth | Purpose |
 |---|---|---|---|---|
-| `POST` | `/wp-json/lms/v1/capstone/submission` | `Rest_Lxp_Capstone_Submission::upsert_submission()` | `is_user_logged_in()` | Save/update capstone response |
-| `GET` | `/wp-json/lms/v1/capstone/submission` | `Rest_Lxp_Capstone_Submission::get_submission()` | `is_user_logged_in()` | Fetch current user's response |
-| `GET` | `/wp-json/lms/v1/capstone/journal` | `Rest_Lxp_Capstone_Submission::get_journal()` | `is_user_logged_in()` | Fetch all capstone submissions for the current user |
+| `POST` | `/wp-json/lms/v1/lesson/capstone-submission` | `Rest_Lxp_Capstone_Submission::upsert_submission()` | `is_user_logged_in()` | Save/update capstone response |
+| `GET` | `/wp-json/lms/v1/lesson/capstone-submission` | `Rest_Lxp_Capstone_Submission::get_submission()` | `is_user_logged_in()` | Fetch current user's response |
+| `GET` | `/wp-json/lms/v1/course/capstone-submissions` | `Rest_Lxp_Capstone_Submission::get_course_submissions()` | `is_user_logged_in()` | All lessons in a course with the user's responses (journal) |
 
-**POST params**: `lesson_id` (int), `course_id` (int), `response` (string).  
-**GET params**: `lesson_id` (int) for `/submission`; none for `/journal`.  
+**POST params**: `lesson_id` (int), `response` (string). `course_id` is derived server-side via `TL_LearnPress_Section_Repository::get_course_id_by_item_id()` — do not pass it from the client.  
+**GET params**: `lesson_id` (int) for `/lesson/capstone-submission`; `course_id` (int) for `/course/capstone-submissions`.  
 All return 401 if the user is not logged in.
 
 ### Frontend JS (`lxp-capstone.js`)
@@ -383,9 +383,9 @@ Localised as `lxp_capstone_vars`: `{ rest_url, nonce, lesson_id, course_id }`.
 2. Finds the capstone sentinel inside `.lp-ai-lesson-template` by querying `.lxp-capstone-box`.
 3. Falls back to text-matching leaf divs containing `[Capstone Box]` for legacy lessons generated before the class was added.
 4. Replaces the sentinel div with a `<textarea>`.
-5. On load: GETs `/capstone/submission?lesson_id=N` and pre-fills any saved response.
+5. On load: GETs `/lesson/capstone-submission?lesson_id=N` and pre-fills any saved response.
 6. Injects a Save button at the bottom of the capstone section.
-7. On Save: POSTs `{ lesson_id, course_id, response }` to `/capstone/submission`.
+7. On Save: POSTs `{ lesson_id, response }` to `/lesson/capstone-submission`. (`course_id` is resolved server-side.)
 
 ### `[Capstone Box]` sentinel pattern
 
@@ -660,6 +660,7 @@ When changing external service hosts, update constants in [lms/xapi-constants.ph
 20. **LP4 lesson frontend context**: `enqueue_capstone_scripts()` and `enqueue_workbook_scripts()` cannot rely on `is_singular('lp_lesson')` alone. LP4 lesson URLs are usually routed in `lp_course` context, so the public layer resolves the lesson ID from the URL when needed before localising script vars.
 21. **`meta_table_html()` method name is legacy**: This shared helper was originally the Lesson Overview metadata table. It was repurposed to return Learning Outcomes + Opening Hook sections. Do not re-add Lesson Overview metadata table logic here without updating all 15 template functions.
 22. **Capstone DB table follows workbook pattern**: `lxp_capstone_submissions` is created with `$wpdb->query("CREATE TABLE IF NOT EXISTS ...")` in `on_activate()`. Re-trigger creation by deactivating and reactivating the plugin. Schema: `(id, lesson_id, course_id, user_id, response, submitted_at, updated_at)` with `UNIQUE KEY lesson_user (lesson_id, user_id)`.
+23. **`lxp-capstone.js` is a single IIFE — a syntax error disables all capstone boxes sitewide**: A JS syntax error anywhere in the file prevents it from parsing entirely, silently leaving every `[Capstone Box]` sentinel on every lesson as a plain non-interactive div. Always verify the browser console shows no errors after editing this file.
 
 ---
 
