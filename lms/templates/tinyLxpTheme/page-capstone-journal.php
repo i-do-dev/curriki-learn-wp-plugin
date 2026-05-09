@@ -359,36 +359,37 @@ get_header();
 .lxp-module-lessons {
 	padding-left: 0;
 }
+.lxp-btn {
+	display: inline-block;
+	padding: 10px 18px;
+	border-radius: 8px;
+	font-weight: 600;
+	font-size: 0.95rem;
+	text-decoration: none;
+	border: none;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+.lxp-btn-primary {
+	background: var(--lp-secondary-color, #442e66);
+	color: #fff;
+}
+.lxp-btn-primary:hover {
+	background: #2a1e3f;
+}
+.lxp-btn-secondary {
+	background: #f0f0f0;
+	color: #333;
+	border: 1px solid #ddd;
+}
+.lxp-btn-secondary:hover {
+	background: #e8e8e8;
+	text-decoration: none;
+}
 </style>
 
 <div class="lxp-journal-wrap">
 	<h1 class="lxp-journal-title">Workbook<?php echo $course_title ? ' &mdash; ' . $course_title : ''; ?></h1>
-
-	<?php if ( $total_lessons > 0 && $remaining_lessons > 0 ) : ?>
-	<div class="lxp-workbook-notice">
-		<span>
-			You have completed <?php echo (int) $completed_lessons; ?> of <?php echo (int) $total_lessons; ?> lesson capstone<?php echo 1 === $total_lessons ? '' : 's'; ?>.
-			Complete the remaining <?php echo (int) $remaining_lessons; ?> to unlock your full workbook journey.
-		</span>
-		<?php if ( ! empty( $continue_url ) ) : ?>
-		<a href="<?php echo esc_url( $continue_url ); ?>">Continue Course</a>
-		<?php endif; ?>
-	</div>
-	<?php elseif ( $total_lessons > 0 ) : ?>
-	<div class="lxp-workbook-notice lxp-workbook-notice-success">
-		<span>
-			<strong>Workbook complete.</strong>
-			You finished all <?php echo (int) $total_lessons; ?> lesson capstone<?php echo 1 === $total_lessons ? '' : 's'; ?> in this course.
-		</span>
-	</div>
-	<?php endif; ?>
-
-	<?php if ( $course_id > 0 ) : ?>
-	<p class="lxp-journal-subtitle" style="margin-bottom:20px;">
-		<?php echo (int) $total_modules; ?> module<?php echo 1 !== $total_modules ? 's' : ''; ?>,
-		<?php echo (int) $total_lessons; ?> lesson<?php echo 1 !== $total_lessons ? 's' : ''; ?>
-	</p>
-	<?php endif; ?>
 
 	<?php if ( empty( $lessons ) ) : ?>
 	<div class="lxp-empty-state">
@@ -438,6 +439,13 @@ get_header();
 	</div><!-- .lxp-module-block -->
 	<?php endforeach; ?>
 	<?php endif; ?>
+</div>
+
+<div class="lxp-workbook-actions" style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(68,46,102,.12); display: flex; gap: 12px; justify-content: flex-end;">
+	<?php if ( $course_post ) : ?>
+	<a href="<?php echo esc_url( get_permalink( $course_post->ID ) ); ?>" class="lxp-btn lxp-btn-secondary">Back to Course</a>
+	<?php endif; ?>
+	<button class="lxp-btn lxp-btn-primary" onclick="window.print();">Print Workbook</button>
 </div>
 
 <?php get_footer(); ?>

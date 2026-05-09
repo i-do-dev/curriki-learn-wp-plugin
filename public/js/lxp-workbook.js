@@ -112,6 +112,9 @@
 			.then( function ( data ) {
 				if ( data && data.fields ) {
 					prefillAnswers( data.fields );
+					if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
+						showPreviewWorkbookBtn( data.workbook_url );
+					}
 				}
 			} )
 			.catch( function () {
@@ -141,6 +144,38 @@
 			innerBox.appendChild( btnWrapper );
 		} else {
 			workbookSection.appendChild( btnWrapper );
+		}
+
+		// CTA wrap for Preview Workbook button.
+		var workbookCtaWrap = document.createElement( 'div' );
+		workbookCtaWrap.id = 'lxp-workbook-preview-cta';
+		workbookCtaWrap.style.cssText = 'display:none;margin-top:14px;';
+		if ( innerBox ) {
+			innerBox.appendChild( workbookCtaWrap );
+		} else {
+			workbookSection.appendChild( workbookCtaWrap );
+		}
+
+		function hideWorkbookCta() {
+			workbookCtaWrap.style.display = 'none';
+			workbookCtaWrap.innerHTML = '';
+		}
+
+		function showPreviewWorkbookBtn( workbookUrl ) {
+			if ( ! workbookUrl ) {
+				hideWorkbookCta();
+				return;
+			}
+			workbookCtaWrap.innerHTML = '';
+			var link = document.createElement( 'a' );
+			link.href = workbookUrl;
+			link.textContent = 'Preview Workbook';
+			link.style.cssText =
+				'display:inline-block;padding:10px 16px;border-radius:8px;' +
+				'background:var(--lp-secondary-color,#442e66);color:#fff;' +
+				'text-decoration:none;font-weight:600;font-size:.92rem;';
+			workbookCtaWrap.appendChild( link );
+			workbookCtaWrap.style.display = 'block';
 		}
 
 		// -------------------------------------------------------------------------
@@ -176,8 +211,12 @@
 				.then( function ( result ) {
 					if ( result.ok && result.data.saved ) {
 						statusMsg.style.color = '#2a7d4f';
-						statusMsg.textContent = 'Saved!';
-					} else {
+						statusMsg.textContent = 'Saved!';						var d = result.data;
+						if ( d && ( d.is_last_lesson_in_sequence || d.is_workbook_lesson ) && d.workbook_url ) {
+							showPreviewWorkbookBtn( d.workbook_url );
+						} else {
+							hideWorkbookCta();
+						}					} else {
 						statusMsg.style.color = '#c0392b';
 						statusMsg.textContent =
 							( result.data && result.data.message ) ? result.data.message : 'Save failed.';
