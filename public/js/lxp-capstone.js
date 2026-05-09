@@ -143,6 +143,7 @@
 					if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
 						showPreviewWorkbookBtn( data.workbook_url );
 					}
+		}
 		} );
 
 		// -------------------------------------------------------------------------
