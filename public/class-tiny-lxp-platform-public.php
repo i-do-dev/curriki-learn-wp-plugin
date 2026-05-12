@@ -823,11 +823,28 @@ class Tiny_LXP_Platform_Public
             return;
         }
 
+        // Quill 2.x — Snow theme CSS (null version = no ?ver= appended to CDN URL).
+        wp_enqueue_style(
+            'quill-snow',
+            'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css',
+            array(),
+            null
+        );
+
+        // Quill 2.x — core JS, loaded in footer.
+        wp_enqueue_script(
+            'quill',
+            'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js',
+            array(),
+            null,
+            true
+        );
+
         wp_enqueue_script(
             'lxp-capstone',
             plugin_dir_url( __FILE__ ) . 'js/lxp-capstone.js',
-            array(),
-            '1.0.0',
+            array( 'quill' ),
+            '2.0.0',
             true
         );
 

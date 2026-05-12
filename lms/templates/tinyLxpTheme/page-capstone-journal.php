@@ -554,7 +554,7 @@ get_header();
 			</div>
 			<div class="lxp-response-body" style="display:block;">
 				<div class="lxp-response-label"><?php echo esc_html( $is_admin_view ? 'Workbook Entry' : 'Your Workbook Entry' ); ?></div>
-				<div class="lxp-response-text"><?php echo esc_html( $lesson->response ); ?></div>
+				<div class="lxp-response-text"><?php echo wp_kses_post( $lesson->response ); ?></div>
 			</div>
 		</div>
 		<?php endforeach; ?>
