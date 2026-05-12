@@ -291,7 +291,7 @@ get_header();
 	padding: 14px 16px;
 	font-size: 0.95rem;
 	color: #333;
-	white-space: pre-wrap;
+	white-space: normal;
 	line-height: 1.65;
 }
 .lxp-empty-state {
