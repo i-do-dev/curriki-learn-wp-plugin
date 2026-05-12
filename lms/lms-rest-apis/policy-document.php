@@ -215,6 +215,7 @@ class Rest_Lxp_Policy_Document {
 		echo '.capstone-label { font-weight: bold; font-size: 9.5pt; color: #444; margin-bottom: 3px; }';
 		echo '.capstone-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: normal; word-wrap: break-word; }';
 		echo '.empty-state { text-align: center; color: #888; padding: 30px 0; font-style: italic; }';
+		echo 'ul { margin: 0 0 6pt 18pt; padding: 0; list-style-type: disc; } ol { margin: 0 0 6pt 18pt; padding: 0; list-style-type: decimal; } li { margin-bottom: 2pt; }';
 		echo '</style></head><body>';
 
 		// Header.

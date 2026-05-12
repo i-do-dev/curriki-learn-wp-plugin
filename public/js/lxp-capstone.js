@@ -168,7 +168,7 @@
 		// On Save: POST response to REST endpoint.
 		// -------------------------------------------------------------------------
 		saveBtn.addEventListener( 'click', function () {
-			var response = quill.root.innerHTML.trim();
+			var response = normalizeQuillHtml( quill.root.innerHTML ).trim();
 			if ( ! quill.getText().trim() ) {
 				showStatus( 'Please write your response before saving.', true );
 				return;
@@ -219,6 +219,59 @@
 		// -------------------------------------------------------------------------
 		// Helpers
 		// -------------------------------------------------------------------------
+
+		/**
+		 * Quill 2.x stores every list as <ol> and distinguishes bullet vs ordered
+		 * via data-list="bullet"|"ordered" on each <li>. wp_kses_post strips
+		 * data-list at save time, so we must normalise before posting:
+		 * split each <ol> into runs of <ul> (bullet) and <ol> (ordered) so
+		 * standard HTML is stored in the DB and renders correctly everywhere.
+		 */
+		function normalizeQuillHtml( html ) {
+			var temp = document.createElement( 'div' );
+			temp.innerHTML = html;
+
+			var ols = Array.from( temp.querySelectorAll( 'ol' ) );
+			ols.forEach( function ( ol ) {
+				var children = Array.from( ol.childNodes );
+				var groups = [];
+				var current = null;
+
+				children.forEach( function ( node ) {
+					var type = 'ordered';
+					if ( node.nodeName === 'LI' ) {
+						var dl = node.getAttribute && node.getAttribute( 'data-list' );
+						type = ( dl === 'bullet' ) ? 'bullet' : 'ordered';
+					}
+					if ( ! current || current.type !== type ) {
+						current = { type: type, nodes: [] };
+						groups.push( current );
+					}
+					current.nodes.push( node );
+				} );
+
+				// Only replace if there is at least one bullet group; pure ordered lists are fine.
+				var hasBullet = groups.some( function ( g ) { return g.type === 'bullet'; } );
+				if ( ! hasBullet ) { return; }
+
+				var fragment = document.createDocumentFragment();
+				groups.forEach( function ( group ) {
+					var tag = group.type === 'bullet' ? 'ul' : 'ol';
+					var list = document.createElement( tag );
+					group.nodes.forEach( function ( n ) { list.appendChild( n.cloneNode( true ) ); } );
+					fragment.appendChild( list );
+				} );
+				ol.parentNode.replaceChild( fragment, ol );
+			} );
+
+			// Strip remaining data-list attributes (e.g. on pure ordered lists).
+			temp.querySelectorAll( 'li[data-list]' ).forEach( function ( li ) {
+				li.removeAttribute( 'data-list' );
+			} );
+
+			return temp.innerHTML;
+		}
+
 		function formatDate( dateStr ) {
 			if ( ! dateStr ) { return ''; }
 			var d = new Date( dateStr.replace( ' ', 'T' ) );
