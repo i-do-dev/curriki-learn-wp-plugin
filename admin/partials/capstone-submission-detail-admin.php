@@ -81,11 +81,10 @@ $back_url = admin_url( 'admin.php?page=curriki-learn-capstone-submissions' );
 			border:1px solid rgba(68,46,102,.15);
 			border-radius:10px;
 			padding:20px 24px;
-			white-space:pre-wrap;
 			font-size:0.97rem;
 			line-height:1.7;
 			color:#333;
-		"><?php echo esc_html( $submission->response ); ?></div>
+		"><?php echo wp_kses_post( $submission->response ); ?></div>
 	<?php endif; ?>
 
 	<?php endif; ?>

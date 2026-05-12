@@ -41,11 +41,13 @@ class TL_Capstone_Submission_Repository {
 
 		$existing = $this->get_by_lesson_user( $lesson_id, $user_id );
 
+		$clean_response = wp_kses_post( (string) $response );
+
 		if ( $existing ) {
 			$updated = $this->wpdb->update(
 				$this->table,
 				array(
-					'response'   => sanitize_textarea_field( $response ),
+					'response'   => $clean_response,
 					'updated_at' => $now,
 				),
 				array(
@@ -64,7 +66,7 @@ class TL_Capstone_Submission_Repository {
 				'lesson_id'    => absint( $lesson_id ),
 				'course_id'    => absint( $course_id ),
 				'user_id'      => absint( $user_id ),
-				'response'     => sanitize_textarea_field( $response ),
+				'response'     => $clean_response,
 				'submitted_at' => $now,
 				'updated_at'   => $now,
 			),

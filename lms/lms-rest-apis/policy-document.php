@@ -213,7 +213,7 @@ class Rest_Lxp_Policy_Document {
 		echo '.field-answer-empty { color: #aaa; font-style: italic; }';
 		echo '.capstone-block { padding: 0 8px; margin-bottom: 10px; }';
 		echo '.capstone-label { font-weight: bold; font-size: 9.5pt; color: #444; margin-bottom: 3px; }';
-		echo '.capstone-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: pre-wrap; word-wrap: break-word; }';
+		echo '.capstone-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: normal; word-wrap: break-word; }';
 		echo '.empty-state { text-align: center; color: #888; padding: 30px 0; font-style: italic; }';
 		echo '</style></head><body>';
 
@@ -262,7 +262,7 @@ class Rest_Lxp_Policy_Document {
 					} elseif ( $has_cap ) {
 						echo '<div class="capstone-block">';
 						echo '<div class="capstone-label">Response</div>';
-						echo '<div class="capstone-answer">' . esc_html( $capstone_map[ $lid ] ) . '</div>';
+					echo '<div class="capstone-answer">' . wp_kses_post( $capstone_map[ $lid ] ) . '</div>';
 						echo '</div>';
 					} else {
 						$labels = self::extract_field_labels_from_html( $lid );

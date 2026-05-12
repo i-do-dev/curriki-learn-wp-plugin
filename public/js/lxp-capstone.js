@@ -2,8 +2,9 @@
  * lxp-capstone.js
  *
  * Runs on every lp_lesson single page. Finds the "Capstone Activity" section inside
- * .lp-ai-lesson-template, converts the [Capstone Box] sentinel div into a <textarea>
- * with a Save button, pre-fills any saved response, and POSTs on Save.
+ * .lp-ai-lesson-template, converts the [Capstone Box] sentinel div into a rich-text
+ * (contenteditable) editor with a formatting toolbar and a Save button, pre-fills any
+ * saved response, and POSTs on Save.
  *
  * Localised variables (via wp_localize_script) are available as lxp_capstone_vars:
  *   rest_url   - base REST URL with trailing slash (e.g. /wp-json/lms/v1/)
@@ -49,16 +50,29 @@
 			return; // Sentinel not found — lesson may not have AI content yet.
 		}
 
-		var textarea = document.createElement( 'textarea' );
-		textarea.id = 'lxp-capstone-response';
-		textarea.setAttribute( 'placeholder', 'Write your capstone response here\u2026' );
-		textarea.style.cssText =
-			'width:100%;min-height:140px;padding:14px 16px;' +
-			'border:2px solid rgba(68,46,102,.25);border-radius:12px;' +
-			'font-size:1rem;font-family:inherit;resize:vertical;' +
-			'background:#fff;box-sizing:border-box;line-height:1.6;';
+		// -------------------------------------------------------------------------
+		// Quill Snow editor wrapper.
+		// Quill mounts its own toolbar + editor area inside the wrapper div.
+		// -------------------------------------------------------------------------
+		var wrapper = document.createElement( 'div' );
+		wrapper.id = 'lxp-capstone-quill-wrap';
+		wrapper.style.cssText =
+			'border:2px solid rgba(68,46,102,.25);border-radius:12px;overflow:hidden;' +
+			'font-size:1rem;font-family:inherit;margin-bottom:2px;';
 
-		sentinelDiv.replaceWith( textarea );
+		// Replace sentinel with the Quill wrapper.
+		sentinelDiv.replaceWith( wrapper );
+
+		var quill = new Quill( '#lxp-capstone-quill-wrap', {
+			theme: 'snow',
+			placeholder: 'Write your capstone response here\u2026',
+			modules: {
+				toolbar: [
+					[ 'bold', 'italic', 'underline' ],
+					[ { list: 'ordered' }, { list: 'bullet' } ],
+				],
+			},
+		} );
 
 		// -------------------------------------------------------------------------
 		// Status message element.
@@ -86,7 +100,7 @@
 			this.style.color = '#fff';
 		} );
 
-		textarea.insertAdjacentElement( 'afterend', statusMsg );
+		wrapper.insertAdjacentElement( 'afterend', statusMsg );
 		statusMsg.insertAdjacentElement( 'afterend', saveBtn );
 
 		var workbookCtaWrap = document.createElement( 'div' );
@@ -142,20 +156,20 @@
 		.then( function ( res ) { return res.json(); } )
 		.then( function ( data ) {
 			if ( data && data.response ) {
-				textarea.value = data.response;
+				quill.clipboard.dangerouslyPasteHTML( data.response );
 				showStatus( 'Last saved: ' + formatDate( data.updated_at ), false );
-					if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
-						showPreviewWorkbookBtn( data.workbook_url );
-					}
-		}
+				if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
+					showPreviewWorkbookBtn( data.workbook_url );
+				}
+			}
 		} );
 
 		// -------------------------------------------------------------------------
 		// On Save: POST response to REST endpoint.
 		// -------------------------------------------------------------------------
 		saveBtn.addEventListener( 'click', function () {
-			var response = textarea.value.trim();
-			if ( ! response ) {
+			var response = quill.root.innerHTML.trim();
+			if ( ! quill.getText().trim() ) {
 				showStatus( 'Please write your response before saving.', true );
 				return;
 			}
@@ -186,8 +200,8 @@
 			.then( function ( data ) {
 				showStatus( 'Response saved successfully!', false );
 
-					if ( data && ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
-						showPreviewWorkbookBtn( data.workbook_url );
+				if ( data && ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
+					showPreviewWorkbookBtn( data.workbook_url );
 				} else {
 					hideWorkbookCta();
 				}
