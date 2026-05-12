@@ -45,8 +45,8 @@ class Rest_Lxp_Policy_Document {
 			return;
 		}
 
-		$course_id     = absint( $request->get_param( 'course_id' ) );
-		$district_name = sanitize_text_field( wp_unslash( $request->get_param( 'district_name' ) ) );
+		$course_id      = absint( $request->get_param( 'course_id' ) );
+		$district_name  = sanitize_text_field( wp_unslash( $request->get_param( 'district_name' ) ) );
 		$effective_date = sanitize_text_field( wp_unslash( $request->get_param( 'effective_date' ) ) );
 
 		if ( $course_id <= 0 ) {
@@ -68,15 +68,33 @@ class Rest_Lxp_Policy_Document {
 		$user_data = get_userdata( $user_id );
 		$user_name = $user_data ? $user_data->display_name : '';
 
-		// Fetch policy-flagged lessons with the user's workbook submissions.
-		require_once LMS__PLUGIN_DIR . 'repositories/class-workbook-submission-repository.php';
-		$repo    = new TL_Workbook_Submission_Repository();
-		$lessons = $repo->get_course_summary( $course_id, $user_id );
+		// 1. Policy-flagged lessons + any workbook field answers.
+		$wb_repo = new TL_Workbook_Submission_Repository();
+		$lessons = $wb_repo->get_course_summary( $course_id, $user_id );
 
-		// Build the HTML for dompdf.
-		$logo_url    = self::get_site_logo_url();
-		$course_title = esc_html( $course->post_title );
-		$html        = self::build_pdf_html( $course_title, $district_name, $effective_date, $user_name, $logo_url, $lessons );
+		// 2. Capstone responses as fallback per lesson.
+		$capstone_map = array();
+		if ( ! empty( $lessons ) ) {
+			$cap_repo = new TL_Capstone_Submission_Repository();
+			foreach ( $lessons as $lesson ) {
+				$lid = (int) $lesson->lesson_id;
+				$row = $cap_repo->get_by_lesson_user( $lid, $user_id );
+				if ( $row && ! empty( $row->response ) ) {
+					$capstone_map[ $lid ] = $row->response;
+				}
+			}
+		}
+
+		// 3. Build and render PDF.
+		$html = self::build_pdf_html(
+			$course->post_title,
+			$district_name,
+			$effective_date,
+			$user_name,
+			self::get_site_logo_url(),
+			$lessons,
+			$capstone_map
+		);
 
 		// Render via dompdf.
 		if ( ! class_exists( '\Dompdf\Dompdf' ) ) {
@@ -133,190 +151,169 @@ class Rest_Lxp_Policy_Document {
 	 * @param  array  $lessons  Rows from TL_Workbook_Submission_Repository::get_course_summary().
 	 * @return string
 	 */
-	private static function build_pdf_html( $course_title, $district_name, $effective_date, $user_name, $logo_url, $lessons ) {
-		$brand_color = '#442e66';
+	private static function build_pdf_html(
+		$course_title,
+		$district_name,
+		$effective_date,
+		$user_name,
+		$logo_url,
+		$lessons,
+		$capstone_map = array()
+	) {
+		// Group lessons by module, keyed by section_id. Preserve DB order.
+		$modules = array();
+		foreach ( $lessons as $lesson ) {
+			$mod_id = isset( $lesson->module_id ) ? (int) $lesson->module_id : 0;
+			if ( ! isset( $modules[ $mod_id ] ) ) {
+				$mod_name  = ( isset( $lesson->module_name ) && '' !== trim( $lesson->module_name ) )
+					? trim( $lesson->module_name ) : 'Lessons';
+				$mod_order = isset( $lesson->module_order ) ? (int) $lesson->module_order : 0;
+				$modules[ $mod_id ] = array(
+					'name'    => $mod_name,
+					'order'   => $mod_order,
+					'lessons' => array(),
+				);
+			}
+			$modules[ $mod_id ]['lessons'][] = $lesson;
+		}
+
+		$brand = '#442e66';
 
 		ob_start();
-		?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: DejaVu Sans, sans-serif;
-    font-size: 11pt;
-    color: #2d2d2d;
-    line-height: 1.55;
-  }
-  /* ---- Header ---- */
-  .pdf-header {
-    border-bottom: 3px solid <?php echo esc_attr( $brand_color ); ?>;
-    padding-bottom: 12px;
-    margin-bottom: 18px;
-  }
-  .pdf-header table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .pdf-header td {
-    vertical-align: middle;
-  }
-  .pdf-header .logo-cell {
-    width: 90px;
-  }
-  .pdf-header img {
-    max-width: 80px;
-    max-height: 60px;
-  }
-  .pdf-header .title-cell {
-    padding-left: 16px;
-  }
-  .pdf-header h1 {
-    font-size: 15pt;
-    color: <?php echo esc_attr( $brand_color ); ?>;
-    font-weight: bold;
-  }
-  /* ---- Meta block ---- */
-  .pdf-meta {
-    background: #f4f1f8;
-    border-left: 4px solid <?php echo esc_attr( $brand_color ); ?>;
-    padding: 12px 16px;
-    margin-bottom: 22px;
-    font-size: 10.5pt;
-  }
-  .pdf-meta table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-  .pdf-meta td {
-    padding: 3px 8px 3px 0;
-    vertical-align: top;
-  }
-  .pdf-meta .label {
-    font-weight: bold;
-    color: <?php echo esc_attr( $brand_color ); ?>;
-    width: 170px;
-    white-space: nowrap;
-  }
-  /* ---- Lesson sections ---- */
-  .lesson-block {
-    margin-bottom: 24px;
-    page-break-inside: avoid;
-  }
-  .lesson-title {
-    background: <?php echo esc_attr( $brand_color ); ?>;
-    color: #fff;
-    font-size: 11.5pt;
-    font-weight: bold;
-    padding: 7px 12px;
-    margin-bottom: 10px;
-  }
-  .field-block {
-    margin-bottom: 10px;
-    padding: 0 4px;
-  }
-  .field-label {
-    font-weight: bold;
-    font-size: 10pt;
-    color: #444;
-    margin-bottom: 3px;
-  }
-  .field-answer {
-    background: #fafafa;
-    border: 1px solid #ddd;
-    padding: 8px 10px;
-    font-size: 10pt;
-    color: #2d2d2d;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-  .no-answer {
-    color: #aaa;
-    font-style: italic;
-    font-size: 10pt;
-  }
-  /* ---- Empty state ---- */
-  .empty-state {
-    text-align: center;
-    color: #888;
-    padding: 30px 0;
-    font-size: 11pt;
-  }
-</style>
-</head>
-<body>
 
-<!-- HEADER -->
-<div class="pdf-header">
-  <table>
-    <tr>
-      <?php if ( $logo_url ) : ?>
-      <td class="logo-cell">
-        <img src="<?php echo esc_attr( $logo_url ); ?>" alt="Logo" />
-      </td>
-      <?php endif; ?>
-      <td class="title-cell">
-        <h1><?php echo esc_html( $course_title ); ?></h1>
-      </td>
-    </tr>
-  </table>
-</div>
+		echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />';
+		echo '<style>';
+		echo '@page { margin: 18mm 16mm 18mm 16mm; }';
+		echo '* { box-sizing: border-box; }';
+		echo 'body { font-family: DejaVu Sans, sans-serif; font-size: 10.5pt; color: #222; line-height: 1.6; margin: 0; padding: 0; }';
+		echo '.pdf-header { border-bottom: 3px solid ' . $brand . '; padding-bottom: 10px; margin-bottom: 16px; }';
+		echo '.pdf-header table { width: 100%; border-collapse: collapse; }';
+		echo '.pdf-header td { vertical-align: middle; padding: 0; }';
+		echo '.logo-cell { width: 80px; }';
+		echo '.logo-cell img { max-width: 72px; max-height: 56px; }';
+		echo '.title-cell { padding-left: 14px; }';
+		echo '.pdf-course-title { font-size: 15pt; font-weight: bold; color: ' . $brand . '; margin: 0; }';
+		echo '.pdf-meta { background-color: #f5f2f9; border-left: 4px solid ' . $brand . '; padding: 10px 14px; margin-bottom: 20px; }';
+		echo '.pdf-meta table { border-collapse: collapse; width: 100%; }';
+		echo '.pdf-meta td { padding: 2px 6px 2px 0; vertical-align: top; font-size: 10pt; }';
+		echo '.meta-label { font-weight: bold; color: ' . $brand . '; width: 165px; white-space: nowrap; }';
+		echo '.module-block { margin-bottom: 22px; }';
+		echo '.module-heading { font-size: 12pt; font-weight: bold; color: #fff; background-color: ' . $brand . '; padding: 6px 12px; margin-bottom: 10px; }';
+		echo '.lesson-block { margin-bottom: 16px; page-break-inside: avoid; }';
+		echo '.lesson-heading { font-size: 10.5pt; font-weight: bold; color: ' . $brand . '; background-color: #ede8f5; border-left: 3px solid ' . $brand . '; padding: 5px 10px; margin-bottom: 8px; }';
+		echo '.field-block { margin-bottom: 10px; padding: 0 8px; }';
+		echo '.field-label { font-weight: bold; font-size: 9.5pt; color: #444; margin-bottom: 3px; }';
+		echo '.field-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: pre-wrap; word-wrap: break-word; min-height: 26px; }';
+		echo '.field-answer-empty { color: #aaa; font-style: italic; }';
+		echo '.capstone-block { padding: 0 8px; margin-bottom: 10px; }';
+		echo '.capstone-label { font-weight: bold; font-size: 9.5pt; color: #444; margin-bottom: 3px; }';
+		echo '.capstone-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: pre-wrap; word-wrap: break-word; }';
+		echo '.empty-state { text-align: center; color: #888; padding: 30px 0; font-style: italic; }';
+		echo '</style></head><body>';
 
-<!-- META -->
-<div class="pdf-meta">
-  <table>
-    <tr>
-      <td class="label">District / School:</td>
-      <td><?php echo esc_html( $district_name ); ?></td>
-    </tr>
-    <tr>
-      <td class="label">Effective Date:</td>
-      <td><?php echo esc_html( $effective_date ); ?></td>
-    </tr>
-    <tr>
-      <td class="label">Prepared by:</td>
-      <td><?php echo esc_html( $user_name ); ?></td>
-    </tr>
-  </table>
-</div>
+		// Header.
+		echo '<div class="pdf-header"><table><tr>';
+		if ( $logo_url ) {
+			echo '<td class="logo-cell"><img src="' . esc_attr( $logo_url ) . '" alt="" /></td>';
+		}
+		echo '<td class="title-cell"><p class="pdf-course-title">' . esc_html( $course_title ) . '</p></td>';
+		echo '</tr></table></div>';
 
-<!-- LESSON SECTIONS -->
-<?php if ( empty( $lessons ) ) : ?>
-<div class="empty-state">No policy-flagged lessons found for this course.</div>
-<?php else : ?>
+		// Meta block.
+		echo '<div class="pdf-meta"><table>';
+		echo '<tr><td class="meta-label">District / School Name:</td><td>' . esc_html( $district_name ) . '</td></tr>';
+		echo '<tr><td class="meta-label">Effective Date:</td><td>' . esc_html( $effective_date ) . '</td></tr>';
+		echo '<tr><td class="meta-label">Prepared by:</td><td>' . esc_html( $user_name ) . '</td></tr>';
+		echo '</table></div>';
 
-<?php foreach ( $lessons as $lesson ) :
-	$lesson_title  = isset( $lesson->lesson_title ) ? $lesson->lesson_title : '';
-	$fields_json   = isset( $lesson->fields ) ? $lesson->fields : null;
-	$fields        = $fields_json ? json_decode( $fields_json, true ) : array();
-?>
-<div class="lesson-block">
-  <div class="lesson-title"><?php echo esc_html( $lesson_title ); ?></div>
+		// Modules.
+		if ( empty( $modules ) ) {
+			echo '<div class="empty-state">No policy-flagged lessons found for this course.</div>';
+		} else {
+			foreach ( $modules as $module ) {
+				echo '<div class="module-block">';
+				echo '<div class="module-heading">Module ' . (int) $module['order'] . ': ' . esc_html( $module['name'] ) . '</div>';
 
-  <?php if ( is_array( $fields ) && ! empty( $fields ) ) :
-	  foreach ( $fields as $label => $answer ) : ?>
-  <div class="field-block">
-    <div class="field-label"><?php echo esc_html( $label ); ?></div>
-    <div class="field-answer"><?php echo esc_html( $answer ); ?></div>
-  </div>
-  <?php endforeach;
-  else : ?>
-  <div class="field-block">
-    <span class="no-answer">No answers submitted for this lesson.</span>
-  </div>
-  <?php endif; ?>
-</div>
-<?php endforeach; ?>
+				foreach ( $module['lessons'] as $lesson ) {
+					$lid         = (int) $lesson->lesson_id;
+					$fields_json = isset( $lesson->fields ) ? $lesson->fields : null;
+					$fields      = ( $fields_json && '' !== $fields_json ) ? json_decode( $fields_json, true ) : null;
+					$has_wb      = is_array( $fields ) && ! empty( $fields );
+					$has_cap     = isset( $capstone_map[ $lid ] ) && '' !== $capstone_map[ $lid ];
 
-<?php endif; ?>
+					echo '<div class="lesson-block">';
+					echo '<div class="lesson-heading">' . esc_html( $lesson->lesson_title ) . '</div>';
 
-</body>
-</html>
-		<?php
+					if ( $has_wb ) {
+						foreach ( $fields as $lbl => $ans ) {
+							$empty_cls = '' === trim( $ans ) ? ' field-answer-empty' : '';
+							$val       = '' !== trim( $ans ) ? esc_html( $ans ) : '(not answered)';
+							echo '<div class="field-block">';
+							echo '<div class="field-label">' . esc_html( $lbl ) . '</div>';
+							echo '<div class="field-answer' . $empty_cls . '">' . $val . '</div>';
+							echo '</div>';
+						}
+					} elseif ( $has_cap ) {
+						echo '<div class="capstone-block">';
+						echo '<div class="capstone-label">Response</div>';
+						echo '<div class="capstone-answer">' . esc_html( $capstone_map[ $lid ] ) . '</div>';
+						echo '</div>';
+					} else {
+						$labels = self::extract_field_labels_from_html( $lid );
+						if ( ! empty( $labels ) ) {
+							foreach ( $labels as $lbl ) {
+								echo '<div class="field-block">';
+								echo '<div class="field-label">' . esc_html( $lbl ) . '</div>';
+								echo '<div class="field-answer field-answer-empty">(not answered)</div>';
+								echo '</div>';
+							}
+						} else {
+							echo '<div class="capstone-block">';
+							echo '<div class="capstone-label">Response</div>';
+							echo '<div class="capstone-answer field-answer-empty">(not answered)</div>';
+							echo '</div>';
+						}
+					}
+
+					echo '</div><!-- .lesson-block -->';
+				}
+
+				echo '</div><!-- .module-block -->';
+			}
+		}
+
+		echo '</body></html>';
 		return ob_get_clean();
 	}
+
+	/**
+	 * Extract workbook field labels from a lesson's post_content.
+	 *
+	 * Splits on [Text Box] sentinels and reads the last <strong> text before
+	 * each sentinel as the field label - matching lxp-workbook.js logic.
+	 *
+	 * @param  int   $lesson_id  Lesson post ID.
+	 * @return array  Ordered array of label strings.
+	 */
+	private static function extract_field_labels_from_html( $lesson_id ) {
+		$post = get_post( absint( $lesson_id ) );
+		if ( ! $post || empty( $post->post_content ) ) {
+			return array();
+		}
+		$labels = array();
+		$parts  = explode( '[Text Box]', $post->post_content );
+		array_pop( $parts ); // Last segment has no sentinel after it.
+		foreach ( $parts as $idx => $chunk ) {
+			preg_match_all( '/<strong[^>]*>(.*?)<\/strong>/is', $chunk, $m );
+			$label = '';
+			if ( ! empty( $m[1] ) ) {
+				$label = rtrim( trim( wp_strip_all_tags( end( $m[1] ) ) ), ':' );
+			}
+			$labels[] = '' !== $label ? $label : ( 'Field ' . ( $idx + 1 ) );
+		}
+		return $labels;
+	}
+
 
 	// -------------------------------------------------------------------------
 	// Helpers
