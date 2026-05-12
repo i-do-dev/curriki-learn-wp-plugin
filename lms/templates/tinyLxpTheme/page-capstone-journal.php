@@ -98,7 +98,7 @@ if ( $course_id <= 0 && ! empty( $enrolled_courses ) ) {
 $lessons = array();
 if ( $course_id > 0 ) {
 	$repo    = new TL_Capstone_Submission_Repository();
-	$lessons = $repo->get_course_summary( $course_id, $user_id );
+	$lessons = $repo->get_course_summary( $course_id, $user_id, true );
 }
 
 $course_post  = $course_id > 0 ? get_post( $course_id ) : null;
@@ -409,6 +409,89 @@ get_header();
 	background: #e8e8e8;
 	text-decoration: none;
 }
+/* ---- Policy Document form card ---- */
+.lxp-policy-card {
+	background: #fff;
+	border-radius: 14px;
+	box-shadow: 0 10px 30px -10px rgba(68,46,102,.12);
+	border: 1px solid rgba(68,46,102,.12);
+	padding: 24px 28px;
+	margin-bottom: 32px;
+}
+.lxp-policy-card h2 {
+	font-size: 1.15rem;
+	font-weight: 700;
+	color: var(--lp-secondary-color, #442e66);
+	margin-bottom: 18px;
+}
+.lxp-policy-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	align-items: flex-end;
+	margin-bottom: 16px;
+}
+.lxp-policy-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	flex: 1 1 220px;
+}
+.lxp-policy-field label {
+	font-size: 0.88rem;
+	font-weight: 600;
+	color: #555;
+}
+.lxp-policy-field input {
+	padding: 9px 12px;
+	border: 1px solid rgba(68,46,102,.3);
+	border-radius: 8px;
+	font-size: 0.95rem;
+	font-family: inherit;
+	background: #fff;
+	width: 100%;
+	box-sizing: border-box;
+}
+.lxp-policy-field input[readonly] {
+	background: #f5f5f5;
+	color: #888;
+	cursor: default;
+}
+.lxp-policy-field input:focus {
+	outline: none;
+	border-color: var(--lp-secondary-color, #442e66);
+	box-shadow: 0 0 0 2px rgba(68,46,102,.15);
+}
+.lxp-field-error {
+	font-size: 0.82rem;
+	color: #c0392b;
+	margin-top: 2px;
+}
+.lxp-policy-footer {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+#lxp-download-policy-btn {
+	padding: 11px 26px;
+	background: var(--lp-secondary-color, #442e66);
+	color: #fff;
+	border: none;
+	border-radius: 10px;
+	font-size: 0.97rem;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+	font-family: inherit;
+}
+#lxp-download-policy-btn:disabled {
+	opacity: .65;
+	cursor: not-allowed;
+}
+#lxp-policy-status {
+	font-size: 0.9rem;
+}
 </style>
 
 <div class="lxp-journal-wrap">
@@ -416,6 +499,35 @@ get_header();
 	<?php if ( $is_admin_view && $target_user ) : ?>
 	<div class="lxp-admin-view-notice">
 		<?php echo esc_html( sprintf( 'Viewing workbook for %s.', $target_user->display_name ) ); ?>
+	</div>
+	<?php endif; ?>
+
+	<?php if ( $course_id > 0 && ! $is_admin_view ) : ?>
+	<div class="lxp-policy-card">
+		<h2>Download Policy Document</h2>
+		<form id="lxp-policy-form" data-course-id="<?php echo absint( $course_id ); ?>" novalidate>
+			<div class="lxp-policy-fields">
+				<div class="lxp-policy-field">
+					<label for="lxp-district-name">
+						District / School Name <span aria-hidden="true" style="color:#c0392b;">*</span>
+					</label>
+					<input type="text" id="lxp-district-name" name="district_name"
+						   required placeholder="Enter district or school name" />
+					<span class="lxp-field-error" id="lxp-district-error" hidden>
+						This field is required.
+					</span>
+				</div>
+				<div class="lxp-policy-field">
+					<label for="lxp-effective-date">Effective Date</label>
+					<input type="text" id="lxp-effective-date" name="effective_date"
+						   readonly value="<?php echo esc_attr( date_i18n( 'F j, Y' ) ); ?>" />
+				</div>
+			</div>
+			<div class="lxp-policy-footer">
+				<button type="submit" id="lxp-download-policy-btn">Download Policy Document</button>
+				<span id="lxp-policy-status"></span>
+			</div>
+		</form>
 	</div>
 	<?php endif; ?>
 

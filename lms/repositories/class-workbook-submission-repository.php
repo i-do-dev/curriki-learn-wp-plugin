@@ -194,4 +194,53 @@ class TL_Workbook_Submission_Repository {
 
 		return (int) $this->wpdb->get_var( $sql );
 	}
+
+	/**
+	 * Return all policy-flagged lessons in a course joined with any workbook
+	 * submission for a specific user.
+	 *
+	 * Only lessons that have the post meta lxp_lesson_include_in_policy = '1'
+	 * are returned (INNER JOIN on wp_postmeta).
+	 *
+	 * Used by the Policy Document PDF endpoint to build per-lesson content.
+	 *
+	 * @param  int $course_id  Course post ID.
+	 * @param  int $user_id    WordPress user ID.
+	 * @return array  Each row has: lesson_id, lesson_title, lesson_slug,
+	 *                module_id, module_name, fields (JSON string or null),
+	 *                submitted_at (or null).
+	 */
+	public function get_course_summary( $course_id, $user_id ) {
+		global $wpdb;
+
+		$lessons_table  = $wpdb->prefix . 'learnpress_section_items';
+		$sections_table = $wpdb->prefix . 'learnpress_sections';
+
+		return $this->wpdb->get_results(
+			$this->wpdb->prepare(
+				"SELECT
+				    s.section_id   AS module_id,
+				    s.section_name AS module_name,
+				    p.ID           AS lesson_id,
+				    p.post_title   AS lesson_title,
+				    p.post_name    AS lesson_slug,
+				    ws.fields,
+				    ws.submitted_at
+				FROM {$lessons_table} li
+				INNER JOIN {$sections_table}  s   ON s.section_id        = li.section_id
+				INNER JOIN {$wpdb->posts}     p   ON p.ID                = li.item_id
+				INNER JOIN {$wpdb->postmeta}  pm  ON pm.post_id          = li.item_id
+				                                  AND pm.meta_key        = 'lxp_lesson_include_in_policy'
+				                                  AND pm.meta_value      = '1'
+				LEFT  JOIN {$this->table}     ws  ON ws.lesson_id        = li.item_id
+				                                  AND ws.user_id         = %d
+				WHERE s.section_course_id = %d
+				  AND li.item_type = 'lp_lesson'
+				  AND p.post_status = 'publish'
+				ORDER BY s.section_order ASC, li.item_order ASC",
+				absint( $user_id ),
+				absint( $course_id )
+			)
+		);
+	}
 }

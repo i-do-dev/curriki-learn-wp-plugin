@@ -233,6 +233,7 @@ class Tiny_LXP_Platform
         $this->loader->add_action('parse_request', $plugin_public, 'parse_request');
         $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_workbook_scripts');
         $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_capstone_scripts');
+        $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_policy_document_scripts');
 		$this->loader->add_filter('post_row_actions', $course_extension, 'modify_list_row_actions', 10, 2);
         $this->loader->add_action('wp_enqueue_scripts', $course_extension, 'enqueue_student_course_styles');
         $this->loader->add_action('add_meta_boxes', $course_extension, 'add_meta_boxes');
@@ -241,6 +242,7 @@ class Tiny_LXP_Platform
         $this->loader->add_action('add_meta_boxes', $lesson_extension, 'add_meta_boxes');
         $this->loader->add_action('save_post_lp_lesson', $lesson_extension, 'save_tl_post', 10, 2);
         $this->loader->add_action('save_post_lp_lesson', $lesson_extension, 'save_lesson_tagline_meta', 20, 2);
+        $this->loader->add_action('save_post_lp_lesson', $lesson_extension, 'save_lesson_policy_meta', 30, 2);
         $this->loader->add_action('rest_lp_lesson_query', $lesson_extension, 'post_meta_request_params', 10, 2);
         $this->loader->add_action('rest_insert_lp_lesson', $lesson_extension, 'insert_post_api', 10, 2);
         // $this->loader->add_action('wp_footer', $lesson_extension, 'render_js_debug_panel', 9999);
