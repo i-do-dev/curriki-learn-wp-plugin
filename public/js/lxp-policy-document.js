@@ -98,13 +98,18 @@
 							throw new Error( 'Server error: ' + res.status );
 						} );
 					}
-					return res.blob();
+					return res.blob().then( function ( blob ) {
+						return {
+							blob: blob,
+							filename: getFilenameFromResponse( res, 'policy-document.pdf' ),
+						};
+					} );
 				} )
-				.then( function ( blob ) {
-					var objectUrl = URL.createObjectURL( blob );
+				.then( function ( payload ) {
+					var objectUrl = URL.createObjectURL( payload.blob );
 					var a         = document.createElement( 'a' );
 					a.href        = objectUrl;
-					a.download    = 'policy-document.pdf';
+					a.download    = payload.filename;
 					document.body.appendChild( a );
 					a.click();
 					document.body.removeChild( a );
@@ -126,5 +131,17 @@
 					submitBtn.disabled = false;
 				} );
 		} );
+
+		function getFilenameFromResponse( res, fallbackName ) {
+			var disposition = res.headers.get( 'Content-Disposition' ) || '';
+			var match = disposition.match( /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i );
+			var filename = '';
+
+			if ( match ) {
+				filename = decodeURIComponent( match[ 1 ] || match[ 2 ] || '' );
+			}
+
+			return filename || fallbackName;
+		}
 	} );
 }() );
