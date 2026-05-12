@@ -294,6 +294,20 @@ get_header();
 	white-space: normal;
 	line-height: 1.65;
 }
+/* Override theme reset: menu,ol,ul{list-style:none;margin:0;padding:0} */
+.lxp-response-text ul {
+	list-style-type: disc;
+	margin: 0.4em 0 0.4em 1.5em;
+	padding: 0;
+}
+.lxp-response-text ol {
+	list-style-type: decimal;
+	margin: 0.4em 0 0.4em 1.5em;
+	padding: 0;
+}
+.lxp-response-text li {
+	margin-bottom: 0.2em;
+}
 .lxp-empty-state {
 	text-align: center;
 	padding: 60px 20px;
