@@ -1,1 +1,1 @@
-# TinyLxp-wp-plugin
+# Curriki Learn
