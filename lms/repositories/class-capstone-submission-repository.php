@@ -139,9 +139,10 @@ class TL_Capstone_Submission_Repository {
 		return $this->wpdb->get_results(
 			$this->wpdb->prepare(
 				"SELECT
-				    s.section_id  AS module_id,
-				    s.section_name AS module_name,
-				    p.ID          AS lesson_id,
+				    s.section_id    AS module_id,
+				    s.section_name  AS module_name,
+				    s.section_order AS module_order,
+				    p.ID            AS lesson_id,
 				    p.post_title  AS lesson_title,
 				    p.post_name   AS lesson_slug,
 				    cs.id         AS submission_id,

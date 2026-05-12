@@ -136,14 +136,14 @@ foreach ( $lessons as $lesson ) {
 			'name'    => ( isset( $lesson->module_name ) && '' !== $lesson->module_name )
 			             ? $lesson->module_name
 			             : 'Lessons',
+			'order'   => isset( $lesson->module_order ) ? (int) $lesson->module_order : 0,
 			'lessons' => array(),
 		);
 	}
 	$modules_map[ $mod_id ]['lessons'][] = $lesson;
 }
 
-$total_modules     = count( $modules_map );
-$module_index      = 0; // used for module numbering in the UI
+$total_modules = count( $modules_map );
 
 get_header();
 ?>
@@ -210,19 +210,6 @@ get_header();
 }
 .lxp-lesson-header:hover {
 	background: rgba(68,46,102,.03);
-}
-.lxp-lesson-number {
-	width: 34px;
-	height: 34px;
-	border-radius: 50%;
-	background: var(--lp-secondary-color, #442e66);
-	color: #fff;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 0.82rem;
-	font-weight: 700;
-	flex-shrink: 0;
 }
 .lxp-lesson-info {
 	flex: 1;
@@ -355,18 +342,19 @@ get_header();
 	margin-bottom: 12px;
 }
 .lxp-module-number {
-	width: 34px;
-	height: 34px;
+	padding: 4px 10px;
+	width: auto;
 	border-radius: 8px;
 	background: var(--lp-secondary-color, #442e66);
 	color: #fff;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	font-size: 0.78rem;
 	font-weight: 700;
 	flex-shrink: 0;
 	letter-spacing: .03em;
+	white-space: nowrap;
 }
 .lxp-module-title {
 	font-size: 1.05rem;
@@ -538,27 +526,22 @@ get_header();
 	<?php else : ?>
 
 	<?php
-	$global_idx = 0;
 	foreach ( $modules_map as $module ) :
 		// Only show modules that have at least one submitted lesson.
 		$submitted_lessons = array_filter( $module['lessons'], function( $l ) {
 			return ! empty( $l->response );
 		} );
 		if ( empty( $submitted_lessons ) ) continue;
-		$module_index++;
 	?>
 	<div class="lxp-module-block">
 		<div class="lxp-module-header">
-			<div class="lxp-module-number">M<?php echo $module_index; ?></div>
+			<div class="lxp-module-number">Module <?php echo $module['order']; ?></div>
 			<div class="lxp-module-title"><?php echo esc_html( $module['name'] ); ?></div>
 		</div>
 		<div class="lxp-module-lessons">
-		<?php foreach ( $submitted_lessons as $lesson ) :
-			$global_idx++;
-		?>
-		<div class="lxp-lesson-row" id="lxp-row-<?php echo $global_idx; ?>">
+		<?php foreach ( $submitted_lessons as $lesson ) : ?>
+		<div class="lxp-lesson-row" id="lxp-row-<?php echo (int) $lesson->lesson_id; ?>">
 			<div class="lxp-lesson-header">
-				<div class="lxp-lesson-number"><?php echo $global_idx; ?></div>
 				<div class="lxp-lesson-info">
 					<div class="lxp-lesson-name"><?php echo esc_html( $lesson->lesson_title ); ?></div>
 					<div class="lxp-lesson-meta">
