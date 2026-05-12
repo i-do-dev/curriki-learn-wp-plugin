@@ -122,8 +122,14 @@ class Rest_Lxp_Policy_Document {
 		$pdf_output = $dompdf->output();
 
 		// Stream to browser.
-		$safe_course = sanitize_file_name( $course->post_title );
-		$filename    = 'policy-document-' . $safe_course . '.pdf';
+		// Build a filing-friendly filename: <course-slug>-<user-slug>-policy-document.pdf
+		$safe_course = strtolower( sanitize_file_name( $course->post_title ) );
+		$safe_course = preg_replace( '/[\s_]+/', '-', $safe_course );
+		$safe_course = trim( preg_replace( '/-+/', '-', $safe_course ), '-' );
+		$safe_user   = strtolower( sanitize_file_name( $user_name ) );
+		$safe_user   = preg_replace( '/[\s_]+/', '-', $safe_user );
+		$safe_user   = trim( preg_replace( '/-+/', '-', $safe_user ), '-' );
+		$filename    = $safe_course . ( $safe_user ? '-' . $safe_user : '' ) . '-policy-document.pdf';
 
 		header( 'Content-Type: application/pdf' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
