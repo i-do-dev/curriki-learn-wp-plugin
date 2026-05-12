@@ -111,20 +111,30 @@ class TL_Capstone_Submission_Repository {
 	}
 
 	/**
-	 * Return ALL lessons in a course joined with any capstone submission for a specific user.
+	 * Return lessons in a course joined with any capstone submission for a specific user.
 	 *
 	 * Used by the journal page to show full course progress.
 	 *
-	 * @param  int $course_id  Course post ID.
-	 * @param  int $user_id    WordPress user ID.
+	 * @param  int  $course_id   Course post ID.
+	 * @param  int  $user_id     WordPress user ID.
+	 * @param  bool $policy_only When true, only lessons flagged with
+	 *                           lxp_lesson_include_in_policy = '1' are returned.
 	 * @return array  Each row has: lesson_id, lesson_title, lesson_url, response (or null),
 	 *                submitted_at (or null), updated_at (or null).
 	 */
-	public function get_course_summary( $course_id, $user_id ) {
+	public function get_course_summary( $course_id, $user_id, $policy_only = false ) {
 		global $wpdb;
 
 		$lessons_table  = $wpdb->prefix . 'learnpress_section_items';
 		$sections_table = $wpdb->prefix . 'learnpress_sections';
+
+		$policy_join = '';
+		if ( $policy_only ) {
+			$policy_join = "INNER JOIN {$wpdb->postmeta} pm
+			                       ON pm.post_id    = li.item_id
+			                      AND pm.meta_key   = 'lxp_lesson_include_in_policy'
+			                      AND pm.meta_value = '1'";
+		}
 
 		return $this->wpdb->get_results(
 			$this->wpdb->prepare(
@@ -141,6 +151,7 @@ class TL_Capstone_Submission_Repository {
 				FROM {$lessons_table} li
 				INNER JOIN {$sections_table} s   ON s.section_id   = li.section_id
 				INNER JOIN {$wpdb->posts}     p   ON p.ID           = li.item_id
+				{$policy_join}
 				LEFT  JOIN {$this->table}     cs  ON cs.lesson_id   = li.item_id
 				                                  AND cs.user_id    = %d
 				WHERE s.section_course_id = %d

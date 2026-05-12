@@ -44,6 +44,59 @@ class TL_LearnPress_Lesson_Extension {
 		$this->options_metabox();
 		$this->lesson_tagline_metabox();
 		$this->ai_content_metabox();
+		$this->policy_document_metabox();
+	}
+
+	public function policy_document_metabox() {
+		$this->add_meta_box( array(
+			'lxp-policy-document',
+			esc_html__( 'Policy Document', 'tiny-lxp-platform' ),
+			array( $this, 'policy_document_metabox_html' ),
+			TL_LESSON_CPT,
+			'side',
+			'default',
+		) );
+	}
+
+	public function policy_document_metabox_html( $post = null ) {
+		if ( empty( $post ) || ! isset( $post->ID ) ) {
+			return;
+		}
+		$value = get_post_meta( $post->ID, 'lxp_lesson_include_in_policy', true );
+		wp_nonce_field( 'save_lxp_lesson_policy', 'lxp_lesson_policy_nonce' );
+		?>
+		<p>
+			<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+				<input type="checkbox" name="lxp_lesson_include_in_policy" value="1"
+					<?php checked( '1', $value ); ?> />
+				<?php esc_html_e( 'Include in Policy Document', 'tiny-lxp-platform' ); ?>
+			</label>
+		</p>
+		<?php
+	}
+
+	public function save_lesson_policy_meta( $post_id = null, $post = null ) {
+		$post_id = absint( $post_id );
+		if ( $post_id <= 0 ) {
+			return;
+		}
+		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		if ( empty( $post ) || ! isset( $post->post_type ) || $post->post_type !== TL_LESSON_CPT ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+		if ( ! isset( $_POST['lxp_lesson_policy_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['lxp_lesson_policy_nonce'] ) ), 'save_lxp_lesson_policy' ) ) {
+			return;
+		}
+		if ( ! empty( $_POST['lxp_lesson_include_in_policy'] ) ) {
+			update_post_meta( $post_id, 'lxp_lesson_include_in_policy', '1' );
+		} else {
+			delete_post_meta( $post_id, 'lxp_lesson_include_in_policy' );
+		}
 	}
 
 	public function ai_content_metabox() {

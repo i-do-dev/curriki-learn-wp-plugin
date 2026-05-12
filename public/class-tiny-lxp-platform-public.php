@@ -842,4 +842,49 @@ class Tiny_LXP_Platform_Public
         );
     }
 
+    /**
+     * Enqueue the policy document JS on the learner workbook page.
+     * Hooked to wp_enqueue_scripts via Tiny_LXP_Platform::define_public_hooks().
+     *
+     * Covers all three URL patterns used for the workbook page:
+     *  - /learner-workbook/ (WordPress page slug)
+     *  - /capstone-journal/ (WordPress page slug alias)
+     *  - /courses/{course-slug}/learner-workbook/ (dynamic route)
+     */
+    public function enqueue_policy_document_scripts() {
+        $on_workbook_page = is_page( 'learner-workbook' ) || is_page( 'capstone-journal' );
+
+        if ( ! $on_workbook_page ) {
+            // Also detect the dynamic /courses/{slug}/learner-workbook/ route.
+            $uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+            $path = (string) parse_url( $uri, PHP_URL_PATH );
+            $path = trim( $path, '/' );
+            $segs = $path ? array_values( array_filter( explode( '/', $path ) ) ) : array();
+            if ( count( $segs ) === 3 && 'courses' === $segs[0] && 'learner-workbook' === $segs[2] ) {
+                $on_workbook_page = true;
+            }
+        }
+
+        if ( ! $on_workbook_page ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'lxp-policy-document',
+            plugin_dir_url( __FILE__ ) . 'js/lxp-policy-document.js',
+            array(),
+            '1.0.0',
+            true
+        );
+
+        wp_localize_script(
+            'lxp-policy-document',
+            'lxp_policy_vars',
+            array(
+                'rest_url' => esc_url_raw( rest_url( 'lms/v1/' ) ),
+                'nonce'    => wp_create_nonce( 'wp_rest' ),
+            )
+        );
+    }
+
 }
