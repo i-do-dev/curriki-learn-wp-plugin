@@ -564,11 +564,11 @@ get_header();
 	<?php endif; ?>
 </div>
 
-<div class="lxp-workbook-actions" style="margin-top: 40px;margin-bottom: 40px; padding-top: 20px; border-top: 1px solid rgba(68,46,102,.12); display: flex; gap: 12px; justify-content: center;">
-	<?php if ( $course_post ) : ?>
-	<a href="<?php echo esc_url( get_permalink( $course_post->ID ) ); ?>" class="lxp-btn lxp-btn-secondary">Back to Course</a>
-	<?php endif; ?>
-	<button class="lxp-btn lxp-btn-primary" onclick="window.print();">Print Workbook</button>
-</div>
+
+<?php if ( $course_post ) : ?>
+	<div class="lxp-workbook-actions" style="margin-top: 40px;margin-bottom: 40px; padding-top: 20px; border-top: 1px solid rgba(68,46,102,.12); display: flex; gap: 12px; justify-content: center;">
+		<a href="<?php echo esc_url( get_permalink( $course_post->ID ) ); ?>" class="lxp-btn lxp-btn-secondary">Back to Course</a>
+	</div>
+<?php endif; ?>
 
 <?php get_footer(); ?>
