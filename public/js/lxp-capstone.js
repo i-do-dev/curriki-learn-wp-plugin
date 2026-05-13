@@ -161,9 +161,9 @@
 				if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
 					showPreviewWorkbookBtn( data.workbook_url );
 				}
-				// Show persisted evaluation side-by-side if already generated.
+				// Show persisted evaluation below the editor if already generated.
 				if ( data.evaluation ) {
-					renderSideBySide( data.response, data.evaluation );
+					renderEvaluation( data.evaluation );
 				}
 			}
 		} );
@@ -212,9 +212,8 @@
 
 				// Fire the async evaluation request only when the response changed.
 				if ( data && data.response_changed ) {
-					var savedResponseHtml = normalizeQuillHtml( quill.root.innerHTML );
 					// Show placeholder immediately so the user knows evaluation is on its way.
-					renderSideBySide( savedResponseHtml, null );
+					renderEvaluation( null );
 
 					fetch( vars.rest_url + 'lesson/capstone-evaluation', {
 						method: 'POST',
@@ -227,13 +226,13 @@
 					.then( function ( res ) { return res.json(); } )
 					.then( function ( evalData ) {
 						if ( evalData && evalData.evaluation ) {
-							renderSideBySide( savedResponseHtml, evalData.evaluation );
+							renderEvaluation( evalData.evaluation );
 						} else {
-							renderSideBySide( savedResponseHtml, '' );
+							renderEvaluation( '' );
 						}
 					} )
 					.catch( function () {
-						renderSideBySide( savedResponseHtml, '' );
+						renderEvaluation( '' );
 					} );
 				}
 			} )
@@ -324,16 +323,14 @@
 		}
 
 		/**
-		 * Render (or refresh) the side-by-side Response / Evaluation block.
+		 * Render (or refresh) the evaluation block below the editor.
 		 *
-		 * responseHtml  - HTML string from the Quill editor (may contain markup).
 		 * evaluationText - plain-text evaluation string from Bedrock, or null / '' for
 		 *                  the "generating" placeholder state.
 		 *
-		 * Layout: left column 63 % (response), right column flex:1 (evaluation).
 		 * The block replaces any existing #lxp-capstone-eval-wrap.
 		 */
-		function renderSideBySide( responseHtml, evaluationText ) {
+		function renderEvaluation( evaluationText ) {
 			var existing = document.getElementById( 'lxp-capstone-eval-wrap' );
 			if ( existing ) {
 				existing.remove();
@@ -341,23 +338,7 @@
 
 			var wrap = document.createElement( 'div' );
 			wrap.id = 'lxp-capstone-eval-wrap';
-			wrap.style.cssText =
-				'display:flex;gap:16px;margin-top:22px;align-items:flex-start;flex-wrap:wrap;';
-
-			// ---- Response column (left, 63 %) ----
-			var respCol = document.createElement( 'div' );
-			respCol.style.cssText = 'flex:0 0 63%;min-width:200px;';
-			respCol.innerHTML =
-				'<div style="font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;' +
-				'letter-spacing:.04em;margin-bottom:6px;">Your Response</div>' +
-				'<div style="background:rgba(68,46,102,.04);border-radius:10px;padding:14px 16px;' +
-				'font-size:.95rem;line-height:1.65;color:#333;">' +
-				responseHtml +
-				'</div>';
-
-			// ---- Evaluation column (right, flex:1) ----
-			var evalCol = document.createElement( 'div' );
-			evalCol.style.cssText = 'flex:1;min-width:180px;';
+			wrap.style.cssText = 'margin-top:22px;';
 
 			var evalBodyHtml;
 			if ( null === evaluationText ) {
@@ -372,7 +353,7 @@
 				evalBodyHtml = escapeHtml( evaluationText ).replace( /\n/g, '<br>' );
 			}
 
-			evalCol.innerHTML =
+			wrap.innerHTML =
 				'<div style="font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;' +
 				'letter-spacing:.04em;margin-bottom:6px;">Evaluation</div>' +
 				'<div style="background:rgba(255,182,6,.08);border:1px solid rgba(255,182,6,.35);' +
@@ -380,10 +361,7 @@
 				evalBodyHtml +
 				'</div>';
 
-			wrap.appendChild( respCol );
-			wrap.appendChild( evalCol );
-
-			// Insert the side-by-side block below the Save button.
+			// Insert the evaluation block below the Save button.
 			saveBtn.insertAdjacentElement( 'afterend', wrap );
 		}
 	} );

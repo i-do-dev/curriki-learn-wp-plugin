@@ -567,17 +567,13 @@ get_header();
 				</div>
 			</div>
 			<div class="lxp-response-body" style="display:block;">
-				<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
-					<div style="flex:0 0 63%;min-width:200px;">
-						<div class="lxp-response-label"><?php echo esc_html( $is_admin_view ? 'Workbook Entry' : 'Your Workbook Entry' ); ?></div>
-						<div class="lxp-response-text"><?php echo wp_kses_post( $lesson->response ); ?></div>
-					</div>
+				<div>
+					<div class="lxp-response-label"><?php echo esc_html( $is_admin_view ? 'Workbook Entry' : 'Your Workbook Entry' ); ?></div>
+					<div class="lxp-response-text"><?php echo wp_kses_post( $lesson->response ); ?></div>
 					<?php if ( ! empty( $lesson->evaluation ) ) : ?>
-					<div style="flex:1;min-width:180px;">
-						<div class="lxp-response-label">Evaluation</div>
-						<div class="lxp-response-text" style="background:rgba(255,182,6,.07);border:1px solid rgba(255,182,6,.28);">
-							<?php echo esc_html( $lesson->evaluation ); ?>
-						</div>
+					<div class="lxp-response-label" style="margin-top:16px;">Evaluation</div>
+					<div class="lxp-response-text" style="background:rgba(255,182,6,.07);border:1px solid rgba(255,182,6,.28);">
+						<?php echo esc_html( $lesson->evaluation ); ?>
 					</div>
 					<?php endif; ?>
 				</div>
