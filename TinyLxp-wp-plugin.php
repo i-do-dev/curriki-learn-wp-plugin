@@ -105,6 +105,7 @@ function on_activate() {
         course_id bigint(20) unsigned NOT NULL,
         user_id bigint(20) unsigned NOT NULL,
         response longtext NOT NULL,
+        evaluation longtext NULL DEFAULT NULL,
         submitted_at datetime NOT NULL,
         updated_at datetime NOT NULL,
         PRIMARY KEY (id),
@@ -112,6 +113,12 @@ function on_activate() {
         KEY course_id (course_id),
         KEY user_id (user_id)
     )");
+
+    // Add evaluation column to existing installs that pre-date this column.
+    $eval_col = $wpdb->get_results( "SHOW COLUMNS FROM {$wpdb->prefix}lxp_capstone_submissions LIKE 'evaluation'" );
+    if ( empty( $eval_col ) ) {
+        $wpdb->query( "ALTER TABLE {$wpdb->prefix}lxp_capstone_submissions ADD COLUMN evaluation longtext NULL DEFAULT NULL" );
+    }
 
     // Check if the pages already exist to avoid duplication
     $pagesArray = array(

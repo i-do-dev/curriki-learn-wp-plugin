@@ -161,6 +161,10 @@
 				if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
 					showPreviewWorkbookBtn( data.workbook_url );
 				}
+				// Show persisted evaluation side-by-side if already generated.
+				if ( data.evaluation ) {
+					renderSideBySide( data.response, data.evaluation );
+				}
 			}
 		} );
 
@@ -204,6 +208,33 @@
 					showPreviewWorkbookBtn( data.workbook_url );
 				} else {
 					hideWorkbookCta();
+				}
+
+				// Fire the async evaluation request only when the response changed.
+				if ( data && data.response_changed ) {
+					var savedResponseHtml = normalizeQuillHtml( quill.root.innerHTML );
+					// Show placeholder immediately so the user knows evaluation is on its way.
+					renderSideBySide( savedResponseHtml, null );
+
+					fetch( vars.rest_url + 'lesson/capstone-evaluation', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-WP-Nonce': vars.nonce
+						},
+						body: JSON.stringify( { lesson_id: vars.lesson_id } )
+					} )
+					.then( function ( res ) { return res.json(); } )
+					.then( function ( evalData ) {
+						if ( evalData && evalData.evaluation ) {
+							renderSideBySide( savedResponseHtml, evalData.evaluation );
+						} else {
+							renderSideBySide( savedResponseHtml, '' );
+						}
+					} )
+					.catch( function () {
+						renderSideBySide( savedResponseHtml, '' );
+					} );
 				}
 			} )
 			.catch( function ( err ) {
@@ -278,6 +309,82 @@
 			if ( isNaN( d.getTime() ) ) { return dateStr; }
 			return d.toLocaleDateString( undefined, { year: 'numeric', month: 'short', day: 'numeric' } )
 				+ ' ' + d.toLocaleTimeString( undefined, { hour: '2-digit', minute: '2-digit' } );
+		}
+
+		/**
+		 * Escape a plain-text string for safe innerHTML insertion.
+		 */
+		function escapeHtml( str ) {
+			if ( ! str ) { return ''; }
+			return String( str )
+				.replace( /&/g, '&amp;' )
+				.replace( /</g, '&lt;' )
+				.replace( />/g, '&gt;' )
+				.replace( /"/g, '&quot;' );
+		}
+
+		/**
+		 * Render (or refresh) the side-by-side Response / Evaluation block.
+		 *
+		 * responseHtml  - HTML string from the Quill editor (may contain markup).
+		 * evaluationText - plain-text evaluation string from Bedrock, or null / '' for
+		 *                  the "generating" placeholder state.
+		 *
+		 * Layout: left column 63 % (response), right column flex:1 (evaluation).
+		 * The block replaces any existing #lxp-capstone-eval-wrap.
+		 */
+		function renderSideBySide( responseHtml, evaluationText ) {
+			var existing = document.getElementById( 'lxp-capstone-eval-wrap' );
+			if ( existing ) {
+				existing.remove();
+			}
+
+			var wrap = document.createElement( 'div' );
+			wrap.id = 'lxp-capstone-eval-wrap';
+			wrap.style.cssText =
+				'display:flex;gap:16px;margin-top:22px;align-items:flex-start;flex-wrap:wrap;';
+
+			// ---- Response column (left, 63 %) ----
+			var respCol = document.createElement( 'div' );
+			respCol.style.cssText = 'flex:0 0 63%;min-width:200px;';
+			respCol.innerHTML =
+				'<div style="font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;' +
+				'letter-spacing:.04em;margin-bottom:6px;">Your Response</div>' +
+				'<div style="background:rgba(68,46,102,.04);border-radius:10px;padding:14px 16px;' +
+				'font-size:.95rem;line-height:1.65;color:#333;">' +
+				responseHtml +
+				'</div>';
+
+			// ---- Evaluation column (right, flex:1) ----
+			var evalCol = document.createElement( 'div' );
+			evalCol.style.cssText = 'flex:1;min-width:180px;';
+
+			var evalBodyHtml;
+			if ( null === evaluationText ) {
+				// Placeholder while Bedrock is still generating.
+				evalBodyHtml =
+					'<em style="color:#aaa;font-size:.9rem;">Generating evaluation…</em>';
+			} else if ( '' === evaluationText ) {
+				evalBodyHtml =
+					'<em style="color:#aaa;font-size:.9rem;">Evaluation unavailable.</em>';
+			} else {
+				// Preserve newlines as <br> so multi-sentence evaluations are readable.
+				evalBodyHtml = escapeHtml( evaluationText ).replace( /\n/g, '<br>' );
+			}
+
+			evalCol.innerHTML =
+				'<div style="font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;' +
+				'letter-spacing:.04em;margin-bottom:6px;">Evaluation</div>' +
+				'<div style="background:rgba(255,182,6,.08);border:1px solid rgba(255,182,6,.35);' +
+				'border-radius:10px;padding:14px 16px;font-size:.9rem;line-height:1.65;color:#333;">' +
+				evalBodyHtml +
+				'</div>';
+
+			wrap.appendChild( respCol );
+			wrap.appendChild( evalCol );
+
+			// Insert the side-by-side block below the Save button.
+			saveBtn.insertAdjacentElement( 'afterend', wrap );
 		}
 	} );
 } )();
