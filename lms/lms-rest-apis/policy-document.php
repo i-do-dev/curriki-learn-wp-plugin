@@ -80,7 +80,8 @@ class Rest_Lxp_Policy_Document {
 				$lid = (int) $lesson->lesson_id;
 				$row = $cap_repo->get_by_lesson_user( $lid, $user_id );
 				if ( $row && ! empty( $row->response ) ) {
-					$capstone_map[ $lid ] = $row->response;
+					// Store full row so evaluation is accessible below.
+					$capstone_map[ $lid ] = $row;
 				}
 			}
 		}
@@ -214,6 +215,9 @@ class Rest_Lxp_Policy_Document {
 		echo '.capstone-block { padding: 0 8px; margin-bottom: 10px; }';
 		echo '.capstone-label { font-weight: bold; font-size: 9.5pt; color: #444; margin-bottom: 3px; }';
 		echo '.capstone-answer { background-color: #fafafa; border: 1px solid #ddd; padding: 7px 10px; font-size: 9.5pt; color: #222; white-space: normal; word-wrap: break-word; }';
+		echo '.evaluation-block { padding: 0 8px; margin-top: 8px; margin-bottom: 10px; }';
+		echo '.evaluation-label { font-weight: bold; font-size: 9.5pt; color: #8a6000; margin-bottom: 3px; }';
+		echo '.evaluation-answer { background-color: #fffbf0; border: 1px solid #e8d28a; padding: 7px 10px; font-size: 9.5pt; color: #333; white-space: pre-wrap; word-wrap: break-word; }';
 		echo '.empty-state { text-align: center; color: #888; padding: 30px 0; font-style: italic; }';
 		echo 'ul { margin: 0 0 6pt 18pt; padding: 0; list-style-type: disc; } ol { margin: 0 0 6pt 18pt; padding: 0; list-style-type: decimal; } li { margin-bottom: 2pt; }';
 		echo '</style></head><body>';
@@ -246,7 +250,8 @@ class Rest_Lxp_Policy_Document {
 					$fields_json = isset( $lesson->fields ) ? $lesson->fields : null;
 					$fields      = ( $fields_json && '' !== $fields_json ) ? json_decode( $fields_json, true ) : null;
 					$has_wb      = is_array( $fields ) && ! empty( $fields );
-					$has_cap     = isset( $capstone_map[ $lid ] ) && '' !== $capstone_map[ $lid ];
+					$cap_row     = isset( $capstone_map[ $lid ] ) ? $capstone_map[ $lid ] : null;
+					$has_cap     = $cap_row && ! empty( $cap_row->response );
 
 					echo '<div class="lesson-block">';
 					echo '<div class="lesson-heading">' . esc_html( $lesson->lesson_title ) . '</div>';
@@ -263,8 +268,15 @@ class Rest_Lxp_Policy_Document {
 					} elseif ( $has_cap ) {
 						echo '<div class="capstone-block">';
 						echo '<div class="capstone-label">Response</div>';
-					echo '<div class="capstone-answer">' . wp_kses_post( $capstone_map[ $lid ] ) . '</div>';
+						echo '<div class="capstone-answer">' . wp_kses_post( $cap_row->response ) . '</div>';
 						echo '</div>';
+						// Evaluation block (only when AI has generated one).
+						if ( ! empty( $cap_row->evaluation ) ) {
+							echo '<div class="evaluation-block">';
+							echo '<div class="evaluation-label">Evaluation</div>';
+							echo '<div class="evaluation-answer">' . esc_html( $cap_row->evaluation ) . '</div>';
+							echo '</div>';
+						}
 					} else {
 						$labels = self::extract_field_labels_from_html( $lid );
 						if ( ! empty( $labels ) ) {

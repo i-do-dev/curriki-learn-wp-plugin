@@ -30,13 +30,14 @@ class TL_Capstone_Submission_Repository {
 	/**
 	 * Insert or update a capstone submission.
 	 *
-	 * @param  int    $lesson_id  Lesson post ID.
-	 * @param  int    $course_id  Course post ID.
-	 * @param  int    $user_id    WordPress user ID.
-	 * @param  string $response   Student's capstone response text.
+	 * @param  int         $lesson_id   Lesson post ID.
+	 * @param  int         $course_id   Course post ID.
+	 * @param  int         $user_id     WordPress user ID.
+	 * @param  string      $response    Student's capstone response text.
+	 * @param  string|null $evaluation  AI-generated evaluation text (null = don't update).
 	 * @return int|false  Row ID on success, false on failure.
 	 */
-	public function upsert( $lesson_id, $course_id, $user_id, $response ) {
+	public function upsert( $lesson_id, $course_id, $user_id, $response, $evaluation = null ) {
 		$now = current_time( 'mysql' );
 
 		$existing = $this->get_by_lesson_user( $lesson_id, $user_id );
@@ -44,36 +45,59 @@ class TL_Capstone_Submission_Repository {
 		$clean_response = wp_kses_post( (string) $response );
 
 		if ( $existing ) {
+			$data    = array(
+				'response'   => $clean_response,
+				'updated_at' => $now,
+			);
+			$formats = array( '%s', '%s' );
+			if ( null !== $evaluation ) {
+				$data['evaluation'] = wp_kses_post( (string) $evaluation );
+				$formats[]          = '%s';
+			}
 			$updated = $this->wpdb->update(
 				$this->table,
-				array(
-					'response'   => $clean_response,
-					'updated_at' => $now,
-				),
+				$data,
 				array(
 					'lesson_id' => absint( $lesson_id ),
 					'user_id'   => absint( $user_id ),
 				),
-				array( '%s', '%s' ),
+				$formats,
 				array( '%d', '%d' )
 			);
 			return ( false !== $updated ) ? (int) $existing->id : false;
 		}
 
-		$inserted = $this->wpdb->insert(
-			$this->table,
-			array(
-				'lesson_id'    => absint( $lesson_id ),
-				'course_id'    => absint( $course_id ),
-				'user_id'      => absint( $user_id ),
-				'response'     => $clean_response,
-				'submitted_at' => $now,
-				'updated_at'   => $now,
-			),
-			array( '%d', '%d', '%d', '%s', '%s', '%s' )
+		$insert_data    = array(
+			'lesson_id'    => absint( $lesson_id ),
+			'course_id'    => absint( $course_id ),
+			'user_id'      => absint( $user_id ),
+			'response'     => $clean_response,
+			'submitted_at' => $now,
+			'updated_at'   => $now,
 		);
+		$insert_formats = array( '%d', '%d', '%d', '%s', '%s', '%s' );
+		if ( null !== $evaluation ) {
+			$insert_data['evaluation'] = wp_kses_post( (string) $evaluation );
+			$insert_formats[]          = '%s';
+		}
+		$inserted = $this->wpdb->insert( $this->table, $insert_data, $insert_formats );
 
 		return ( false !== $inserted ) ? (int) $this->wpdb->insert_id : false;
+	}
+
+	/**
+	 * Return the stored response text for a lesson/user pair, or '' if none.
+	 *
+	 * Used by the REST layer to detect whether the student's response has
+	 * changed before deciding to trigger an AI evaluation.
+	 *
+	 * @param  int $lesson_id
+	 * @param  int $user_id
+	 * @return string
+	 */
+	public function get_response_text( $lesson_id, $user_id ) {
+		$row = $this->get_by_lesson_user( $lesson_id, $user_id );
+		return $row ? (string) $row->response : '';
 	}
 
 	// -------------------------------------------------------------------------
@@ -149,6 +173,7 @@ class TL_Capstone_Submission_Repository {
 				    p.post_name   AS lesson_slug,
 				    cs.id         AS submission_id,
 				    cs.response,
+				    cs.evaluation,
 				    cs.submitted_at,
 				    cs.updated_at
 				FROM {$lessons_table} li

@@ -134,6 +134,18 @@ class Rest_Lxp_Capstone_Submission {
 				),
 			)
 		);
+
+		register_rest_route(
+			'lms/v1',
+			'/lesson/capstone-evaluation',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( 'Rest_Lxp_Capstone_Submission', 'evaluate_submission' ),
+					'permission_callback' => '__return_true',
+				),
+			)
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -177,7 +189,13 @@ class Rest_Lxp_Capstone_Submission {
 		}
 
 		$user_id = get_current_user_id();
-		$row_id  = self::repo()->upsert( $lesson_id, $course_id, $user_id, $response );
+
+		// Detect whether the response text actually changed so the JS knows
+		// whether to fire the separate evaluation request.
+		$old_response     = self::repo()->get_response_text( $lesson_id, $user_id );
+		$response_changed = ( trim( $response ) !== trim( $old_response ) );
+
+		$row_id = self::repo()->upsert( $lesson_id, $course_id, $user_id, $response );
 
 		if ( false === $row_id ) {
 			return new WP_Error( 'db_error', 'Failed to save capstone submission.', array( 'status' => 500 ) );
@@ -185,7 +203,14 @@ class Rest_Lxp_Capstone_Submission {
 
 		$completion = self::get_completion_state( $course_id, $lesson_id, $user_id );
 
-		return rest_ensure_response( array_merge( array( 'id' => $row_id, 'saved' => true ), $completion ) );
+		return rest_ensure_response( array_merge(
+			array(
+				'id'               => $row_id,
+				'saved'            => true,
+				'response_changed' => $response_changed,
+			),
+			$completion
+		) );
 	}
 
 	/**
@@ -238,6 +263,7 @@ class Rest_Lxp_Capstone_Submission {
 		return rest_ensure_response( array(
 			'id'                         => (int) $submission->id,
 			'response'                   => $submission->response,
+			'evaluation'                 => isset( $submission->evaluation ) ? $submission->evaluation : null,
 			'submitted_at'               => $submission->submitted_at,
 			'updated_at'                 => $submission->updated_at,
 			'is_last_lesson_in_sequence' => $is_last,
@@ -286,11 +312,108 @@ class Rest_Lxp_Capstone_Submission {
 				'lesson_title'  => $row->lesson_title,
 				'lesson_url'    => $lesson_url,
 				'response'      => isset( $row->response ) ? $row->response : null,
+				'evaluation'    => isset( $row->evaluation ) ? $row->evaluation : null,
 				'submitted_at'  => isset( $row->submitted_at ) ? $row->submitted_at : null,
 				'updated_at'    => isset( $row->updated_at ) ? $row->updated_at : null,
 			);
 		}
 
 		return rest_ensure_response( $data );
+	}
+
+	// -------------------------------------------------------------------------
+	// AI Evaluation
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Generate and persist an AI evaluation for an existing capstone submission.
+	 *
+	 * Called asynchronously by the frontend immediately after a successful save
+	 * when the response was new or changed. Reads the stored response so the
+	 * frontend does not need to re-send the full response text.
+	 *
+	 * @param  WP_REST_Request $request  Required: lesson_id (int).
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function evaluate_submission( WP_REST_Request $request ) {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error(
+				'unauthorized',
+				'You must be logged in to request an evaluation.',
+				array( 'status' => 401 )
+			);
+		}
+
+		$lesson_id = absint( $request->get_param( 'lesson_id' ) );
+		if ( $lesson_id <= 0 ) {
+			return new WP_Error( 'invalid_lesson_id', 'A valid lesson_id is required.', array( 'status' => 400 ) );
+		}
+
+		$user_id    = get_current_user_id();
+		$submission = self::repo()->get_by_lesson_user( $lesson_id, $user_id );
+		if ( ! $submission ) {
+			return new WP_Error( 'not_found', 'No submission found for this lesson.', array( 'status' => 404 ) );
+		}
+
+		$response = (string) $submission->response;
+		if ( '' === trim( $response ) ) {
+			return new WP_Error( 'empty_response', 'Cannot evaluate an empty response.', array( 'status' => 400 ) );
+		}
+
+		$evaluation = self::generate_evaluation( $lesson_id, $response );
+		if ( null === $evaluation ) {
+			return new WP_Error( 'evaluation_failed', 'AI evaluation could not be generated.', array( 'status' => 500 ) );
+		}
+
+		// Persist the evaluation alongside the existing response.
+		self::repo()->upsert(
+			$lesson_id,
+			(int) $submission->course_id,
+			$user_id,
+			$response,
+			$evaluation
+		);
+
+		return rest_ensure_response( array( 'evaluation' => $evaluation ) );
+	}
+
+	/**
+	 * Call AWS Bedrock to generate a brief evaluation of a student's capstone response.
+	 *
+	 * Acts as an AI policy expert who just taught the lesson and is reviewing
+	 * the student's capstone activity response.
+	 *
+	 * @param  int    $lesson_id        Lesson post ID.
+	 * @param  string $student_response The student's submitted response text.
+	 * @return string|null  Plain-text evaluation, or null on failure.
+	 */
+	private static function generate_evaluation( $lesson_id, $student_response ) {
+		$lesson = get_post( absint( $lesson_id ) );
+		if ( ! $lesson ) {
+			return null;
+		}
+
+		$lesson_title   = (string) $lesson->post_title;
+		$lesson_content = wp_strip_all_tags( (string) $lesson->post_content );
+
+		$system_prompt =
+			'You are an expert AI policy advisor specialising in the use of AI in schools. '
+			. 'You just taught a lesson titled "' . $lesson_title . '". '
+			. "Here is the lesson content you taught:\n\n" . $lesson_content;
+
+		$user_message =
+			'A student has submitted the following response to the capstone activity in this lesson. '
+			. 'Please provide a brief, constructive evaluation in 2 to 4 sentences. '
+			. 'Focus on how well the response reflects understanding of AI policy principles '
+			. "for use in schools. Be encouraging but specific.\n\n"
+			. "Student Response:\n" . sanitize_textarea_field( wp_unslash( $student_response ) );
+
+		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 512 );
+
+		if ( is_wp_error( $result ) || empty( trim( $result ) ) ) {
+			return null;
+		}
+
+		return sanitize_textarea_field( $result );
 	}
 }
