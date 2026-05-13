@@ -408,7 +408,7 @@ class Rest_Lxp_Capstone_Submission {
 			. "for use in schools. Be encouraging but specific.\n\n"
 			. "Student Response:\n" . sanitize_textarea_field( wp_unslash( $student_response ) );
 
-		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 512 );
+		$result = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 308 );
 
 		if ( is_wp_error( $result ) || empty( trim( $result ) ) ) {
 			return null;
