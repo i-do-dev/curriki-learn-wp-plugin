@@ -2,11 +2,7 @@
 
 function lxp_login_check()
 {
-  if (!is_user_logged_in()) {
-    // global $wp;
-    $url = "http" . (isset($_SERVER["HTTPS"]) ? "s" : "") . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    wp_redirect(site_url('login') . '?redirect=' . urlencode($url));
-  }
+    // Intentionally disabled: this plugin should not run custom login redirects.
 }
 
 function lxp_get_active_role($user_id = 0)

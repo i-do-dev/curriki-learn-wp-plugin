@@ -74,6 +74,11 @@
 			},
 		} );
 
+		var editorEl = wrapper.querySelector( '.ql-editor' );
+		if ( editorEl ) {
+			editorEl.style.minHeight = '500px';
+		}
+
 		// -------------------------------------------------------------------------
 		// Status message element.
 		// -------------------------------------------------------------------------

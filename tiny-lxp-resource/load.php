@@ -85,9 +85,7 @@ function tinyLxp_page_templates($template) {
         return plugin_dir_path(dirname( __FILE__ )) . '/lms/templates/tinyLxpTheme/page-capstone-journal.php';
     }
 
-    if (is_page('login')) {
-        $template = plugin_dir_path(dirname( __FILE__ )).'/lms/templates/tinyLxpTheme/page-login.php';
-    }
+    // Disabled: do not override the WordPress login page with the plugin login template.
     if (is_user_logged_in()) {
         $userdata = get_userdata(get_current_user_id());
         if (is_page('dashboard')) {
@@ -378,7 +376,8 @@ function custom_login_redirect( $redirect_to, $request, $user ) {
     return $redirect_to;
 }
 
-add_filter( 'login_redirect', 'custom_login_redirect', 10, 3 );
+// Disabled to preserve native WordPress post-login redirect behavior.
+// add_filter( 'login_redirect', 'custom_login_redirect', 10, 3 );
 
 // Add to your child theme's functions.php
 function my_custom_course_tab($tabs, $course) {
