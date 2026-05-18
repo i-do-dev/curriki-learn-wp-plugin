@@ -131,7 +131,7 @@ class TL_LearnPress_Lesson_Extension {
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use markers when you want to control the layout section by section before generating the final lesson blocks.', 'tiny-lxp-platform' ); ?></p>
 			<div class="lxp-ai-block-picker-wrap">
 				<p class="lxp-ai-action-row">
-					<button type="button" id="lxp-ai-block-picker-btn" class="button button-primary">
+					<button type="button" id="lxp-ai-block-picker-btn" class="button">
 						<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
 					</button>
 				</p>
@@ -145,7 +145,7 @@ class TL_LearnPress_Lesson_Extension {
 				</div>
 			</div>
 			<p class="lxp-ai-action-row">
-				<button type="button" id="lxp-ai-blocks-gen-btn" class="button">
+				<button type="button" id="lxp-ai-blocks-gen-btn" class="button button-primary">
 					<?php echo esc_html__( 'Generate Marked Blocks', 'tiny-lxp-platform' ); ?>
 				</button>
 			</p>
