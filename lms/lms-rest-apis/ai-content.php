@@ -28,6 +28,18 @@ class Rest_Lxp_AI_Content {
 			)
 		);
 
+    register_rest_route(
+      'lms/v1',
+      '/lesson/ai-content-blocks',
+      array(
+        array(
+          'methods'             => WP_REST_Server::CREATABLE,
+          'callback'            => array( 'Rest_Lxp_AI_Content', 'generate_blocks_content' ),
+          'permission_callback' => '__return_true',
+        ),
+      )
+    );
+
 		register_rest_route(
 			'lms/v1',
 			'/lesson/original-content',
@@ -59,27 +71,12 @@ class Rest_Lxp_AI_Content {
 		$post_id        = absint( $request->get_param( 'post_id' ) );
 		$lesson_content = $request->get_param( 'lesson_content' );
 
-		if ( $post_id <= 0 ) {
-			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
-		}
+    $validation = self::validate_generation_request( $post_id, $lesson_content );
+    if ( is_wp_error( $validation ) ) {
+      return $validation;
+    }
 
-		if ( empty( trim( $lesson_content ) ) ) {
-			return new WP_Error( 'missing_content', 'lesson_content cannot be empty.', array( 'status' => 400 ) );
-		}
-		/*
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			return new WP_Error( 'forbidden', 'You do not have permission to edit this lesson.', array( 'status' => 403 ) );
-		}
-		*/
-		// Back up the current post_content only on the FIRST generation so the
-		// true original is always preserved across subsequent AI generations.
-		$existing_backup = get_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, true );
-		if ( empty( $existing_backup ) ) {
-			$post = get_post( $post_id );
-			if ( $post && ! empty( $post->post_content ) ) {
-				update_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, $post->post_content );
-			}
-		}
+    self::maybe_backup_original_content( $post_id );
 
 		// Fetch the lesson title for richer prompt context.
 		$lesson_title = get_the_title( $post_id );
@@ -118,6 +115,59 @@ class Rest_Lxp_AI_Content {
 		) );
 	}
 
+  /**
+   * Generate lesson content using ordered author-defined block markers.
+   *
+   * @param  WP_REST_Request $request Required params: post_id (int), lesson_content (string).
+   * @return WP_REST_Response|WP_Error
+   */
+  public static function generate_blocks_content( WP_REST_Request $request ) {
+    $post_id        = absint( $request->get_param( 'post_id' ) );
+    $lesson_content = $request->get_param( 'lesson_content' );
+
+    $validation = self::validate_generation_request( $post_id, $lesson_content, true );
+    if ( is_wp_error( $validation ) ) {
+      return $validation;
+    }
+
+    self::maybe_backup_original_content( $post_id );
+
+    $lesson_title       = get_the_title( $post_id );
+    $segments           = self::parse_block_markers( wp_unslash( $lesson_content ) );
+    $rendered_segments  = array();
+    $errors             = array();
+    $rendered_count     = 0;
+
+    foreach ( $segments as $segment ) {
+      $rendered = self::render_block( $segment['type'], $segment['content'], $post_id, $lesson_title );
+      if ( is_wp_error( $rendered ) ) {
+        $errors[] = array(
+          'type'    => $segment['type'],
+          'code'    => $rendered->get_error_code(),
+          'message' => $rendered->get_error_message(),
+        );
+        continue;
+      }
+
+      if ( '' !== trim( $rendered ) ) {
+        $rendered_segments[] = $rendered;
+        ++$rendered_count;
+      }
+    }
+
+    if ( empty( $rendered_segments ) ) {
+      return new WP_Error( 'blocks_render_failed', 'No lesson blocks could be rendered.', array( 'status' => 502, 'errors' => $errors ) );
+    }
+
+    return rest_ensure_response(
+      array(
+        'content'         => implode( "\n", $rendered_segments ),
+        'blocks_rendered' => $rendered_count,
+        'errors'          => $errors,
+      )
+    );
+  }
+
 	/**
 	 * Return the original lesson content that was backed up before the first AI generation.
 	 *
@@ -143,6 +193,588 @@ class Rest_Lxp_AI_Content {
 
 		return rest_ensure_response( array( 'content' => $original ) );
 	}
+
+  /**
+   * Validate a generation request.
+   *
+   * @param  int         $post_id
+   * @param  string      $lesson_content
+   * @param  bool        $enforce_capability
+   * @return true|WP_Error
+   */
+  private static function validate_generation_request( $post_id, $lesson_content, $enforce_capability = false ) {
+    if ( $post_id <= 0 ) {
+      return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
+    }
+
+    if ( empty( trim( (string) $lesson_content ) ) ) {
+      return new WP_Error( 'missing_content', 'lesson_content cannot be empty.', array( 'status' => 400 ) );
+    }
+
+    if ( $enforce_capability && ! current_user_can( 'edit_post', $post_id ) ) {
+      return new WP_Error( 'forbidden', 'You do not have permission to edit this lesson.', array( 'status' => 403 ) );
+    }
+
+    return true;
+  }
+
+  /**
+   * Persist the first-seen original lesson content only once.
+   *
+   * @param int $post_id
+   */
+  private static function maybe_backup_original_content( $post_id ) {
+    $existing_backup = get_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, true );
+    if ( ! empty( $existing_backup ) ) {
+      return;
+    }
+
+    $post = get_post( $post_id );
+    if ( $post && ! empty( $post->post_content ) ) {
+      update_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, $post->post_content );
+    }
+  }
+
+  /**
+   * Parse author content into ordered block segments.
+   *
+   * Supports plain text fences and TinyMCE paragraph-wrapped fence lines.
+   * Unmarked content becomes a prose block.
+   *
+   * @param  string $content
+   * @return array<int,array<string,string>>
+   */
+  public static function parse_block_markers( $content ) {
+    $segments         = array();
+    $current_type     = null;
+    $current_lines    = array();
+    $prose_lines      = array();
+    $content          = preg_replace( '#</p>\s*<p>#i', "</p>\n<p>", (string) $content );
+    $content          = preg_replace( '#<br\s*/?>#i', "<br />\n", $content );
+    $lines            = preg_split( '/\r\n|\r|\n/', $content );
+
+    foreach ( $lines as $line ) {
+      $fence = self::normalize_marker_line( $line );
+
+      if ( preg_match( '/^:::\s*([a-z0-9-]+)\s*$/i', $fence, $matches ) ) {
+        if ( null !== $current_type ) {
+          $current_lines[] = $line;
+          continue;
+        }
+
+        self::push_block_segment( $segments, 'prose', $prose_lines );
+        $current_type  = strtolower( $matches[1] );
+        $current_lines = array();
+        continue;
+      }
+
+      if ( ':::' === trim( $fence ) && null !== $current_type ) {
+        self::push_block_segment( $segments, $current_type, $current_lines );
+        $current_type  = null;
+        $current_lines = array();
+        continue;
+      }
+
+      if ( null !== $current_type ) {
+        $current_lines[] = $line;
+      } else {
+        $prose_lines[] = $line;
+      }
+    }
+
+    if ( null !== $current_type ) {
+      array_unshift( $current_lines, ':::' . $current_type );
+      self::push_block_segment( $segments, 'prose', $current_lines );
+    }
+
+    self::push_block_segment( $segments, 'prose', $prose_lines );
+
+    if ( empty( $segments ) ) {
+      $segments[] = array(
+        'type'    => 'prose',
+        'content' => trim( (string) $content ),
+      );
+    }
+
+    return $segments;
+  }
+
+  /**
+   * Provide a catalog of supported blocks for admin reference UI.
+   *
+   * @return array<int,array<string,string>>
+   */
+  public static function get_block_catalog() {
+    $catalog = array(
+      array(
+        'type'        => 'hero',
+        'label'       => 'Hero',
+        'description' => 'Large lesson header with tag, title, and subtitle.',
+        'marker'      => ":::hero\nTag: Policy Essentials\nSubtitle: Build a shared understanding before the formal guidance begins.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'hero' ), array(
+          '[LESSON_TAG]'      => 'Policy Essentials',
+          '[LESSON_TITLE]'    => 'Writing Better Policy Documents',
+          '[LESSON_SUBTITLE]' => 'Build a shared understanding before the formal guidance begins.',
+        ) ),
+      ),
+      array(
+        'type'        => 'learning-outcomes',
+        'label'       => 'Learning Outcomes',
+        'description' => 'Four actionable lesson outcomes.',
+        'marker'      => ":::learning-outcomes\n- Identify the core sections of the document\n- Explain why the structure matters\n- Review the audience fit of each section\n- Revise the outline for clarity\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'learning-outcomes' ), array(
+          '[OUTCOME_1]' => 'Identify the core sections of the document.',
+          '[OUTCOME_2]' => 'Explain why the structure matters.',
+          '[OUTCOME_3]' => 'Review the audience fit of each section.',
+          '[OUTCOME_4]' => 'Revise the outline for clarity.',
+        ) ),
+      ),
+      array(
+        'type'        => 'opening-hook',
+        'label'       => 'Opening Hook',
+        'description' => 'Context-setting quote or framing statement.',
+        'marker'      => ":::opening-hook\nA policy document only works when readers can immediately see how its rules connect to daily decisions.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'opening-hook' ), array(
+          '[OPENING_HOOK_STATEMENT]' => 'A policy document only works when readers can immediately see how its rules connect to daily decisions.',
+        ) ),
+      ),
+      array(
+        'type'        => 'capstone',
+        'label'       => 'Capstone',
+        'description' => 'Final applied-response activity with the preserved sentinel box.',
+        'marker'      => ":::capstone\nDraft a revised policy section that clarifies who the audience is, what action is required, and how revision should happen over time.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'capstone' ), array(
+          '[CAPSTONE_PROMPT]' => 'Draft a revised policy section that clarifies who the audience is, what action is required, and how revision should happen over time.',
+        ) ),
+      ),
+      array(
+        'type'        => 'stats-grid',
+        'label'       => 'Stats Grid',
+        'description' => 'Three metric cards for evidence or quick context.',
+        'marker'      => ":::stats-grid\nHeading: Why this matters\n72% | Teams that used a shared template\n3x | Faster review cycles\n41% | Fewer revision loops\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'stats-grid' ), array(
+          '[STATS_HEADING]' => 'Why this matters',
+          '[STAT_1_VALUE]' => '72%',
+          '[STAT_1_LABEL]' => 'Teams that used a shared template',
+          '[STAT_2_VALUE]' => '3x',
+          '[STAT_2_LABEL]' => 'Faster review cycles',
+          '[STAT_3_VALUE]' => '41%',
+          '[STAT_3_LABEL]' => 'Fewer revision loops',
+        ) ),
+      ),
+      array(
+        'type'        => 'cards-grid',
+        'label'       => 'Cards Grid',
+        'description' => 'Three summary cards with titles and short bodies.',
+        'marker'      => ":::cards-grid\nClarity: Name the audience early.\nSequence: Put decisions in the order readers will use them.\nRevision: Say who updates the document and when.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'cards-grid' ), array(
+          '[CARDS_HEADING]'  => 'Core writing moves',
+          '[CARD_1_TITLE]'   => 'Clarity',
+          '[CARD_1_BODY]'    => 'Name the audience early.',
+          '[CARD_2_TITLE]'   => 'Sequence',
+          '[CARD_2_BODY]'    => 'Put decisions in the order readers will use them.',
+          '[CARD_3_TITLE]'   => 'Revision',
+          '[CARD_3_BODY]'    => 'Say who updates the document and when.',
+        ) ),
+      ),
+      array(
+        'type'        => 'tier-cards',
+        'label'       => 'Tier Cards',
+        'description' => 'Three top-accent cards for levels, options, or approaches.',
+        'marker'      => ":::tier-cards\nStarter: Single owner, one audience, one action.\nIntermediate: Cross-team review and approval.\nAdvanced: Full lifecycle governance and revision schedule.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'tier-cards' ), array(
+          '[TIER_CARDS_HEADING]' => 'Implementation levels',
+          '[TIER_CARD_1_TITLE]' => 'Starter',
+          '[TIER_CARD_1_BODY]'  => 'Single owner, one audience, one action.',
+          '[TIER_CARD_2_TITLE]' => 'Intermediate',
+          '[TIER_CARD_2_BODY]'  => 'Cross-team review and approval.',
+          '[TIER_CARD_3_TITLE]' => 'Advanced',
+          '[TIER_CARD_3_BODY]'  => 'Full lifecycle governance and revision schedule.',
+        ) ),
+      ),
+      array(
+        'type'        => 'numbered-grid',
+        'label'       => 'Numbered Grid',
+        'description' => 'Dynamic numbered card grid for named components or steps.',
+        'marker'      => ":::numbered-grid\nThere are 4 components in this policy template: Purpose, Audience, Action, and Revision.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'numbered-grid', 4 ), array(
+          '[COMPONENTS_N_HEADING]' => '4 policy components',
+          '[COMPONENT_1_TITLE]' => 'Purpose',
+          '[COMPONENT_1_DESC]'  => 'States why the document exists.',
+          '[COMPONENT_2_TITLE]' => 'Audience',
+          '[COMPONENT_2_DESC]'  => 'Names who should use it.',
+          '[COMPONENT_3_TITLE]' => 'Action',
+          '[COMPONENT_3_DESC]'  => 'Explains what readers must do.',
+          '[COMPONENT_4_TITLE]' => 'Revision',
+          '[COMPONENT_4_DESC]'  => 'Shows how updates are made over time.',
+        ) ),
+      ),
+      array(
+        'type'        => 'two-col-table',
+        'label'       => 'Two-Column Table',
+        'description' => 'Comparison or mapping table with three rows.',
+        'marker'      => ":::two-col-table\nDraft outline | Final audience-ready language\nInternal notes | Public-facing explanation\nOne-time memo | Living policy document\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'two-col-table' ), array(
+          '[TABLE_2_HEADING]' => 'Draft to publish mapping',
+          '[TABLE_2_COL_1]'   => 'Draft concept',
+          '[TABLE_2_COL_2]'   => 'Published version',
+          '[TABLE_2_ROW_1_LEFT]'  => 'Draft outline',
+          '[TABLE_2_ROW_1_RIGHT]' => 'Final audience-ready language',
+          '[TABLE_2_ROW_2_LEFT]'  => 'Internal notes',
+          '[TABLE_2_ROW_2_RIGHT]' => 'Public-facing explanation',
+          '[TABLE_2_ROW_3_LEFT]'  => 'One-time memo',
+          '[TABLE_2_ROW_3_RIGHT]' => 'Living policy document',
+        ) ),
+      ),
+      array(
+        'type'        => 'three-col-table',
+        'label'       => 'Three-Column Table',
+        'description' => 'Evaluation or comparison grid with three columns.',
+        'marker'      => ":::three-col-table\nAudience | What they need | Why it matters\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'three-col-table' ), array(
+          '[TABLE_3_HEADING]' => 'Audience fit check',
+          '[TABLE_3_COL_1]'   => 'Audience',
+          '[TABLE_3_COL_2]'   => 'What they need',
+          '[TABLE_3_COL_3]'   => 'Why it matters',
+          '[TABLE_3_ROW_1_A]' => 'Teachers',
+          '[TABLE_3_ROW_1_B]' => 'Clear classroom actions',
+          '[TABLE_3_ROW_1_C]' => 'They apply the policy daily',
+          '[TABLE_3_ROW_2_A]' => 'Leaders',
+          '[TABLE_3_ROW_2_B]' => 'Decision checkpoints',
+          '[TABLE_3_ROW_2_C]' => 'They approve and revise it',
+          '[TABLE_3_ROW_3_A]' => 'Families',
+          '[TABLE_3_ROW_3_B]' => 'Plain-language summary',
+          '[TABLE_3_ROW_3_C]' => 'They need the purpose in accessible language',
+        ) ),
+      ),
+      array(
+        'type'        => 'contrast-panel',
+        'label'       => 'Contrast Panel',
+        'description' => 'Green vs red do-or-don’t guidance pair.',
+        'marker'      => ":::contrast-panel\nDO: Name the audience.\nDO: Define the action.\nDO: Explain the revision owner.\nNEVER: Hide the decision path.\nNEVER: Mix multiple audiences in one instruction.\nNEVER: Publish without a review date.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'contrast-panel' ), array(
+          '[CONTRAST_LEFT_HEADING]' => 'Always do',
+          '[CONTRAST_RIGHT_HEADING]' => 'Never do',
+          '[LEFT_1]' => 'Name the audience.',
+          '[LEFT_2]' => 'Define the action.',
+          '[LEFT_3]' => 'Explain the revision owner.',
+          '[RIGHT_1]' => 'Hide the decision path.',
+          '[RIGHT_2]' => 'Mix multiple audiences in one instruction.',
+          '[RIGHT_3]' => 'Publish without a review date.',
+        ) ),
+      ),
+      array(
+        'type'        => 'callout',
+        'label'       => 'Callout',
+        'description' => 'Single highlighted text block with a yellow left border.',
+        'marker'      => ":::callout\nA policy document becomes easier to use when readers can see who it is for before they reach the first requirement.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'callout' ), array(
+          '[CALLOUT_HEADING]' => 'Why this matters',
+          '[CALLOUT_BODY]'    => 'A policy document becomes easier to use when readers can see who it is for before they reach the first requirement.',
+        ) ),
+      ),
+      array(
+        'type'        => 'dark-block',
+        'label'       => 'Dark Block',
+        'description' => 'High-emphasis dark callout or guideline section.',
+        'marker'      => ":::dark-block\nHeading: Revision guardrail\nEvery published policy should name the owner, the trigger for review, and the date the next review must happen.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'dark-block' ), array(
+          '[DARK_BLOCK_HEADING]' => 'Revision guardrail',
+          '[DARK_BLOCK_BODY]'    => 'Every published policy should name the owner, the trigger for review, and the date the next review must happen.',
+        ) ),
+      ),
+      array(
+        'type'        => 'definition-block',
+        'label'       => 'Definition Block',
+        'description' => 'Soft-tinted definition or overview section with bullets.',
+        'marker'      => ":::definition-block\nPolicy writing standards include clarity, sequence, accountability, and revision.\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'definition-block' ), array(
+          '[DEFINITION_HEADING]' => 'Policy writing standards',
+          '[DEFINITION_INTRO]'   => 'Strong policy writing usually includes these core qualities:',
+          '[DEFINITION_ITEM_1]'  => 'Clarity of audience',
+          '[DEFINITION_ITEM_2]'  => 'Clear action language',
+          '[DEFINITION_ITEM_3]'  => 'Visible accountability',
+          '[DEFINITION_ITEM_4]'  => 'Revision over time',
+        ) ),
+      ),
+      array(
+        'type'        => 'role-split',
+        'label'       => 'Role Split',
+        'description' => 'Two role-perspective panels with bullets.',
+        'marker'      => ":::role-split\nAuthors: define scope, sequence, and ownership\nReviewers: test readability, alignment, and revision readiness\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'role-split' ), array(
+          '[ROLE_SPLIT_HEADING]' => 'Role perspectives',
+          '[ROLE_A_TITLE]'       => 'Authors',
+          '[ROLE_A_POINT_1]'     => 'Define scope.',
+          '[ROLE_A_POINT_2]'     => 'Sequence the decisions.',
+          '[ROLE_A_POINT_3]'     => 'Assign ownership.',
+          '[ROLE_B_TITLE]'       => 'Reviewers',
+          '[ROLE_B_POINT_1]'     => 'Test readability.',
+          '[ROLE_B_POINT_2]'     => 'Check alignment.',
+          '[ROLE_B_POINT_3]'     => 'Confirm revision readiness.',
+        ) ),
+      ),
+      array(
+        'type'        => 'option-cards',
+        'label'       => 'Option Cards',
+        'description' => 'Four 2x2 cards for options, audiences, or messages.',
+        'marker'      => ":::option-cards\nTeacher-facing summary\nLeader-facing review guide\nFamily-facing explainer\nRevision checklist\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'option-cards' ), array(
+          '[OPTIONS_HEADING]' => 'Useful companion blocks',
+          '[OPTION_1_NAME]'   => 'Teacher-facing summary',
+          '[OPTION_1_DESC]'   => 'Shows day-to-day actions.',
+          '[OPTION_2_NAME]'   => 'Leader-facing review guide',
+          '[OPTION_2_DESC]'   => 'Supports approval and oversight.',
+          '[OPTION_3_NAME]'   => 'Family-facing explainer',
+          '[OPTION_3_DESC]'   => 'Translates the policy into plain language.',
+          '[OPTION_4_NAME]'   => 'Revision checklist',
+          '[OPTION_4_DESC]'   => 'Keeps the policy current after publication.',
+        ) ),
+      ),
+      array(
+        'type'        => 'checklist',
+        'label'       => 'Checklist',
+        'description' => 'White card with four checkmarked alignment items.',
+        'marker'      => ":::checklist\nName the audience\nDefine the action\nAssign ownership\nSet the review cycle\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'checklist' ), array(
+          '[CHECKLIST_HEADING]' => 'Alignment checklist',
+          '[CHECK_1]' => 'Name the audience.',
+          '[CHECK_2]' => 'Define the action.',
+          '[CHECK_3]' => 'Assign ownership.',
+          '[CHECK_4]' => 'Set the review cycle.',
+        ) ),
+      ),
+      array(
+        'type'        => 'cycle',
+        'label'       => 'Cycle',
+        'description' => 'Four-stage lifecycle bar.',
+        'marker'      => ":::cycle\nDraft\nReview\nPublish\nRevise\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'cycle' ), array(
+          '[CYCLE_HEADING]' => 'Living document cycle',
+          '[CYCLE_DRAFT_LABEL]' => 'Draft',
+          '[CYCLE_DRAFT]' => 'Build the first version.',
+          '[CYCLE_REVIEW_LABEL]' => 'Review',
+          '[CYCLE_REVIEW]' => 'Check audience fit and risk.',
+          '[CYCLE_PUBLISH_LABEL]' => 'Publish',
+          '[CYCLE_PUBLISH]' => 'Release the approved version.',
+          '[CYCLE_REVISE_LABEL]' => 'Revise',
+          '[CYCLE_REVISE]' => 'Update after feedback or policy shifts.',
+        ) ),
+      ),
+      array(
+        'type'        => 'myth-reality',
+        'label'       => 'Myth vs Reality',
+        'description' => 'Three-row two-column comparison table.',
+        'marker'      => ":::myth-reality\nPolicy writing is just formatting | The structure shapes how people interpret the rule\nOne approval is enough | Good policy documents build in revision\nPlain language means less detail | Plain language makes the action easier to follow\n:::",
+        'preview_html' => self::render_preview_template( self::get_block_template( 'myth-reality' ), array(
+          '[MYTH_REALITY_HEADING]' => 'Myth vs Reality',
+          '[MYTH_1]' => 'Policy writing is just formatting.',
+          '[REALITY_1]' => 'The structure shapes how people interpret the rule.',
+          '[MYTH_2]' => 'One approval is enough.',
+          '[REALITY_2]' => 'Good policy documents build in revision.',
+          '[MYTH_3]' => 'Plain language means less detail.',
+          '[REALITY_3]' => 'Plain language makes the action easier to follow.',
+        ) ),
+      ),
+    );
+
+    return $catalog;
+  }
+
+  /**
+   * Render a single block segment.
+   *
+   * @param  string $type
+   * @param  string $content
+   * @param  int    $post_id
+   * @param  string $lesson_title
+   * @return string|WP_Error
+   */
+  private static function render_block( $type, $content, $post_id, $lesson_title = '' ) {
+    $type           = strtolower( trim( (string) $type ) );
+    $raw_content    = trim( (string) $content );
+    $template_title = $lesson_title;
+
+    if ( 'prose' === $type ) {
+      return self::render_prose_block( $raw_content );
+    }
+
+    if ( 'hero' === $type ) {
+      $template_title = get_the_title( $post_id );
+    }
+
+    $template_html = self::get_block_template(
+      $type,
+      'numbered-grid' === $type ? self::detect_component_count( $raw_content ) : 0
+    );
+
+    if ( empty( $template_html ) ) {
+      return new WP_Error( 'unknown_block_type', sprintf( 'Unsupported block type "%s".', $type ) );
+    }
+
+    $system_prompt = self::build_block_system_prompt( $type, $template_title );
+    $user_prompt   = self::build_block_user_message( $type, $raw_content, $template_html, $template_title );
+    $result        = TL_AWS_Bedrock_Client::invoke_bedrock( $user_prompt, $system_prompt, 2048 );
+
+    if ( is_wp_error( $result ) ) {
+      return $result;
+    }
+
+    return $result;
+  }
+
+  /**
+   * Normalize a single line so TinyMCE-wrapped fences can be detected.
+   *
+   * @param  string $line
+   * @return string
+   */
+  private static function normalize_marker_line( $line ) {
+    $normalized = html_entity_decode( trim( wp_strip_all_tags( (string) $line ) ), ENT_QUOTES, 'UTF-8' );
+    return preg_replace( '/\x{00a0}/u', ' ', $normalized );
+  }
+
+  /**
+   * Push a parsed segment into the list if non-empty.
+   *
+   * @param array  $segments
+   * @param string $type
+   * @param array  $lines
+   */
+  private static function push_block_segment( &$segments, $type, &$lines ) {
+    $content = trim( implode( "\n", $lines ) );
+    $lines   = array();
+
+    if ( '' === $content ) {
+      return;
+    }
+
+    $segments[] = array(
+      'type'    => $type,
+      'content' => $content,
+    );
+  }
+
+  /**
+   * Resolve a standalone block HTML template.
+   *
+   * @param  string $type
+   * @param  int    $component_count
+   * @return string
+   */
+  private static function get_block_template( $type, $component_count = 0 ) {
+    switch ( $type ) {
+      case 'hero':
+        return self::_block_hero();
+      case 'learning-outcomes':
+        return self::_block_learning_outcomes();
+      case 'opening-hook':
+        return self::_block_opening_hook();
+      case 'capstone':
+        return self::_block_capstone();
+      case 'stats-grid':
+        return self::_block_stats_grid();
+      case 'cards-grid':
+        return self::_block_cards_grid();
+      case 'tier-cards':
+        return self::_block_tier_cards();
+      case 'numbered-grid':
+        return self::_block_numbered_grid( $component_count );
+      case 'two-col-table':
+        return self::_block_two_col_table();
+      case 'three-col-table':
+        return self::_block_three_col_table();
+      case 'contrast-panel':
+        return self::_block_contrast_panel();
+      case 'callout':
+        return self::_block_callout();
+      case 'dark-block':
+        return self::_block_dark_block();
+      case 'definition-block':
+        return self::_block_definition_block();
+      case 'role-split':
+        return self::_block_role_split();
+      case 'option-cards':
+        return self::_block_option_cards();
+      case 'checklist':
+        return self::_block_checklist();
+      case 'cycle':
+        return self::_block_cycle();
+      case 'myth-reality':
+        return self::_block_myth_reality();
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Render a static preview by replacing placeholders with sample content.
+   *
+   * @param  string $template
+   * @param  array  $replacements
+   * @return string
+   */
+  private static function render_preview_template( $template, $replacements ) {
+    return strtr( $template, $replacements );
+  }
+
+  /**
+   * Prompt for a single block rendering call.
+   *
+   * @param  string $block_type
+   * @param  string $lesson_title
+   * @return string
+   */
+  private static function build_block_system_prompt( $block_type, $lesson_title = '' ) {
+    $title_instruction = '';
+    if ( 'hero' === $block_type && ! empty( $lesson_title ) ) {
+      $title_instruction = ' Use "' . $lesson_title . '" exactly for the [LESSON_TITLE] placeholder.';
+    }
+
+    return 'You are an expert instructional designer formatting one lesson section at a time.'
+      . $title_instruction . ' '
+      . 'Output ONLY the raw HTML for the provided section — no markdown, no explanations, no surrounding wrapper. '
+      . 'Replace every [PLACEHOLDER] token with content derived from the provided source text. '
+      . 'Preserve every inline style exactly as written. '
+      . 'Do not add scripts, classes, external assets, or extra sections. '
+      . 'If the section contains [Capstone Box], preserve that sentinel exactly as written. '
+      . 'Keep the result concise and aligned to a total page reading time under 15 minutes.';
+  }
+
+  /**
+   * Build the user prompt for a single block rendering call.
+   *
+   * @param  string $block_type
+   * @param  string $block_content
+   * @param  string $template_html
+   * @param  string $lesson_title
+   * @return string
+   */
+  private static function build_block_user_message( $block_type, $block_content, $template_html, $lesson_title = '' ) {
+    $title_line = ! empty( $lesson_title ) ? "LESSON TITLE: {$lesson_title}\n\n" : '';
+
+    return "Render the following {$block_type} block into the provided HTML section template. "
+      . "Use the source content to fill the placeholders and keep the structure unchanged.\n\n"
+      . $title_line
+      . "SOURCE BLOCK CONTENT:\n{$block_content}\n\n"
+      . "SECTION TEMPLATE:\n{$template_html}";
+  }
+
+  /**
+   * Render plain unblocked prose without an AI call.
+   *
+   * @param  string $content
+   * @return string
+   */
+  private static function render_prose_block( $content ) {
+    if ( '' === trim( $content ) ) {
+      return '';
+    }
+
+    return '<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.08);box-shadow:0 10px 30px -10px rgba(68,46,102,.08);">'
+      . wp_kses_post( wpautop( $content ) )
+      . '</section>';
+  }
 
 	// -------------------------------------------------------------------------
 	// Prompt builder
@@ -414,6 +1046,10 @@ HTML;
 HTML;
 	}
 
+  public static function _block_hero() {
+    return self::hero_html();
+  }
+
 	/**
 	 * Learning Outcomes + Opening Hook sections.
 	 * Inserted immediately after the hero header in every standard template.
@@ -441,6 +1077,33 @@ HTML;
 HTML;
 	}
 
+	public static function _block_learning_outcomes() {
+		return <<<'HTML'
+<!-- Learning Outcomes -->
+<section style="margin-bottom:22px;padding:22px;border-left:6px solid var(--lp-primary-color,#ffb606);background:rgba(255,182,6,.06);border-radius:0 14px 14px 0;">
+  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);text-transform:uppercase;letter-spacing:.04em;font-size:.9rem;">Learning Outcomes</h3>
+  <p style="margin-top:0;margin-bottom:12px;">By the end of this lesson, you will be able to:</p>
+  <ul style="margin:0;padding-left:20px;">
+    <li style="margin-bottom:8px;">[OUTCOME_1]</li>
+    <li style="margin-bottom:8px;">[OUTCOME_2]</li>
+    <li style="margin-bottom:8px;">[OUTCOME_3]</li>
+    <li style="margin-bottom:0;">[OUTCOME_4]</li>
+  </ul>
+</section>
+HTML;
+	}
+
+	public static function _block_opening_hook() {
+		return <<<'HTML'
+<!-- Opening Hook -->
+<section style="margin-bottom:22px;">
+  <blockquote style="margin:0;padding:22px 26px;background:rgba(68,46,102,.04);border-left:5px solid var(--lp-primary-color,#ffb606);border-radius:0 14px 14px 0;">
+    <p style="margin:0;font-size:1.08rem;line-height:1.7;color:#333;">[OPENING_HOOK_STATEMENT]</p>
+  </blockquote>
+</section>
+HTML;
+	}
+
 	/** Reusable capstone section HTML chunk. */
 	private static function capstone_html() {
 		return <<<'HTML'
@@ -455,6 +1118,341 @@ HTML;
     <p style="margin:0 0 10px;font-weight:600;color:var(--lp-secondary-color,#442e66);">Your Response:</p>
     <div class="lxp-capstone-box" style="min-height:80px;border:1px solid rgba(68,46,102,.2);border-radius:12px;background:#fff;padding:14px 16px;color:#999;">[Capstone Box]</div>
   </div>
+</section>
+HTML;
+	}
+
+	public static function _block_capstone() {
+		return self::capstone_html();
+	}
+
+	public static function _block_stats_grid() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);margin-bottom:14px;">[STATS_HEADING]</h3>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+    <div style="padding:20px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);text-align:center;">
+      <div style="font-size:2rem;font-weight:800;color:var(--lp-primary-color,#ffb606);">[STAT_1_VALUE]</div>
+      <p style="margin:6px 0 0;font-size:0.88rem;color:#555;">[STAT_1_LABEL]</p>
+    </div>
+    <div style="padding:20px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);text-align:center;">
+      <div style="font-size:2rem;font-weight:800;color:var(--lp-primary-color,#ffb606);">[STAT_2_VALUE]</div>
+      <p style="margin:6px 0 0;font-size:0.88rem;color:#555;">[STAT_2_LABEL]</p>
+    </div>
+    <div style="padding:20px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);text-align:center;">
+      <div style="font-size:2rem;font-weight:800;color:var(--lp-primary-color,#ffb606);">[STAT_3_VALUE]</div>
+      <p style="margin:6px 0 0;font-size:0.88rem;color:#555;">[STAT_3_LABEL]</p>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_cards_grid() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[CARDS_HEADING]</h3>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+    <div style="padding:18px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[CARD_1_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[CARD_1_BODY]</p>
+    </div>
+    <div style="padding:18px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[CARD_2_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[CARD_2_BODY]</p>
+    </div>
+    <div style="padding:18px;border-radius:12px;background:#fff;border:1px solid rgba(68,46,102,.1);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[CARD_3_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[CARD_3_BODY]</p>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_tier_cards() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[TIER_CARDS_HEADING]</h3>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+    <div style="padding:20px;border-radius:14px;background:#fff;border-top:4px solid var(--lp-primary-color,#ffb606);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[TIER_CARD_1_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[TIER_CARD_1_BODY]</p>
+    </div>
+    <div style="padding:20px;border-radius:14px;background:#fff;border-top:4px solid var(--lp-secondary-color,#442e66);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[TIER_CARD_2_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[TIER_CARD_2_BODY]</p>
+    </div>
+    <div style="padding:20px;border-radius:14px;background:#fff;border-top:4px solid rgba(68,46,102,.35);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[TIER_CARD_3_TITLE]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[TIER_CARD_3_BODY]</p>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_numbered_grid( $component_count = 0 ) {
+		$count = ( $component_count > 0 ) ? $component_count : 6;
+		$cards = array();
+
+		for ( $index = 1; $index <= $count; $index++ ) {
+			$number = sprintf( '%02d', $index );
+			$cards[] = '<div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">'
+				. '<div style="font-size:1.5rem;font-weight:800;color:var(--lp-primary-color,#ffb606);margin-bottom:6px;">' . $number . '</div>'
+				. '<p style="margin:0 0 4px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[COMPONENT_' . $index . '_TITLE]</p>'
+				. '<p style="margin:0;font-size:0.85rem;color:#555;">[COMPONENT_' . $index . '_DESC]</p>'
+				. '</div>';
+		}
+
+		return '<section style="margin-bottom:22px;">'
+			. '<h3 style="color:var(--lp-secondary-color,#442e66);">[COMPONENTS_N_HEADING]</h3>'
+			. '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">'
+			. implode( '', $cards )
+			. '</div>'
+			. '</section>';
+	}
+
+	public static function _block_two_col_table() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[TABLE_2_HEADING]</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="padding:12px 14px;background:rgba(68,46,102,.08);border:1px solid rgba(68,46,102,.12);text-align:left;">[TABLE_2_COL_1]</th>
+        <th style="padding:12px 14px;background:rgba(255,182,6,.12);border:1px solid rgba(68,46,102,.12);text-align:left;">[TABLE_2_COL_2]</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_1_LEFT]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_1_RIGHT]</td>
+      </tr>
+      <tr style="background:rgba(68,46,102,.03);">
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_2_LEFT]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_2_RIGHT]</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_3_LEFT]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_2_ROW_3_RIGHT]</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+HTML;
+	}
+
+	public static function _block_three_col_table() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[TABLE_3_HEADING]</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="padding:12px 14px;background:rgba(68,46,102,.08);border:1px solid rgba(68,46,102,.12);text-align:left;">[TABLE_3_COL_1]</th>
+        <th style="padding:12px 14px;background:rgba(68,46,102,.08);border:1px solid rgba(68,46,102,.12);text-align:left;">[TABLE_3_COL_2]</th>
+        <th style="padding:12px 14px;background:rgba(68,46,102,.08);border:1px solid rgba(68,46,102,.12);text-align:left;">[TABLE_3_COL_3]</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);font-weight:600;">[TABLE_3_ROW_1_A]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_1_B]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_1_C]</td>
+      </tr>
+      <tr style="background:rgba(68,46,102,.03);">
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);font-weight:600;">[TABLE_3_ROW_2_A]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_2_B]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_2_C]</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);font-weight:600;">[TABLE_3_ROW_3_A]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_3_B]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[TABLE_3_ROW_3_C]</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+HTML;
+	}
+
+	public static function _block_contrast_panel() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="padding:22px;border-radius:14px;background:#f6fdf6;border:1px solid rgba(34,139,34,.2);">
+    <h4 style="margin:0 0 12px;color:#1a7a1a;">[CONTRAST_LEFT_HEADING]</h4>
+    <ul style="margin:0;padding-left:18px;">
+      <li style="margin-bottom:6px;"><span style="color:#1a7a1a;font-weight:700;">&#10003;</span> [LEFT_1]</li>
+      <li style="margin-bottom:6px;"><span style="color:#1a7a1a;font-weight:700;">&#10003;</span> [LEFT_2]</li>
+      <li><span style="color:#1a7a1a;font-weight:700;">&#10003;</span> [LEFT_3]</li>
+    </ul>
+  </div>
+  <div style="padding:22px;border-radius:14px;background:#fdf6f6;border:1px solid rgba(180,0,0,.2);">
+    <h4 style="margin:0 0 12px;color:#b40000;">[CONTRAST_RIGHT_HEADING]</h4>
+    <ul style="margin:0;padding-left:18px;">
+      <li style="margin-bottom:6px;"><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_1]</li>
+      <li style="margin-bottom:6px;"><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_2]</li>
+      <li><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_3]</li>
+    </ul>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_callout() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[CALLOUT_HEADING]</h3>
+  <div style="padding:22px;border-left:6px solid var(--lp-primary-color,#ffb606);border-radius:12px;background:#fff;box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+    <p style="margin:0;">[CALLOUT_BODY]</p>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_dark_block() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:var(--lp-secondary-color,#442e66);color:#fff;">
+  <h3 style="margin-top:0;color:#fff;">[DARK_BLOCK_HEADING]</h3>
+  <p style="margin:0;">[DARK_BLOCK_BODY]</p>
+</section>
+HTML;
+	}
+
+	public static function _block_definition_block() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:rgba(68,46,102,.05);border:1px solid rgba(68,46,102,.1);">
+  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);">[DEFINITION_HEADING]</h3>
+  <p style="margin:0 0 10px;">[DEFINITION_INTRO]</p>
+  <ul style="margin:0;padding-left:20px;">
+    <li style="margin-bottom:6px;">[DEFINITION_ITEM_1]</li>
+    <li style="margin-bottom:6px;">[DEFINITION_ITEM_2]</li>
+    <li style="margin-bottom:6px;">[DEFINITION_ITEM_3]</li>
+    <li>[DEFINITION_ITEM_4]</li>
+  </ul>
+</section>
+HTML;
+	}
+
+	public static function _block_role_split() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[ROLE_SPLIT_HEADING]</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="padding:22px;border-radius:14px;background:#fff;border-top:5px solid var(--lp-secondary-color,#442e66);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <h4 style="margin:0 0 12px;color:var(--lp-secondary-color,#442e66);">[ROLE_A_TITLE]</h4>
+      <ul style="margin:0;padding-left:18px;">
+        <li style="margin-bottom:6px;">[ROLE_A_POINT_1]</li>
+        <li style="margin-bottom:6px;">[ROLE_A_POINT_2]</li>
+        <li>[ROLE_A_POINT_3]</li>
+      </ul>
+    </div>
+    <div style="padding:22px;border-radius:14px;background:#fff;border-top:5px solid var(--lp-primary-color,#ffb606);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <h4 style="margin:0 0 12px;color:var(--lp-secondary-color,#442e66);">[ROLE_B_TITLE]</h4>
+      <ul style="margin:0;padding-left:18px;">
+        <li style="margin-bottom:6px;">[ROLE_B_POINT_1]</li>
+        <li style="margin-bottom:6px;">[ROLE_B_POINT_2]</li>
+        <li>[ROLE_B_POINT_3]</li>
+      </ul>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_option_cards() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[OPTIONS_HEADING]</h3>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
+    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_1_NAME]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_1_DESC]</p>
+    </div>
+    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_2_NAME]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_2_DESC]</p>
+    </div>
+    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_3_NAME]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_3_DESC]</p>
+    </div>
+    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_4_NAME]</p>
+      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_4_DESC]</p>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_checklist() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
+  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);">[CHECKLIST_HEADING]</h3>
+  <ul style="margin:0;padding-left:0;list-style:none;">
+    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_1]</li>
+    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_2]</li>
+    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_3]</li>
+    <li style="padding:8px 0;display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_4]</li>
+  </ul>
+</section>
+HTML;
+	}
+
+	public static function _block_cycle() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[CYCLE_HEADING]</h3>
+  <div style="display:flex;gap:0;align-items:stretch;">
+    <div style="flex:1;padding:18px;border-radius:12px 0 0 12px;background:#fff;border:1px solid rgba(68,46,102,.12);text-align:center;">
+      <div style="font-weight:800;color:var(--lp-primary-color,#ffb606);font-size:1.2rem;margin-bottom:4px;">[CYCLE_DRAFT_LABEL]</div>
+      <p style="margin:0;font-size:0.83rem;color:#666;">[CYCLE_DRAFT]</p>
+    </div>
+    <div style="flex:1;padding:18px;background:#fff;border-top:1px solid rgba(68,46,102,.12);border-bottom:1px solid rgba(68,46,102,.12);text-align:center;">
+      <div style="font-weight:800;color:var(--lp-secondary-color,#442e66);font-size:1.2rem;margin-bottom:4px;">[CYCLE_REVIEW_LABEL]</div>
+      <p style="margin:0;font-size:0.83rem;color:#666;">[CYCLE_REVIEW]</p>
+    </div>
+    <div style="flex:1;padding:18px;background:#fff;border-top:1px solid rgba(68,46,102,.12);border-bottom:1px solid rgba(68,46,102,.12);text-align:center;">
+      <div style="font-weight:800;color:var(--lp-secondary-color,#442e66);font-size:1.2rem;margin-bottom:4px;">[CYCLE_PUBLISH_LABEL]</div>
+      <p style="margin:0;font-size:0.83rem;color:#666;">[CYCLE_PUBLISH]</p>
+    </div>
+    <div style="flex:1;padding:18px;border-radius:0 12px 12px 0;background:#fff;border:1px solid rgba(68,46,102,.12);text-align:center;">
+      <div style="font-weight:800;color:var(--lp-primary-color,#ffb606);font-size:1.2rem;margin-bottom:4px;">[CYCLE_REVISE_LABEL]</div>
+      <p style="margin:0;font-size:0.83rem;color:#666;">[CYCLE_REVISE]</p>
+    </div>
+  </div>
+</section>
+HTML;
+	}
+
+	public static function _block_myth_reality() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <h3 style="color:var(--lp-secondary-color,#442e66);">[MYTH_REALITY_HEADING]</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="padding:12px 14px;background:rgba(68,46,102,.08);border:1px solid rgba(68,46,102,.12);text-align:left;">Myth</th>
+        <th style="padding:12px 14px;background:rgba(255,182,6,.12);border:1px solid rgba(68,46,102,.12);text-align:left;">Reality</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[MYTH_1]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[REALITY_1]</td>
+      </tr>
+      <tr style="background:rgba(68,46,102,.03);">
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[MYTH_2]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[REALITY_2]</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[MYTH_3]</td>
+        <td style="padding:12px 14px;border:1px solid rgba(68,46,102,.12);">[REALITY_3]</td>
+      </tr>
+    </tbody>
+  </table>
 </section>
 HTML;
 	}

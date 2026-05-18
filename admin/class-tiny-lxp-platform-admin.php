@@ -326,6 +326,15 @@ class Tiny_LXP_Platform_Admin
             array( $this, 'workbooks_page' )
         );
 
+		add_submenu_page(
+			'curriki-learn',
+			__( 'Block Reference', 'tiny-lxp-platform' ),
+			__( 'Block Reference', 'tiny-lxp-platform' ),
+			'manage_options',
+			'curriki-learn-block-reference',
+			array( $this, 'block_reference_page' )
+		);
+
         // Remove the auto-created duplicate top-level submenu item.
         remove_submenu_page( 'curriki-learn', 'curriki-learn' );
     }
@@ -429,6 +438,17 @@ class Tiny_LXP_Platform_Admin
         unset( $course );
 
         include plugin_dir_path( __FILE__ ) . 'partials/workbooks-admin.php';
+    }
+
+    /**
+     * Render the block reference page.
+     */
+    public function block_reference_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'tiny-lxp-platform' ) );
+        }
+
+        include plugin_dir_path( __FILE__ ) . 'partials/block-reference-admin.php';
     }
 
     /**

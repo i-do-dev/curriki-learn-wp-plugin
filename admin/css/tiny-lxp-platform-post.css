@@ -3,6 +3,8 @@
    ------------------------------------------------------------------------- */
 
 #lxp-ai-content-gen-btn,
+#lxp-ai-blocks-gen-btn,
+#lxp-ai-block-picker-btn,
 #lxp-ai-content-reset-btn {
   display: block;
   width: 100%;
@@ -11,9 +13,67 @@
 }
 
 #lxp-ai-content-gen-btn:disabled,
+#lxp-ai-blocks-gen-btn:disabled,
+#lxp-ai-block-picker-btn:disabled,
 #lxp-ai-content-reset-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.lxp-ai-block-picker-wrap {
+  position: relative;
+}
+
+.lxp-ai-block-picker-list {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #ccd0d4;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(0,0,0,.08);
+  z-index: 9999;
+}
+
+.lxp-ai-block-picker-list.open {
+  display: block;
+}
+
+.lxp-block-picker-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(68,46,102,.08);
+  background: #fff;
+  color: #1d2327;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lxp-block-picker-item:last-child {
+  border-bottom: 0;
+}
+
+.lxp-block-picker-item:hover,
+.lxp-block-picker-item:focus {
+  background: rgba(68,46,102,.08);
+}
+
+.lxp-block-picker-label {
+  font-weight: 600;
+}
+
+.lxp-block-picker-marker {
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  color: #50575e;
 }
 
 #lxp-ai-content-status {
