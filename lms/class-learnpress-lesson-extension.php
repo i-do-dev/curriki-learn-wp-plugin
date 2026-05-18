@@ -114,6 +114,7 @@ class TL_LearnPress_Lesson_Extension {
 		if ( empty( $post ) || ! isset( $post->ID ) ) {
 			return;
 		}
+		$block_types = $this->get_ai_block_types();
 		?>
 		<input type="hidden" id="lxp-ai-gen-post-id" value="<?php echo esc_attr( $post->ID ); ?>" />
 		<p style="margin-bottom: 6px;">
@@ -121,6 +122,26 @@ class TL_LearnPress_Lesson_Extension {
 				<?php echo esc_html__( 'AI Content Gen', 'tiny-lxp-platform' ); ?>
 			</button>
 		</p>
+		<p style="margin-top: 6px; margin-bottom: 6px;">
+			<button type="button" id="lxp-ai-blocks-gen-btn" class="button" style="width: 100%;">
+				<?php echo esc_html__( 'Generate (Block Mode)', 'tiny-lxp-platform' ); ?>
+			</button>
+		</p>
+		<div class="lxp-ai-block-picker-wrap">
+			<p style="margin-top: 6px; margin-bottom: 6px;">
+				<button type="button" id="lxp-ai-block-picker-btn" class="button" style="width: 100%;">
+					<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
+				</button>
+			</p>
+			<div id="lxp-ai-block-picker-list" class="lxp-ai-block-picker-list">
+				<?php foreach ( $block_types as $block_type ) : ?>
+					<button type="button" class="lxp-block-picker-item" data-block-type="<?php echo esc_attr( $block_type['type'] ); ?>">
+						<span class="lxp-block-picker-label"><?php echo esc_html( $block_type['label'] ); ?></span>
+						<span class="lxp-block-picker-marker"><?php echo esc_html( ':::' . $block_type['type'] ); ?></span>
+					</button>
+				<?php endforeach; ?>
+			</div>
+		</div>
 		<p style="margin-top: 6px;">
 			<button type="button" id="lxp-ai-content-reset-btn" class="button" style="width: 100%;">
 				<?php echo esc_html__( 'Reset to Original', 'tiny-lxp-platform' ); ?>
@@ -128,6 +149,30 @@ class TL_LearnPress_Lesson_Extension {
 		</p>
 		<div id="lxp-ai-content-status" style="margin-top: 8px; font-size: 12px; line-height: 1.5;"></div>
 		<?php
+	}
+
+	private function get_ai_block_types() {
+		return array(
+			array( 'type' => 'hero', 'label' => 'Hero' ),
+			array( 'type' => 'learning-outcomes', 'label' => 'Learning Outcomes' ),
+			array( 'type' => 'opening-hook', 'label' => 'Opening Hook' ),
+			array( 'type' => 'capstone', 'label' => 'Capstone' ),
+			array( 'type' => 'stats-grid', 'label' => 'Stats Grid' ),
+			array( 'type' => 'cards-grid', 'label' => 'Cards Grid' ),
+			array( 'type' => 'tier-cards', 'label' => 'Tier Cards' ),
+			array( 'type' => 'numbered-grid', 'label' => 'Numbered Grid' ),
+			array( 'type' => 'two-col-table', 'label' => 'Two-Column Table' ),
+			array( 'type' => 'three-col-table', 'label' => 'Three-Column Table' ),
+			array( 'type' => 'contrast-panel', 'label' => 'Contrast Panel' ),
+			array( 'type' => 'callout', 'label' => 'Callout' ),
+			array( 'type' => 'dark-block', 'label' => 'Dark Block' ),
+			array( 'type' => 'definition-block', 'label' => 'Definition Block' ),
+			array( 'type' => 'role-split', 'label' => 'Role Split' ),
+			array( 'type' => 'option-cards', 'label' => 'Option Cards' ),
+			array( 'type' => 'checklist', 'label' => 'Checklist' ),
+			array( 'type' => 'cycle', 'label' => 'Cycle' ),
+			array( 'type' => 'myth-reality', 'label' => 'Myth vs Reality' ),
+		);
 	}
 
 	public function lesson_tagline_metabox() {

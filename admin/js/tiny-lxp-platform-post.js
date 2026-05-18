@@ -387,59 +387,58 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         return;
       }
 
-      // Read lesson content from whichever editor is active.
-      var lessonContent = '';
-      if (typeof wp !== 'undefined' && wp.data && wp.data.select('core/editor')) {
-        try {
-          lessonContent = wp.data.select('core/editor').getEditedPostAttribute('content') || '';
-        } catch (e) {
-          lessonContent = '';
-        }
-      }
-      if (!lessonContent && typeof tinymce !== 'undefined' && tinymce.get('content')) {
-        lessonContent = tinymce.get('content').getContent();
-      }
-      if (!lessonContent) {
-        lessonContent = $('#content').val() || '';
-      }
+      var lessonContent = tinyLxpGetEditorContent();
 
       if (!lessonContent.trim()) {
         tinyLxpSetAiStatus('Please add lesson content before generating.', true);
         return;
       }
 
-      $('#lxp-ai-content-gen-btn, #lxp-ai-content-reset-btn').prop('disabled', true);
-      tinyLxpSetAiStatus('Generating\u2026 this may take 15\u201330 seconds.', false);
-
-      jQuery.ajax({
-        type: 'post',
-        dataType: 'json',
-        url: window.location.origin + '/wp-json/lms/v1/lesson/ai-content',
-        contentType: 'application/json',
-        data: JSON.stringify({ post_id: parseInt(postId, 10), lesson_content: lessonContent }),
-        success: function (response) {
-          var html = response && response.content ? response.content : '';
-          tinyLxpSetEditorContent(html);
-          var statusMsg = 'Content generated. Review and click \u201cUpdate\u201d to save.';
-          if (response && response.template_id) {
-            statusMsg += ' (Template ' + response.template_id + ' applied)';
-          }
-          tinyLxpSetAiStatus(statusMsg, false);
-        },
-        error: function (xhr) {
-          var msg = 'Generation failed.';
-          try {
-            var body = JSON.parse(xhr.responseText);
-            if (body && body.message) {
-              msg = body.message;
-            }
-          } catch (e) {}
-          tinyLxpSetAiStatus(msg, true);
-        },
-        complete: function () {
-          $('#lxp-ai-content-gen-btn, #lxp-ai-content-reset-btn').prop('disabled', false);
+      tinyLxpRunAiGeneration('/wp-json/lms/v1/lesson/ai-content', postId, lessonContent, 'Generating\u2026 this may take 15\u201330 seconds.', function (response) {
+        var statusMsg = 'Content generated. Review and click \u201cUpdate\u201d to save.';
+        if (response && response.template_id) {
+          statusMsg += ' (Template ' + response.template_id + ' applied)';
         }
+        return statusMsg;
       });
+    });
+
+    // -----------------------------------------------------------------------
+    // AI Content Gen — Block mode button
+    // -----------------------------------------------------------------------
+    $('body').on('click', '#lxp-ai-blocks-gen-btn', function () {
+      var postId = $('#lxp-ai-gen-post-id').val();
+      if (!postId) {
+        return;
+      }
+
+      var lessonContent = tinyLxpGetEditorContent();
+      if (!lessonContent.trim()) {
+        tinyLxpSetAiStatus('Please add lesson content before generating.', true);
+        return;
+      }
+
+      tinyLxpRunAiGeneration('/wp-json/lms/v1/lesson/ai-content-blocks', postId, lessonContent, 'Rendering block-based lesson\u2026', function (response) {
+        var count = response && response.blocks_rendered ? response.blocks_rendered : 0;
+        return 'Block content generated. ' + count + ' block' + (count === 1 ? '' : 's') + ' rendered. Review and click \u201cUpdate\u201d to save.';
+      });
+    });
+
+    $('body').on('click', '#lxp-ai-block-picker-btn', function (event) {
+      event.preventDefault();
+      $('#lxp-ai-block-picker-list').toggleClass('open');
+    });
+
+    $('body').on('click', '.lxp-block-picker-item', function (event) {
+      event.preventDefault();
+      tinyLxpInsertBlockMarker($(this).data('block-type'));
+      $('#lxp-ai-block-picker-list').removeClass('open');
+    });
+
+    $(document).on('click', function (event) {
+      if (!$(event.target).closest('.lxp-ai-block-picker-wrap').length) {
+        $('#lxp-ai-block-picker-list').removeClass('open');
+      }
     });
 
     // -----------------------------------------------------------------------
@@ -455,7 +454,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         return;
       }
 
-      $('#lxp-ai-content-gen-btn, #lxp-ai-content-reset-btn').prop('disabled', true);
+      tinyLxpSetAiButtonsDisabled(true);
       tinyLxpSetAiStatus('Restoring original content\u2026', false);
 
       jQuery.ajax({
@@ -479,7 +478,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
           tinyLxpSetAiStatus(msg, true);
         },
         complete: function () {
-          $('#lxp-ai-content-gen-btn, #lxp-ai-content-reset-btn').prop('disabled', false);
+          tinyLxpSetAiButtonsDisabled(false);
         }
       });
     });
@@ -498,6 +497,85 @@ function tinyLxpSetAiStatus(text, isError) {
   }
   el.textContent = text;
   el.className = isError ? 'lxp-ai-status-error' : 'lxp-ai-status-ok';
+}
+
+function tinyLxpSetAiButtonsDisabled(isDisabled) {
+  jQuery('#lxp-ai-content-gen-btn, #lxp-ai-blocks-gen-btn, #lxp-ai-block-picker-btn, #lxp-ai-content-reset-btn').prop('disabled', isDisabled);
+}
+
+function tinyLxpGetEditorContent() {
+  var lessonContent = '';
+
+  if (typeof wp !== 'undefined' && wp.data && wp.data.select('core/editor')) {
+    try {
+      lessonContent = wp.data.select('core/editor').getEditedPostAttribute('content') || '';
+    } catch (e) {
+      lessonContent = '';
+    }
+  }
+  if (!lessonContent && typeof tinymce !== 'undefined' && tinymce.get('content')) {
+    lessonContent = tinymce.get('content').getContent();
+  }
+  if (!lessonContent) {
+    lessonContent = jQuery('#content').val() || '';
+  }
+
+  return lessonContent;
+}
+
+function tinyLxpRunAiGeneration(endpoint, postId, lessonContent, progressMessage, getStatusMessage) {
+  tinyLxpSetAiButtonsDisabled(true);
+  tinyLxpSetAiStatus(progressMessage, false);
+
+  jQuery.ajax({
+    type: 'post',
+    dataType: 'json',
+    url: window.location.origin + endpoint,
+    contentType: 'application/json',
+    data: JSON.stringify({ post_id: parseInt(postId, 10), lesson_content: lessonContent }),
+    success: function (response) {
+      var html = response && response.content ? response.content : '';
+      tinyLxpSetEditorContent(html);
+      tinyLxpSetAiStatus(getStatusMessage(response), false);
+    },
+    error: function (xhr) {
+      var msg = 'Generation failed.';
+      try {
+        var body = JSON.parse(xhr.responseText);
+        if (body && body.message) {
+          msg = body.message;
+        }
+      } catch (e) {}
+      tinyLxpSetAiStatus(msg, true);
+    },
+    complete: function () {
+      tinyLxpSetAiButtonsDisabled(false);
+    }
+  });
+}
+
+function tinyLxpInsertBlockMarker(type) {
+  var marker = ':::' + type + '\n[your content here]\n:::';
+
+  if (typeof wp !== 'undefined' && wp.blocks && wp.data && wp.data.dispatch('core/block-editor')) {
+    try {
+      wp.data.dispatch('core/block-editor').insertBlocks([
+        wp.blocks.createBlock('core/paragraph', { content: marker.replace(/\n/g, '<br>') })
+      ]);
+      return;
+    } catch (e) {}
+  }
+
+  if (typeof tinymce !== 'undefined' && tinymce.get('content')) {
+    tinymce.get('content').execCommand('mceInsertContent', false, marker.replace(/\n/g, '<br>'));
+    return;
+  }
+
+  var ta = document.getElementById('content');
+  if (ta) {
+    var prefix = ta.value && !/\n$/.test(ta.value) ? '\n\n' : '';
+    ta.value += prefix + marker + '\n';
+  }
 }
 
 function tinyLxpSetEditorContent(html) {
