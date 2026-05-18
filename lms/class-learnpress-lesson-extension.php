@@ -122,7 +122,7 @@ class TL_LearnPress_Lesson_Extension {
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use this when you want AI to transform the current lesson content into a complete lesson page in one pass.', 'tiny-lxp-platform' ); ?></p>
 			<p class="lxp-ai-action-row">
 				<button type="button" id="lxp-ai-content-gen-btn" class="button button-primary">
-					<?php echo esc_html__( 'Generate Full Lesson from Current Content', 'tiny-lxp-platform' ); ?>
+					<?php echo esc_html__( 'Generate Full Lesson', 'tiny-lxp-platform' ); ?>
 				</button>
 			</p>
 		</div>
@@ -131,7 +131,7 @@ class TL_LearnPress_Lesson_Extension {
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use markers when you want to control the layout section by section before generating the final lesson blocks.', 'tiny-lxp-platform' ); ?></p>
 			<div class="lxp-ai-block-picker-wrap">
 				<p class="lxp-ai-action-row">
-					<button type="button" id="lxp-ai-block-picker-btn" class="button">
+					<button type="button" id="lxp-ai-block-picker-btn" class="button button-primary">
 						<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
 					</button>
 				</p>
