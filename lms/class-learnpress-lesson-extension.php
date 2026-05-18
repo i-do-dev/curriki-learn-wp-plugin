@@ -115,6 +115,7 @@ class TL_LearnPress_Lesson_Extension {
 			return;
 		}
 		$block_types = $this->get_ai_block_types();
+		$block_reference_url = admin_url( 'admin.php?page=curriki-learn-block-reference' );
 		?>
 		<input type="hidden" id="lxp-ai-gen-post-id" value="<?php echo esc_attr( $post->ID ); ?>" />
 		<div class="lxp-ai-action-group lxp-ai-action-group-primary">
@@ -129,6 +130,11 @@ class TL_LearnPress_Lesson_Extension {
 		<div class="lxp-ai-action-group lxp-ai-action-group-blocks">
 			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Build Lesson with Block Markers', 'tiny-lxp-platform' ); ?></h4>
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use markers when you want to control the layout section by section before generating the final lesson blocks.', 'tiny-lxp-platform' ); ?></p>
+			<p class="lxp-ai-action-row">
+				<a class="button lxp-ai-doc-link" href="<?php echo esc_url( $block_reference_url ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php echo esc_html__( 'Open Block Reference', 'tiny-lxp-platform' ); ?>
+				</a>
+			</p>
 			<div class="lxp-ai-block-picker-wrap">
 				<p class="lxp-ai-action-row">
 					<button type="button" id="lxp-ai-block-picker-btn" class="button">
