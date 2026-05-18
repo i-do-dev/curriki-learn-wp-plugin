@@ -21,10 +21,6 @@ class TL_AI_Content_Request_Helper {
 			return new WP_Error( 'missing_content', 'lesson_content cannot be empty.', array( 'status' => 400 ) );
 		}
 
-		if ( $enforce_capability && ! current_user_can( 'edit_post', $post_id ) ) {
-			return new WP_Error( 'forbidden', 'You do not have permission to edit this lesson.', array( 'status' => 403 ) );
-		}
-
 		return true;
 	}
 
