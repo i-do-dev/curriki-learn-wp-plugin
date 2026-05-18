@@ -117,36 +117,46 @@ class TL_LearnPress_Lesson_Extension {
 		$block_types = $this->get_ai_block_types();
 		?>
 		<input type="hidden" id="lxp-ai-gen-post-id" value="<?php echo esc_attr( $post->ID ); ?>" />
-		<p style="margin-bottom: 6px;">
-			<button type="button" id="lxp-ai-content-gen-btn" class="button button-primary" style="width: 100%;">
-				<?php echo esc_html__( 'AI Content Gen', 'tiny-lxp-platform' ); ?>
-			</button>
-		</p>
-		<p style="margin-top: 6px; margin-bottom: 6px;">
-			<button type="button" id="lxp-ai-blocks-gen-btn" class="button" style="width: 100%;">
-				<?php echo esc_html__( 'Generate (Block Mode)', 'tiny-lxp-platform' ); ?>
-			</button>
-		</p>
-		<div class="lxp-ai-block-picker-wrap">
-			<p style="margin-top: 6px; margin-bottom: 6px;">
-				<button type="button" id="lxp-ai-block-picker-btn" class="button" style="width: 100%;">
-					<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
+		<div class="lxp-ai-action-group lxp-ai-action-group-primary">
+			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Generate Full Lesson Layout', 'tiny-lxp-platform' ); ?></h4>
+			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use this when you want AI to transform the current lesson content into a complete lesson page in one pass.', 'tiny-lxp-platform' ); ?></p>
+			<p class="lxp-ai-action-row">
+				<button type="button" id="lxp-ai-content-gen-btn" class="button button-primary">
+					<?php echo esc_html__( 'Generate Full Lesson from Current Content', 'tiny-lxp-platform' ); ?>
 				</button>
 			</p>
-			<div id="lxp-ai-block-picker-list" class="lxp-ai-block-picker-list">
-				<?php foreach ( $block_types as $block_type ) : ?>
-					<button type="button" class="lxp-block-picker-item" data-block-type="<?php echo esc_attr( $block_type['type'] ); ?>">
-						<span class="lxp-block-picker-label"><?php echo esc_html( $block_type['label'] ); ?></span>
-						<span class="lxp-block-picker-marker"><?php echo esc_html( ':::' . $block_type['type'] ); ?></span>
-					</button>
-				<?php endforeach; ?>
-			</div>
 		</div>
-		<p style="margin-top: 6px;">
-			<button type="button" id="lxp-ai-content-reset-btn" class="button" style="width: 100%;">
-				<?php echo esc_html__( 'Reset to Original', 'tiny-lxp-platform' ); ?>
-			</button>
-		</p>
+		<div class="lxp-ai-action-group lxp-ai-action-group-blocks">
+			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Build Lesson with Block Markers', 'tiny-lxp-platform' ); ?></h4>
+			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use markers when you want to control the layout section by section before generating the final lesson blocks.', 'tiny-lxp-platform' ); ?></p>
+			<div class="lxp-ai-block-picker-wrap">
+				<p class="lxp-ai-action-row">
+					<button type="button" id="lxp-ai-block-picker-btn" class="button">
+						<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
+					</button>
+				</p>
+				<div id="lxp-ai-block-picker-list" class="lxp-ai-block-picker-list">
+					<?php foreach ( $block_types as $block_type ) : ?>
+						<button type="button" class="lxp-block-picker-item" data-block-type="<?php echo esc_attr( $block_type['type'] ); ?>">
+							<span class="lxp-block-picker-label"><?php echo esc_html( $block_type['label'] ); ?></span>
+							<span class="lxp-block-picker-marker"><?php echo esc_html( ':::' . $block_type['type'] ); ?></span>
+						</button>
+					<?php endforeach; ?>
+				</div>
+			</div>
+			<p class="lxp-ai-action-row">
+				<button type="button" id="lxp-ai-blocks-gen-btn" class="button">
+					<?php echo esc_html__( 'Generate Marked Blocks', 'tiny-lxp-platform' ); ?>
+				</button>
+			</p>
+		</div>
+		<div class="lxp-ai-action-group lxp-ai-action-group-reset">
+			<p class="lxp-ai-action-row">
+				<button type="button" id="lxp-ai-content-reset-btn" class="button">
+					<?php echo esc_html__( 'Reset Editor to Original Content', 'tiny-lxp-platform' ); ?>
+				</button>
+			</p>
+		</div>
 		<div id="lxp-ai-content-status" style="margin-top: 8px; font-size: 12px; line-height: 1.5;"></div>
 		<?php
 	}

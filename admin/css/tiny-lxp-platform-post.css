@@ -2,6 +2,52 @@
    AI Content Gen metabox
    ------------------------------------------------------------------------- */
 
+.lxp-ai-action-group {
+  padding: 12px;
+  margin: 0 0 12px;
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.lxp-ai-action-group-primary {
+  border-color: rgba(34, 113, 177, 0.25);
+  background: linear-gradient(180deg, rgba(34, 113, 177, 0.04), #fff 55%);
+}
+
+.lxp-ai-action-group-blocks {
+  border-color: rgba(68, 46, 102, 0.16);
+  background: linear-gradient(180deg, rgba(68, 46, 102, 0.04), #fff 55%);
+}
+
+.lxp-ai-action-group-reset {
+  margin-top: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.lxp-ai-action-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.lxp-ai-action-help {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #50575e;
+}
+
+.lxp-ai-action-row {
+  margin: 0;
+}
+
+.lxp-ai-action-row + .lxp-ai-action-row {
+  margin-top: 8px;
+}
+
 #lxp-ai-content-gen-btn,
 #lxp-ai-blocks-gen-btn,
 #lxp-ai-block-picker-btn,
@@ -22,6 +68,10 @@
 
 .lxp-ai-block-picker-wrap {
   position: relative;
+}
+
+.lxp-ai-block-picker-wrap .lxp-ai-action-row {
+  margin-bottom: 8px;
 }
 
 .lxp-ai-block-picker-list {
