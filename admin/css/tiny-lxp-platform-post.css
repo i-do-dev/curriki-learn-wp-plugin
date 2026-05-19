@@ -51,11 +51,21 @@
 #lxp-ai-content-gen-btn,
 #lxp-ai-blocks-gen-btn,
 #lxp-ai-block-picker-btn,
-#lxp-ai-content-reset-btn {
+#lxp-ai-content-reset-btn,
+.lxp-ai-doc-link {
   display: block;
   width: 100%;
   text-align: center;
   box-sizing: border-box;
+}
+
+.lxp-ai-doc-link {
+  text-decoration: none;
+}
+
+.lxp-ai-doc-link:focus,
+.lxp-ai-doc-link:hover {
+  text-decoration: none;
 }
 
 #lxp-ai-content-gen-btn:disabled,

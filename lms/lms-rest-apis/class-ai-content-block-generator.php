@@ -21,12 +21,13 @@ class TL_AI_Content_Block_Generator {
 
 		$lesson_title      = get_the_title( $post_id );
 		$segments          = self::parse_block_markers( wp_unslash( $lesson_content ) );
+		$lesson_context    = self::build_lesson_context( $segments );
 		$rendered_segments = array();
 		$errors            = array();
 		$rendered_count    = 0;
 
 		foreach ( $segments as $segment ) {
-			$rendered = self::render_block( $segment['type'], $segment['content'], $post_id, $lesson_title );
+			$rendered = self::render_block( $segment['type'], $segment['content'], $post_id, $lesson_title, $lesson_context );
 			if ( is_wp_error( $rendered ) ) {
 				$errors[] = array(
 					'type'    => $segment['type'],
@@ -130,7 +131,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'hero',
 				'label'        => 'Hero',
 				'description'  => 'Large lesson header with tag, title, and subtitle.',
-				'marker'       => ":::hero\nTag: Policy Essentials\nSubtitle: Build a shared understanding before the formal guidance begins.\n:::",
+				'marker'       => ":::hero\nThis lesson guides school teams through the essentials of writing clear, usable policy documents.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'hero' ), array(
 					'[LESSON_TAG]'      => 'Policy Essentials',
 					'[LESSON_TITLE]'    => 'Writing Better Policy Documents',
@@ -141,7 +142,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'learning-outcomes',
 				'label'        => 'Learning Outcomes',
 				'description'  => 'Four actionable lesson outcomes.',
-				'marker'       => ":::learning-outcomes\n- Identify the core sections of the document\n- Explain why the structure matters\n- Review the audience fit of each section\n- Revise the outline for clarity\n:::",
+				'marker'       => ":::learning-outcomes\n- Identify the core sections of a policy document\n- Understand why structure shapes how rules are interpreted\n- Review whether each section fits its intended audience\n- Revise a draft outline for greater clarity\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'learning-outcomes' ), array(
 					'[OUTCOME_1]' => 'Identify the core sections of the document.',
 					'[OUTCOME_2]' => 'Explain why the structure matters.',
@@ -153,7 +154,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'opening-hook',
 				'label'        => 'Opening Hook',
 				'description'  => 'Context-setting quote or framing statement.',
-				'marker'       => ":::opening-hook\nA policy document only works when readers can immediately see how its rules connect to daily decisions.\n:::",
+				'marker'       => ":::opening-hook\nA policy document only works when readers can see how its rules connect to what they do every day.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'opening-hook' ), array(
 					'[OPENING_HOOK_STATEMENT]' => 'A policy document only works when readers can immediately see how its rules connect to daily decisions.',
 				) ),
@@ -162,7 +163,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'capstone',
 				'label'        => 'Capstone',
 				'description'  => 'Final applied-response activity with the preserved sentinel box.',
-				'marker'       => ":::capstone\nDraft a revised policy section that clarifies who the audience is, what action is required, and how revision should happen over time.\n:::",
+				'marker'       => ":::capstone\nLearners draft a revised policy section that names the audience, states the required action, and explains how the document will be updated over time.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'capstone' ), array(
 					'[CAPSTONE_PROMPT]' => 'Draft a revised policy section that clarifies who the audience is, what action is required, and how revision should happen over time.',
 				) ),
@@ -171,7 +172,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'stats-grid',
 				'label'        => 'Stats Grid',
 				'description'  => 'Three metric cards for evidence or quick context.',
-				'marker'       => ":::stats-grid\nHeading: Why this matters\n72% | Teams that used a shared template\n3x | Faster review cycles\n41% | Fewer revision loops\n:::",
+				'marker'       => ":::stats-grid\nMost teams that adopt a shared policy template report stronger consistency, review cycles run roughly three times faster, and revision loops fall by about forty percent.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'stats-grid' ), array(
 					'[STATS_HEADING]' => 'Why this matters',
 					'[STAT_1_VALUE]'  => '72%',
@@ -186,7 +187,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'cards-grid',
 				'label'        => 'Cards Grid',
 				'description'  => 'Three summary cards with titles and short bodies.',
-				'marker'       => ":::cards-grid\nClarity: Name the audience early.\nSequence: Put decisions in the order readers will use them.\nRevision: Say who updates the document and when.\n:::",
+				'marker'       => ":::cards-grid\nStrong policy writing relies on three moves: naming the audience early for clarity, sequencing decisions in the order readers will encounter them, and assigning clear ownership of revisions.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'cards-grid' ), array(
 					'[CARDS_HEADING]' => 'Core writing moves',
 					'[CARD_1_TITLE]'  => 'Clarity',
@@ -201,7 +202,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'tier-cards',
 				'label'        => 'Tier Cards',
 				'description'  => 'Three top-accent cards for levels, options, or approaches.',
-				'marker'       => ":::tier-cards\nStarter: Single owner, one audience, one action.\nIntermediate: Cross-team review and approval.\nAdvanced: Full lifecycle governance and revision schedule.\n:::",
+				'marker'       => ":::tier-cards\nPolicy teams grow through three maturity levels: a starter stage with one owner and one clear action, an intermediate stage with cross-team review, and an advanced stage with full governance and a scheduled revision cycle.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'tier-cards' ), array(
 					'[TIER_CARDS_HEADING]' => 'Implementation levels',
 					'[TIER_CARD_1_TITLE]'  => 'Starter',
@@ -216,7 +217,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'numbered-grid',
 				'label'        => 'Numbered Grid',
 				'description'  => 'Dynamic numbered card grid for named components or steps.',
-				'marker'       => ":::numbered-grid\nThere are 4 components in this policy template: Purpose, Audience, Action, and Revision.\n:::",
+				'marker'       => ":::numbered-grid\nA solid policy template has four parts: purpose explains why the document exists, audience names who should use it, action tells readers exactly what to do, and revision explains how updates are made over time.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'numbered-grid', 4 ), array(
 					'[COMPONENTS_N_HEADING]' => '4 policy components',
 					'[COMPONENT_1_TITLE]'    => 'Purpose',
@@ -233,7 +234,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'two-col-table',
 				'label'        => 'Two-Column Table',
 				'description'  => 'Comparison or mapping table with three rows.',
-				'marker'       => ":::two-col-table\nDraft outline | Final audience-ready language\nInternal notes | Public-facing explanation\nOne-time memo | Living policy document\n:::",
+				'marker'       => ":::two-col-table\nA rough draft outline becomes audience-ready language, internal working notes become a public-facing explanation, and a one-time memo becomes a living policy document.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'two-col-table' ), array(
 					'[TABLE_2_HEADING]'     => 'Draft to publish mapping',
 					'[TABLE_2_COL_1]'       => 'Draft concept',
@@ -250,7 +251,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'three-col-table',
 				'label'        => 'Three-Column Table',
 				'description'  => 'Evaluation or comparison grid with three columns.',
-				'marker'       => ":::three-col-table\nAudience | What they need | Why it matters\n:::",
+				'marker'       => ":::three-col-table\nTeachers need clear classroom actions because they apply the policy daily. Leaders need decision checkpoints because they approve and revise it. Families need a plain-language summary because they need to understand the purpose in accessible terms.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'three-col-table' ), array(
 					'[TABLE_3_HEADING]' => 'Audience fit check',
 					'[TABLE_3_COL_1]'   => 'Audience',
@@ -271,7 +272,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'contrast-panel',
 				'label'        => 'Contrast Panel',
 				'description'  => 'Green vs red do-or-don\'t guidance pair.',
-				'marker'       => ":::contrast-panel\nDO: Name the audience.\nDO: Define the action.\nDO: Explain the revision owner.\nNEVER: Hide the decision path.\nNEVER: Mix multiple audiences in one instruction.\nNEVER: Publish without a review date.\n:::",
+				'marker'       => ":::contrast-panel\nGood policy writing names the audience, defines the required action, and assigns revision ownership. Weak policy writing hides how decisions are made, mixes audiences in the same instruction, and publishes without scheduling a review.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'contrast-panel' ), array(
 					'[CONTRAST_LEFT_HEADING]'  => 'Always do',
 					'[CONTRAST_RIGHT_HEADING]' => 'Never do',
@@ -287,7 +288,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'callout',
 				'label'        => 'Callout',
 				'description'  => 'Single highlighted text block with a yellow left border.',
-				'marker'       => ":::callout\nA policy document becomes easier to use when readers can see who it is for before they reach the first requirement.\n:::",
+				'marker'       => ":::callout\nA policy document becomes easier to use when readers know who it is for before they reach the first requirement.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'callout' ), array(
 					'[CALLOUT_HEADING]' => 'Why this matters',
 					'[CALLOUT_BODY]'    => 'A policy document becomes easier to use when readers can see who it is for before they reach the first requirement.',
@@ -297,7 +298,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'dark-block',
 				'label'        => 'Dark Block',
 				'description'  => 'High-emphasis dark callout or guideline section.',
-				'marker'       => ":::dark-block\nHeading: Revision guardrail\nEvery published policy should name the owner, the trigger for review, and the date the next review must happen.\n:::",
+				'marker'       => ":::dark-block\nEvery published policy needs to name its owner, state what triggers a review, and include the date of the next scheduled review.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'dark-block' ), array(
 					'[DARK_BLOCK_HEADING]' => 'Revision guardrail',
 					'[DARK_BLOCK_BODY]'    => 'Every published policy should name the owner, the trigger for review, and the date the next review must happen.',
@@ -307,7 +308,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'definition-block',
 				'label'        => 'Definition Block',
 				'description'  => 'Soft-tinted definition or overview section with bullets.',
-				'marker'       => ":::definition-block\nPolicy writing standards include clarity, sequence, accountability, and revision.\n:::",
+				'marker'       => ":::definition-block\nStrong policy writing has four core qualities: clarity about the audience, language that makes the required action plain, visible accountability for decisions, and a built-in path for revision over time.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'definition-block' ), array(
 					'[DEFINITION_HEADING]'  => 'Policy writing standards',
 					'[DEFINITION_INTRO]'    => 'Strong policy writing usually includes these core qualities:',
@@ -321,7 +322,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'role-split',
 				'label'        => 'Role Split',
 				'description'  => 'Two role-perspective panels with bullets.',
-				'marker'       => ":::role-split\nAuthors: define scope, sequence, and ownership\nReviewers: test readability, alignment, and revision readiness\n:::",
+				'marker'       => ":::role-split\nAuthors define scope, sequence decisions, and assign ownership. Reviewers focus on readability, check alignment with the stated goals, and confirm the document is ready for a revision cycle.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'role-split' ), array(
 					'[ROLE_SPLIT_HEADING]' => 'Role perspectives',
 					'[ROLE_A_TITLE]'       => 'Authors',
@@ -338,7 +339,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'option-cards',
 				'label'        => 'Option Cards',
 				'description'  => 'Four 2x2 cards for options, audiences, or messages.',
-				'marker'       => ":::option-cards\nTeacher-facing summary\nLeader-facing review guide\nFamily-facing explainer\nRevision checklist\n:::",
+				'marker'       => ":::option-cards\nThis lesson pairs with four companion resources: a teacher-facing summary of day-to-day actions, a leader review guide for approval and oversight, a family-friendly explainer in plain language, and a revision checklist for keeping the policy current.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'option-cards' ), array(
 					'[OPTIONS_HEADING]' => 'Useful companion blocks',
 					'[OPTION_1_NAME]'   => 'Teacher-facing summary',
@@ -355,7 +356,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'checklist',
 				'label'        => 'Checklist',
 				'description'  => 'White card with four checkmarked alignment items.',
-				'marker'       => ":::checklist\nName the audience\nDefine the action\nAssign ownership\nSet the review cycle\n:::",
+				'marker'       => ":::checklist\n- Name the audience\n- Define the required action\n- Assign ownership\n- Set the review cycle\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'checklist' ), array(
 					'[CHECKLIST_HEADING]' => 'Alignment checklist',
 					'[CHECK_1]'           => 'Name the audience.',
@@ -368,7 +369,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'cycle',
 				'label'        => 'Cycle',
 				'description'  => 'Four-stage lifecycle bar.',
-				'marker'       => ":::cycle\nDraft\nReview\nPublish\nRevise\n:::",
+				'marker'       => ":::cycle\nA policy moves through four stages: drafting the first version, reviewing it for audience fit and risk, publishing the approved version, and revising it after feedback or when circumstances change.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'cycle' ), array(
 					'[CYCLE_HEADING]'        => 'Living document cycle',
 					'[CYCLE_DRAFT_LABEL]'    => 'Draft',
@@ -385,7 +386,7 @@ class TL_AI_Content_Block_Generator {
 				'type'         => 'myth-reality',
 				'label'        => 'Myth vs Reality',
 				'description'  => 'Three-row two-column comparison table.',
-				'marker'       => ":::myth-reality\nPolicy writing is just formatting | The structure shapes how people interpret the rule\nOne approval is enough | Good policy documents build in revision\nPlain language means less detail | Plain language makes the action easier to follow\n:::",
+				'marker'       => ":::myth-reality\nThree beliefs hold policy writers back. Many think the work is just formatting, that one sign-off is enough, and that plain language means less detail. In reality, structure shapes how rules are understood, revision must be built in from the start, and plain language makes the required action far clearer.\n:::",
 				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'myth-reality' ), array(
 					'[MYTH_REALITY_HEADING]' => 'Myth vs Reality',
 					'[MYTH_1]'              => 'Policy writing is just formatting.',
@@ -408,7 +409,7 @@ class TL_AI_Content_Block_Generator {
 	 * @param  string $lesson_title
 	 * @return string|WP_Error
 	 */
-	private static function render_block( $type, $content, $post_id, $lesson_title = '' ) {
+	private static function render_block( $type, $content, $post_id, $lesson_title = '', $lesson_context = '' ) {
 		$type           = strtolower( trim( (string) $type ) );
 		$raw_content    = trim( (string) $content );
 		$template_title = $lesson_title;
@@ -430,7 +431,7 @@ class TL_AI_Content_Block_Generator {
 			return new WP_Error( 'unknown_block_type', sprintf( 'Unsupported block type "%s".', $type ) );
 		}
 
-		$system_prompt = self::build_block_system_prompt( $type, $template_title );
+		$system_prompt = self::build_block_system_prompt( $type, $template_title, $lesson_context );
 		$user_prompt   = self::build_block_user_message( $type, $raw_content, $template_html, $template_title );
 		$result        = TL_AWS_Bedrock_Client::invoke_bedrock( $user_prompt, $system_prompt, 2048 );
 
@@ -480,29 +481,36 @@ class TL_AI_Content_Block_Generator {
 	 * @param  string $lesson_title
 	 * @return string
 	 */
-	private static function build_block_system_prompt( $block_type, $lesson_title = '' ) {
-		$title_instruction  = '';
-		$policy_instruction = '';
+	private static function build_block_system_prompt( $block_type, $lesson_title = '', $lesson_context = '' ) {
+		$title_instruction   = '';
+		$policy_instruction  = '';
+		$context_instruction = '';
 		if ( 'hero' === $block_type && ! empty( $lesson_title ) ) {
 			$title_instruction = ' Use "' . $lesson_title . '" exactly for the [LESSON_TITLE] placeholder.';
+		}
+		if ( ! empty( $lesson_context ) ) {
+			$context_instruction = ' This block is one part of a multi-section lesson. LESSON OVERVIEW (all sections in order): ' . $lesson_context . ' Use this overview to keep your output tonally aligned with the other sections, avoid repeating content already covered elsewhere, and reinforce the lesson\'s central message where relevant.';
 		}
 
 		switch ( self::get_block_prompt_policy( $block_type ) ) {
 			case 'shell':
-				$policy_instruction = ' You may enhance and rephrase the source for clarity and engagement, but keep the meaning, intent, and key points faithful to the author text.';
+				$policy_instruction = ' You may enhance and rephrase the source for clarity and engagement, but keep the meaning, intent, and key points faithful to the author input.';
 				break;
 			case 'preserve-close':
-				$policy_instruction = ' Preserve the author wording and specific comparisons as closely as possible, making only minimal edits needed to fit the template cleanly.';
+				$policy_instruction = ' Preserve the author intent and any explicit comparisons, contrasts, or pairings as closely as possible, making only minimal edits needed to fit the template cleanly.';
 				break;
 			case 'structured':
 			default:
-				$policy_instruction = ' You may reorganize and lightly rewrite the source to fit the card or table structure, but never invent new claims, facts, examples, scenarios, or data points.';
+				$policy_instruction = ' You may reorganize and lightly rewrite the source to fit the card or table structure, infer the most natural grouping from the author notes, and tighten wording for readability, but never invent new claims, facts, examples, scenarios, or data points.';
 				break;
 		}
 
 		return 'You are an expert instructional designer formatting one lesson section at a time.'
 			. $title_instruction
+			. $context_instruction
 			. $policy_instruction . ' '
+			. 'The source content is the author\'s own notes about the lesson subject: topic sentences, key points, comparisons, or a short description of what this section should communicate. '
+			. 'Interpret those notes as content intent and derive the most suitable headings, labels, rows, or card text from them. '
 			. 'Output ONLY the raw HTML for the provided section - no markdown, no explanations, no surrounding wrapper. '
 			. 'Replace every [PLACEHOLDER] token with content derived from the provided source text. '
 			. 'Preserve every inline style exactly as written. '
@@ -529,19 +537,28 @@ class TL_AI_Content_Block_Generator {
 				$message_instruction = 'You may enhance and rephrase for readability while staying faithful to the source intent and key points.';
 				break;
 			case 'preserve-close':
-				$message_instruction = 'Preserve author wording closely and make only minimal template-fitting edits.';
+				$message_instruction = 'Preserve explicit author comparisons or pairings closely and make only minimal template-fitting edits.';
 				break;
 			case 'structured':
 			default:
-				$message_instruction = 'Reorganize and fit the source content into the template structure as needed, but do not invent new claims, examples, or facts.';
+				$message_instruction = 'Infer the most natural grouping and structure from the author notes and fit them into the template without inventing new claims, examples, or facts.';
 				break;
 		}
 
+		$count_hint = '';
+		if ( in_array( $block_type, self::get_list_blocks(), true ) ) {
+			$detected = self::detect_item_count( $block_content );
+			if ( $detected > 0 ) {
+				$count_hint = "\n\nITEM COUNT HINT: The author's notes describe approximately {$detected} items. Adapt the repeating inner elements of the template to produce exactly {$detected} items. Replicate the HTML and inline CSS of the existing item elements for any additional items; remove excess elements if fewer are needed. Do not leave unfilled [PLACEHOLDER] tokens in the output.";
+			}
+		}
+
 		return "Render the following {$block_type} block into the provided HTML section template. "
-			. "Use the source content to fill the placeholders and keep the structure unchanged. {$message_instruction}\n\n"
+			. "The source is the author's own notes about what this section should say — topic sentences, key points, or a short description of the lesson content. Use it to fill the placeholders and keep the template structure unchanged. {$message_instruction}\n\n"
 			. $title_line
 			. "SOURCE BLOCK CONTENT:\n{$block_content}\n\n"
-			. "SECTION TEMPLATE:\n{$template_html}";
+			. "SECTION TEMPLATE:\n{$template_html}"
+			. $count_hint;
 	}
 
 	/**
@@ -578,6 +595,84 @@ class TL_AI_Content_Block_Generator {
 			default:
 				return 'structured';
 		}
+	}
+
+	/**
+	 * Build a compact lesson context string from all parsed non-prose segments.
+	 * Used to give each block render call awareness of the full lesson scope.
+	 *
+	 * @param  array $segments
+	 * @return string
+	 */
+	private static function build_lesson_context( $segments ) {
+		$lines = array();
+		foreach ( $segments as $seg ) {
+			if ( 'prose' === $seg['type'] ) {
+				continue;
+			}
+			$lines[] = '[' . $seg['type'] . '] ' . wp_strip_all_tags( $seg['content'] );
+		}
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Detect the number of discrete items in block content.
+	 *
+	 * Detection order:
+	 * 1. Count bullet / numbered lines (-, *, bullet char, N.).
+	 * 2. Count sentence transitions as a rough sentence count (only when >= 3 and no bullets).
+	 * 3. Return $default (0 = let AI decide freely) if neither heuristic fires.
+	 *
+	 * @param  string $content
+	 * @param  int    $default
+	 * @return int
+	 */
+	private static function detect_item_count( $content, $default = 0 ) {
+		$content = wp_strip_all_tags( (string) $content );
+		$lines   = preg_split( '/\r\n|\r|\n/', $content );
+
+		// Count explicit bullet / numbered lines.
+		$bullet_count = 0;
+		foreach ( $lines as $line ) {
+			if ( preg_match( '/^\s*([-*\x{2022}]|\d+[.):]\s)\s*\S/u', $line ) ) {
+				++$bullet_count;
+			}
+		}
+		if ( $bullet_count >= 2 ) {
+			return $bullet_count;
+		}
+
+		// Fall back to sentence count when no bullets are found.
+		$sentence_count = preg_match_all( '/(?<=[.!?])\s+(?=[A-Z])|[.!?]\s*$/', $content );
+		if ( $sentence_count >= 3 ) {
+			return $sentence_count;
+		}
+
+		return $default;
+	}
+
+	/**
+	 * Block types whose inner items can vary in count based on author input.
+	 * Used by build_block_user_message() to emit a dynamic item-count hint.
+	 *
+	 * @return string[]
+	 */
+	private static function get_list_blocks() {
+		return array(
+			'learning-outcomes',
+			'stats-grid',
+			'cards-grid',
+			'tier-cards',
+			'checklist',
+			'cycle',
+			'myth-reality',
+			'two-col-table',
+			'three-col-table',
+			'contrast-panel',
+			'role-split',
+			'option-cards',
+			'definition-block',
+		);
 	}
 
 	/**

@@ -8,7 +8,7 @@ $catalog = Rest_Lxp_AI_Content::get_block_catalog();
 ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'Block Reference', 'tiny-lxp-platform' ); ?></h1>
-	<p><?php esc_html_e( 'Use these markers in the original lesson content to assemble a block-based AI lesson page. Copy a marker, update its contents, then run Generate (Block Mode) from the lesson editor.', 'tiny-lxp-platform' ); ?></p>
+	<p><?php esc_html_e( 'Use these markers in the original lesson content to assemble a block-based AI lesson page. Write plain-language context inside the marker, copy it into the lesson editor, then run Generate (Block Mode) to have AI shape that intent into the selected block pattern.', 'tiny-lxp-platform' ); ?></p>
 
 	<style>
 		.lxp-block-reference-grid {
@@ -62,6 +62,22 @@ $catalog = Rest_Lxp_AI_Content::get_block_catalog();
 			font-weight: 600;
 			color: #1d6f42;
 		}
+		.lxp-block-reference-sample {
+			margin: 14px 0;
+			padding: 12px 14px;
+			border: 1px solid #dcdcde;
+			border-radius: 10px;
+			background: #f6f7f7;
+			overflow: auto;
+		}
+		.lxp-block-reference-sample code {
+			display: block;
+			white-space: pre-wrap;
+			word-break: break-word;
+			font-family: Consolas, monospace;
+			font-size: 12px;
+			line-height: 1.5;
+		}
 	</style>
 
 	<div class="lxp-block-reference-grid">
@@ -72,7 +88,7 @@ $catalog = Rest_Lxp_AI_Content::get_block_catalog();
 					<span class="lxp-block-reference-marker"><?php echo esc_html( ':::' . $block['type'] ); ?></span>
 				</div>
 				<p><?php echo esc_html( $block['description'] ); ?></p>
-				<p><code><?php echo esc_html( $block['marker'] ); ?></code></p>
+				<pre class="lxp-block-reference-sample"><code><?php echo esc_html( $block['marker'] ); ?></code></pre>
 				<p>
 					<button type="button" class="button lxp-copy-marker-btn" data-marker="<?php echo esc_attr( $block['marker'] ); ?>">
 						<?php esc_html_e( 'Copy Marker', 'tiny-lxp-platform' ); ?>
