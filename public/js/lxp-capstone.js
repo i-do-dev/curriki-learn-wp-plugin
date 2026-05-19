@@ -190,7 +190,7 @@
 						showPreviewWorkbookBtn( data.workbook_url );
 					}
 					if ( data.evaluation ) {
-						renderEvaluation( data.evaluation );
+						renderEvaluation( data.evaluation, saveBtn );
 					}
 				}
 			} );
@@ -238,7 +238,7 @@
 					}
 
 					if ( data && data.response_changed ) {
-						renderEvaluation( null );
+						renderEvaluation( null, saveBtn );
 
 						fetch( vars.rest_url + 'lesson/capstone-evaluation', {
 							method: 'POST',
@@ -251,13 +251,13 @@
 						.then( function ( res ) { return res.json(); } )
 						.then( function ( evalData ) {
 							if ( evalData && evalData.evaluation ) {
-								renderEvaluation( evalData.evaluation );
+								renderEvaluation( evalData.evaluation, saveBtn );
 							} else {
-								renderEvaluation( '' );
+								renderEvaluation( '', saveBtn );
 							}
 						} )
 						.catch( function () {
-							renderEvaluation( '' );
+							renderEvaluation( '', saveBtn );
 						} );
 					}
 				} )
@@ -414,7 +414,7 @@
 		 *
 		 * The block replaces any existing #lxp-capstone-eval-wrap.
 		 */
-		function renderEvaluation( evaluationText ) {
+		function renderEvaluation( evaluationText, anchorEl ) {
 			var existing = document.getElementById( 'lxp-capstone-eval-wrap' );
 			if ( existing ) {
 				existing.remove();
@@ -446,7 +446,9 @@
 				'</div>';
 
 			// Insert the evaluation block below the Save button.
-			saveBtn.insertAdjacentElement( 'afterend', wrap );
+			if ( anchorEl ) {
+				anchorEl.insertAdjacentElement( 'afterend', wrap );
+			}
 		}
 	} );
 } )();
