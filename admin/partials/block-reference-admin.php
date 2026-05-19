@@ -5,6 +5,33 @@ if ( ! class_exists( 'Rest_Lxp_AI_Content' ) ) {
 }
 
 $catalog = Rest_Lxp_AI_Content::get_block_catalog();
+$allowed_html = wp_kses_allowed_html( 'post' );
+$allowed_html['style'] = array(
+	'type'  => true,
+	'media' => true,
+);
+
+foreach ( array( 'section', 'div', 'p', 'li', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'ul', 'ol', 'h3', 'h4', 'span' ) as $tag ) {
+	if ( ! isset( $allowed_html[ $tag ] ) || ! is_array( $allowed_html[ $tag ] ) ) {
+		$allowed_html[ $tag ] = array();
+	}
+
+	$allowed_html[ $tag ]['style'] = true;
+	$allowed_html[ $tag ]['class'] = true;
+	$allowed_html[ $tag ]['id']    = true;
+}
+
+$lxp_block_reference_safe_styles = static function ( $styles ) {
+	foreach ( array( 'display', 'grid-template-columns', 'gap', 'align-items', 'justify-content', 'box-shadow', 'text-transform', 'letter-spacing', 'transform', 'transform-origin' ) as $property ) {
+		if ( ! in_array( $property, $styles, true ) ) {
+			$styles[] = $property;
+		}
+	}
+
+	return $styles;
+};
+
+add_filter( 'safe_style_css', $lxp_block_reference_safe_styles );
 ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'Block Reference', 'tiny-lxp-platform' ); ?></h1>
@@ -97,12 +124,13 @@ $catalog = Rest_Lxp_AI_Content::get_block_catalog();
 				</p>
 				<div class="lxp-block-reference-preview">
 					<div class="lxp-block-reference-preview-inner">
-						<?php echo wp_kses_post( $block['preview_html'] ); ?>
+						<?php echo wp_kses( $block['preview_html'], $allowed_html ); ?>
 					</div>
 				</div>
 			</div>
 		<?php endforeach; ?>
 	</div>
+	<?php remove_filter( 'safe_style_css', $lxp_block_reference_safe_styles ); ?>
 
 	<script>
 		document.addEventListener('click', function (event) {
