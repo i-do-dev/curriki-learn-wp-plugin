@@ -169,8 +169,8 @@ class TL_AI_Content_Template_Library {
 	private static function hero_html() {
 		return <<<'HTML'
 <!-- Hero Header -->
-<section style="position:relative;margin-bottom:24px;border-radius:18px;overflow:hidden;min-height:280px;background:linear-gradient(135deg,#442e66,#2a1a4a);box-shadow:0 10px 30px -10px rgba(68,46,102,.35);">
-  <div style="padding:42px 32px;display:flex;align-items:flex-end;min-height:280px;">
+<section style="position:relative;margin-bottom:20px;border-radius:18px;overflow:hidden;min-height:240px;background:linear-gradient(135deg,#442e66,#2a1a4a);box-shadow:0 10px 30px -10px rgba(68,46,102,.35);">
+  <div style="padding:28px 32px;display:flex;align-items:center;min-height:240px;">
     <div style="max-width:700px;color:#ffffff;">
       <p style="margin:0 0 10px;display:inline-block;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.15);font-size:0.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;">[LESSON_TAG]</p>
       <h2 style="margin:0 0 10px;color:#ffffff;font-size:1.75rem;">[LESSON_TITLE]</h2>
