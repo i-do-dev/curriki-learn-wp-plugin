@@ -48,6 +48,8 @@ class TL_AI_Content_Template_Library {
         return self::_block_cycle();
       case 'myth-reality':
         return self::_block_myth_reality();
+      case 'blockquote':
+        return self::_block_blockquote();
       default:
         return '';
     }
@@ -588,6 +590,16 @@ HTML;
       </tr>
     </tbody>
   </table>
+</section>
+HTML;
+	}
+
+	public static function _block_blockquote() {
+		return <<<'HTML'
+<section style="margin-bottom:22px;">
+  <blockquote style="margin:0;padding:22px 26px;background:rgba(68,46,102,.04);border-left:5px solid var(--lp-primary-color,#ffb606);border-radius:0 14px 14px 0;">
+    <p style="margin:0;font-size:1.08rem;line-height:1.7;color:#333;">[BLOCKQUOTE_TEXT]</p>
+  </blockquote>
 </section>
 HTML;
 	}
