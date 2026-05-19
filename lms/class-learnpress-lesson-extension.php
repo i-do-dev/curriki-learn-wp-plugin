@@ -187,6 +187,7 @@ class TL_LearnPress_Lesson_Extension {
 			array( 'type' => 'checklist', 'label' => 'Checklist' ),
 			array( 'type' => 'cycle', 'label' => 'Cycle' ),
 			array( 'type' => 'myth-reality', 'label' => 'Myth vs Reality' ),
+			array( 'type' => 'blockquote', 'label' => 'Blockquote' ),
 		);
 	}
 
