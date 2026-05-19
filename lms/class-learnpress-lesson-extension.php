@@ -130,17 +130,16 @@ class TL_LearnPress_Lesson_Extension {
 		<div class="lxp-ai-action-group lxp-ai-action-group-blocks">
 			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Build Lesson with Block Markers', 'tiny-lxp-platform' ); ?></h4>
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use markers when you want to control the layout section by section before generating the final lesson blocks.', 'tiny-lxp-platform' ); ?></p>
-			<p class="lxp-ai-action-row">
-				<a class="button lxp-ai-doc-link" href="<?php echo esc_url( $block_reference_url ); ?>" target="_blank" rel="noopener noreferrer">
-					<?php echo esc_html__( 'Open Block Reference', 'tiny-lxp-platform' ); ?>
-				</a>
-			</p>
 			<div class="lxp-ai-block-picker-wrap">
-				<p class="lxp-ai-action-row">
+				<div class="lxp-ai-action-row lxp-ai-picker-row">
 					<button type="button" id="lxp-ai-block-picker-btn" class="button">
 						<?php echo esc_html__( 'Insert Block Marker', 'tiny-lxp-platform' ); ?>
 					</button>
-				</p>
+					<a class="lxp-ai-doc-help-link" href="<?php echo esc_url( $block_reference_url ); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo esc_attr__( 'Open Block Reference', 'tiny-lxp-platform' ); ?>">
+						<span class="dashicons dashicons-editor-help" aria-hidden="true"></span>
+						<span class="screen-reader-text"><?php echo esc_html__( 'Open Block Reference', 'tiny-lxp-platform' ); ?></span>
+					</a>
+				</div>
 				<div id="lxp-ai-block-picker-list" class="lxp-ai-block-picker-list">
 					<?php foreach ( $block_types as $block_type ) : ?>
 						<button type="button" class="lxp-block-picker-item" data-block-type="<?php echo esc_attr( $block_type['type'] ); ?>">

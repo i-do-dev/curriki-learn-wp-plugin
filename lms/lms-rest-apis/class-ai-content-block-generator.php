@@ -397,6 +397,15 @@ class TL_AI_Content_Block_Generator {
 					'[REALITY_3]'           => 'Plain language makes the action easier to follow.',
 				) ),
 			),
+			array(
+				'type'         => 'blockquote',
+				'label'        => 'Blockquote',
+				'description'  => 'Accent-bordered pull-quote for a key insight or memorable statement.',
+				'marker'       => ":::blockquote\nThe educators who will have the greatest professional impact are not those who work harder in isolation — they are those who build once and share widely, turning personal efficiency into school-wide transformation.\n:::",
+				'preview_html' => TL_AI_Content_Template_Library::render_preview_template( TL_AI_Content_Template_Library::get_block_template( 'blockquote' ), array(
+					'[BLOCKQUOTE_TEXT]' => 'The educators who will have the greatest professional impact are not those who work harder in isolation — they build once and share widely.',
+				) ),
+			),
 		);
 	}
 
@@ -573,6 +582,7 @@ class TL_AI_Content_Block_Generator {
 			case 'learning-outcomes':
 			case 'opening-hook':
 			case 'capstone':
+			case 'blockquote':
 				return 'shell';
 
 			case 'cycle':
