@@ -21,235 +21,310 @@
 			return;
 		}
 
-		var template = document.querySelector( '.lp-ai-lesson-template' );
-		if ( ! template ) {
-			return;
+		activateCapstoneWithRetry( 0 );
+
+		window.addEventListener( 'load', function () {
+			activateCapstoneWithRetry( 0 );
+		} );
+
+		function activateCapstoneWithRetry( attempt ) {
+			if ( document.getElementById( 'lxp-capstone-editor-wrap' ) ) {
+				return;
+			}
+
+			var template    = findTemplateRoot();
+			var sentinelDiv = findSentinel( template );
+
+			if ( ! sentinelDiv ) {
+				if ( attempt < 6 ) {
+					window.setTimeout( function () {
+						activateCapstoneWithRetry( attempt + 1 );
+					}, 250 );
+				}
+				return;
+			}
+
+			activateCapstoneEditor( sentinelDiv );
 		}
 
-		// -------------------------------------------------------------------------
-		// Find the [Capstone Box] sentinel div.
-		//
-		// Primary: query by class="lxp-capstone-box" stamped by capstone_html() on
-		// newly-generated lessons — fast, no DOM traversal needed.
-		// Fallback: text-match on leaf divs for lessons generated before the class
-		// was added (backwards compatibility with existing content in the DB).
-		// -------------------------------------------------------------------------
-		var sentinelDiv = template.querySelector( '.lxp-capstone-box' );
+		function findTemplateRoot() {
+			return document.querySelector( '.lp-ai-lesson-template' )
+				|| document.querySelector( '.learn-press-course-content' )
+				|| document.querySelector( '.entry-content' )
+				|| document.querySelector( '.learn-press-content-item-summary' )
+				|| document.querySelector( 'article' )
+				|| document.body;
+		}
 
-		if ( ! sentinelDiv ) {
-			// Fallback for legacy AI-generated lessons without the class.
-			var allDivs = template.querySelectorAll( 'div' );
-			allDivs.forEach( function ( div ) {
-				if ( ! sentinelDiv && div.children.length === 0 && div.textContent.trim() === '[Capstone Box]' ) {
-					sentinelDiv = div;
+		function findSentinel( root ) {
+			var sentinel = root.querySelector( '.lxp-capstone-box' );
+			if ( sentinel ) {
+				return sentinel;
+			}
+
+			var allDivs = Array.from( root.querySelectorAll( 'div' ) );
+			sentinel = allDivs.find( function ( div ) {
+				return div.children.length === 0 && div.textContent.trim() === '[Capstone Box]';
+			} );
+			if ( sentinel ) {
+				return sentinel;
+			}
+
+			return allDivs.find( function ( div ) {
+				var text = ( div.textContent || '' ).replace( /\s+/g, ' ' );
+				if ( text.indexOf( '[Capstone Box]' ) === -1 ) {
+					return false;
 				}
+
+				var sectionText = '';
+				var section     = div.closest ? div.closest( 'section' ) : null;
+				if ( section ) {
+					sectionText = ( section.textContent || '' ).replace( /\s+/g, ' ' );
+				}
+
+				return sectionText.indexOf( 'Capstone Activity' ) !== -1
+					|| sectionText.indexOf( 'Apply What You Learned' ) !== -1
+					|| sectionText.indexOf( 'Your Response:' ) !== -1;
 			} );
 		}
 
-		if ( ! sentinelDiv ) {
-			return; // Sentinel not found — lesson may not have AI content yet.
-		}
+		function activateCapstoneEditor( sentinelDiv ) {
+			// -------------------------------------------------------------------------
+			// Editor wrapper.
+			// Prefer Quill when available, otherwise fall back to a styled contenteditable.
+			// -------------------------------------------------------------------------
+			var wrapper = document.createElement( 'div' );
+			wrapper.id = 'lxp-capstone-editor-wrap';
+			wrapper.style.cssText =
+				'border:2px solid rgba(68,46,102,.25);border-radius:12px;overflow:hidden;' +
+				'font-size:1rem;font-family:inherit;margin-bottom:2px;background:#fff;';
 
-		// -------------------------------------------------------------------------
-		// Quill Snow editor wrapper.
-		// Quill mounts its own toolbar + editor area inside the wrapper div.
-		// -------------------------------------------------------------------------
-		var wrapper = document.createElement( 'div' );
-		wrapper.id = 'lxp-capstone-quill-wrap';
-		wrapper.style.cssText =
-			'border:2px solid rgba(68,46,102,.25);border-radius:12px;overflow:hidden;' +
-			'font-size:1rem;font-family:inherit;margin-bottom:2px;';
+			sentinelDiv.replaceWith( wrapper );
 
-		// Replace sentinel with the Quill wrapper.
-		sentinelDiv.replaceWith( wrapper );
+			var editorApi = createEditorAdapter( wrapper );
 
-		var quill = new Quill( '#lxp-capstone-quill-wrap', {
-			theme: 'snow',
-			placeholder: 'Write your capstone response here\u2026',
-			modules: {
-				toolbar: [
-					[ 'bold', 'italic', 'underline' ],
-					[ { list: 'ordered' }, { list: 'bullet' } ],
-				],
-			},
-		} );
+			// -------------------------------------------------------------------------
+			// Status message element.
+			// -------------------------------------------------------------------------
+			var statusMsg = document.createElement( 'p' );
+			statusMsg.id = 'lxp-capstone-status';
+			statusMsg.style.cssText = 'margin-top:10px;font-size:0.9rem;font-weight:600;min-height:1.4em;';
 
-		var editorEl = wrapper.querySelector( '.ql-editor' );
-		if ( editorEl ) {
-			editorEl.style.minHeight = '200px';
-		}
-
-		// -------------------------------------------------------------------------
-		// Status message element.
-		// -------------------------------------------------------------------------
-		var statusMsg = document.createElement( 'p' );
-		statusMsg.id = 'lxp-capstone-status';
-		statusMsg.style.cssText = 'margin-top:10px;font-size:0.9rem;font-weight:600;min-height:1.4em;';
-
-		// -------------------------------------------------------------------------
-		// Save button.
-		// -------------------------------------------------------------------------
-		var saveBtn = document.createElement( 'button' );
-		saveBtn.textContent = 'Save Response';
-		saveBtn.style.cssText =
-			'margin-top:14px;padding:11px 28px;' +
-			'background:var(--lp-secondary-color,#442e66);color:#fff;' +
-			'border:none;border-radius:8px;font-size:1rem;font-weight:600;' +
-			'cursor:pointer;transition:background .2s;';
-		saveBtn.addEventListener( 'mouseover', function () {
-			this.style.background = 'var(--lp-primary-color,#ffb606)';
-			this.style.color = '#442e66';
-		} );
-		saveBtn.addEventListener( 'mouseout', function () {
-			this.style.background = 'var(--lp-secondary-color,#442e66)';
-			this.style.color = '#fff';
-		} );
-
-		wrapper.insertAdjacentElement( 'afterend', statusMsg );
-		statusMsg.insertAdjacentElement( 'afterend', saveBtn );
-
-		var workbookCtaWrap = document.createElement( 'div' );
-		workbookCtaWrap.id = 'lxp-workbook-cta';
-		workbookCtaWrap.style.cssText =
-			'display:none;margin-top:14px;padding:14px 16px;' +
-			'border:1px solid rgba(68,46,102,.18);border-radius:12px;' +
-			'background:rgba(68,46,102,.04);text-align:center;';
-		saveBtn.insertAdjacentElement( 'afterend', workbookCtaWrap );
-
-		// -------------------------------------------------------------------------
-		// On load: pre-fill any previously saved response.
-		// -------------------------------------------------------------------------
-		function showStatus( msg, isError ) {
-			statusMsg.textContent = msg;
-			statusMsg.style.color = isError
-				? '#c0392b'
-				: 'var(--lp-secondary-color,#442e66)';
-		}
-
-		function hideWorkbookCta() {
-			workbookCtaWrap.style.display = 'none';
-			workbookCtaWrap.innerHTML = '';
-		}
-
-		function showPreviewWorkbookBtn( workbookUrl ) {
-			if ( ! workbookUrl ) {
-				hideWorkbookCta();
-				return;
-			}
-			workbookCtaWrap.innerHTML = '';
-			var link = document.createElement( 'a' );
-			link.href = workbookUrl;
-			// prepend view icon to link text
-			var icon = document.createElement( 'span' );
-			icon.textContent = '\uD83D\uDC41\uFE0F'; // 👁️
-			link.textContent = 'Preview Workbook';
-			link.style.cssText =
-				'display:inline-block;padding:10px 16px;border-radius:8px;' +
+			// -------------------------------------------------------------------------
+			// Save button.
+			// -------------------------------------------------------------------------
+			var saveBtn = document.createElement( 'button' );
+			saveBtn.textContent = 'Save Response';
+			saveBtn.style.cssText =
+				'margin-top:14px;padding:11px 28px;' +
 				'background:var(--lp-secondary-color,#442e66);color:#fff;' +
-				'text-decoration:none;font-weight:600;font-size:.92rem;';
-			link.prepend( icon );
-			workbookCtaWrap.appendChild( link );
-			workbookCtaWrap.style.display = 'block';
-		}
-
-		fetch( vars.rest_url + 'lesson/capstone-submission?lesson_id=' + vars.lesson_id, {
-			method: 'GET',
-			headers: {
-				'X-WP-Nonce': vars.nonce
-			}
-		} )
-		.then( function ( res ) { return res.json(); } )
-		.then( function ( data ) {
-			if ( data && data.response ) {
-				quill.clipboard.dangerouslyPasteHTML( data.response );
-				showStatus( 'Last saved: ' + formatDate( data.updated_at ), false );
-				if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
-					showPreviewWorkbookBtn( data.workbook_url );
-				}
-				// Show persisted evaluation below the editor if already generated.
-				if ( data.evaluation ) {
-					renderEvaluation( data.evaluation );
-				}
-			}
-		} );
-
-		// -------------------------------------------------------------------------
-		// On Save: POST response to REST endpoint.
-		// -------------------------------------------------------------------------
-		saveBtn.addEventListener( 'click', function () {
-			var response = normalizeQuillHtml( quill.root.innerHTML ).trim();
-			if ( ! quill.getText().trim() ) {
-				showStatus( 'Please write your response before saving.', true );
-				return;
-			}
-
-			saveBtn.disabled = true;
-			saveBtn.textContent = 'Saving\u2026';
-			showStatus( '', false );
-
-			fetch( vars.rest_url + 'lesson/capstone-submission', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': vars.nonce
-				},
-				body: JSON.stringify( {
-					lesson_id: vars.lesson_id,
-					response:  response
-				} )
-			} )
-			.then( function ( res ) {
-				if ( ! res.ok ) {
-					return res.json().then( function ( err ) {
-						throw new Error( err.message || 'Server error.' );
-					} );
-				}
-				return res.json();
-			} )
-			.then( function ( data ) {
-				showStatus( 'Response saved successfully!', false );
-
-				if ( data && ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
-					showPreviewWorkbookBtn( data.workbook_url );
-				} else {
-					hideWorkbookCta();
-				}
-
-				// Fire the async evaluation request only when the response changed.
-				if ( data && data.response_changed ) {
-					// Show placeholder immediately so the user knows evaluation is on its way.
-					renderEvaluation( null );
-
-					fetch( vars.rest_url + 'lesson/capstone-evaluation', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-WP-Nonce': vars.nonce
-						},
-						body: JSON.stringify( { lesson_id: vars.lesson_id } )
-					} )
-					.then( function ( res ) { return res.json(); } )
-					.then( function ( evalData ) {
-						if ( evalData && evalData.evaluation ) {
-							renderEvaluation( evalData.evaluation );
-						} else {
-							renderEvaluation( '' );
-						}
-					} )
-					.catch( function () {
-						renderEvaluation( '' );
-					} );
-				}
-			} )
-			.catch( function ( err ) {
-				hideWorkbookCta();
-				showStatus( 'Save failed: ' + err.message, true );
-			} )
-			.finally( function () {
-				saveBtn.disabled = false;
-				saveBtn.textContent = 'Save Response';
+				'border:none;border-radius:8px;font-size:1rem;font-weight:600;' +
+				'cursor:pointer;transition:background .2s;';
+			saveBtn.addEventListener( 'mouseover', function () {
+				this.style.background = 'var(--lp-primary-color,#ffb606)';
+				this.style.color = '#442e66';
 			} );
-		} );
+			saveBtn.addEventListener( 'mouseout', function () {
+				this.style.background = 'var(--lp-secondary-color,#442e66)';
+				this.style.color = '#fff';
+			} );
+
+			wrapper.insertAdjacentElement( 'afterend', statusMsg );
+			statusMsg.insertAdjacentElement( 'afterend', saveBtn );
+
+			var workbookCtaWrap = document.createElement( 'div' );
+			workbookCtaWrap.id = 'lxp-workbook-cta';
+			workbookCtaWrap.style.cssText =
+				'display:none;margin-top:14px;padding:14px 16px;' +
+				'border:1px solid rgba(68,46,102,.18);border-radius:12px;' +
+				'background:rgba(68,46,102,.04);text-align:center;';
+			saveBtn.insertAdjacentElement( 'afterend', workbookCtaWrap );
+
+			// -------------------------------------------------------------------------
+			// On load: pre-fill any previously saved response.
+			// -------------------------------------------------------------------------
+			function showStatus( msg, isError ) {
+				statusMsg.textContent = msg;
+				statusMsg.style.color = isError
+					? '#c0392b'
+					: 'var(--lp-secondary-color,#442e66)';
+			}
+
+			function hideWorkbookCta() {
+				workbookCtaWrap.style.display = 'none';
+				workbookCtaWrap.innerHTML = '';
+			}
+
+			function showPreviewWorkbookBtn( workbookUrl ) {
+				if ( ! workbookUrl ) {
+					hideWorkbookCta();
+					return;
+				}
+				workbookCtaWrap.innerHTML = '';
+				var link = document.createElement( 'a' );
+				link.href = workbookUrl;
+				var icon = document.createElement( 'span' );
+				icon.textContent = '\uD83D\uDC41\uFE0F';
+				link.textContent = 'Preview Workbook';
+				link.style.cssText =
+					'display:inline-block;padding:10px 16px;border-radius:8px;' +
+					'background:var(--lp-secondary-color,#442e66);color:#fff;' +
+					'text-decoration:none;font-weight:600;font-size:.92rem;';
+				link.prepend( icon );
+				workbookCtaWrap.appendChild( link );
+				workbookCtaWrap.style.display = 'block';
+			}
+
+			fetch( vars.rest_url + 'lesson/capstone-submission?lesson_id=' + vars.lesson_id, {
+				method: 'GET',
+				headers: {
+					'X-WP-Nonce': vars.nonce
+				}
+			} )
+			.then( function ( res ) { return res.json(); } )
+			.then( function ( data ) {
+				if ( data && data.response ) {
+					editorApi.setHtml( data.response );
+					showStatus( 'Last saved: ' + formatDate( data.updated_at ), false );
+					if ( ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
+						showPreviewWorkbookBtn( data.workbook_url );
+					}
+					if ( data.evaluation ) {
+						renderEvaluation( data.evaluation );
+					}
+				}
+			} );
+
+			// -------------------------------------------------------------------------
+			// On Save: POST response to REST endpoint.
+			// -------------------------------------------------------------------------
+			saveBtn.addEventListener( 'click', function () {
+				var response = normalizeEditorHtml( editorApi.getHtml() ).trim();
+				if ( ! editorApi.getText().trim() ) {
+					showStatus( 'Please write your response before saving.', true );
+					return;
+				}
+
+				saveBtn.disabled = true;
+				saveBtn.textContent = 'Saving\u2026';
+				showStatus( '', false );
+
+				fetch( vars.rest_url + 'lesson/capstone-submission', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-WP-Nonce': vars.nonce
+					},
+					body: JSON.stringify( {
+						lesson_id: vars.lesson_id,
+						response:  response
+					} )
+				} )
+				.then( function ( res ) {
+					if ( ! res.ok ) {
+						return res.json().then( function ( err ) {
+							throw new Error( err.message || 'Server error.' );
+						} );
+					}
+					return res.json();
+				} )
+				.then( function ( data ) {
+					showStatus( 'Response saved successfully!', false );
+
+					if ( data && ( data.is_last_lesson_in_sequence || data.is_workbook_lesson ) && data.workbook_url ) {
+						showPreviewWorkbookBtn( data.workbook_url );
+					} else {
+						hideWorkbookCta();
+					}
+
+					if ( data && data.response_changed ) {
+						renderEvaluation( null );
+
+						fetch( vars.rest_url + 'lesson/capstone-evaluation', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								'X-WP-Nonce': vars.nonce
+							},
+							body: JSON.stringify( { lesson_id: vars.lesson_id } )
+						} )
+						.then( function ( res ) { return res.json(); } )
+						.then( function ( evalData ) {
+							if ( evalData && evalData.evaluation ) {
+								renderEvaluation( evalData.evaluation );
+							} else {
+								renderEvaluation( '' );
+							}
+						} )
+						.catch( function () {
+							renderEvaluation( '' );
+						} );
+					}
+				} )
+				.catch( function ( err ) {
+					hideWorkbookCta();
+					showStatus( 'Save failed: ' + err.message, true );
+				} )
+				.finally( function () {
+					saveBtn.disabled = false;
+					saveBtn.textContent = 'Save Response';
+				} );
+			} );
+
+			function createEditorAdapter( editorWrapper ) {
+				if ( 'function' === typeof window.Quill ) {
+					var quill = new window.Quill( editorWrapper, {
+						theme: 'snow',
+						placeholder: 'Write your capstone response here\u2026',
+						modules: {
+							toolbar: [
+								[ 'bold', 'italic', 'underline' ],
+								[ { list: 'ordered' }, { list: 'bullet' } ],
+							],
+						},
+					} );
+
+					var quillEditorEl = editorWrapper.querySelector( '.ql-editor' );
+					if ( quillEditorEl ) {
+						quillEditorEl.style.minHeight = '200px';
+					}
+
+					return {
+						setHtml: function ( html ) {
+							quill.clipboard.dangerouslyPasteHTML( html || '' );
+						},
+						getHtml: function () {
+							return quill.root.innerHTML;
+						},
+						getText: function () {
+							return quill.getText();
+						}
+					};
+				}
+
+				var fallbackEditor = document.createElement( 'div' );
+				fallbackEditor.contentEditable = 'true';
+				fallbackEditor.setAttribute( 'role', 'textbox' );
+				fallbackEditor.setAttribute( 'aria-label', 'Capstone response editor' );
+				fallbackEditor.setAttribute( 'data-placeholder', 'Write your capstone response here...' );
+				fallbackEditor.style.cssText =
+					'min-height:200px;padding:14px 16px;outline:none;line-height:1.6;' +
+					'white-space:pre-wrap;';
+				editorWrapper.appendChild( fallbackEditor );
+
+				return {
+					setHtml: function ( html ) {
+						fallbackEditor.innerHTML = html || '';
+					},
+					getHtml: function () {
+						return fallbackEditor.innerHTML;
+					},
+					getText: function () {
+						return fallbackEditor.textContent || '';
+					}
+				};
+			}
+		}
 
 		// -------------------------------------------------------------------------
 		// Helpers
@@ -262,7 +337,11 @@
 		 * split each <ol> into runs of <ul> (bullet) and <ol> (ordered) so
 		 * standard HTML is stored in the DB and renders correctly everywhere.
 		 */
-		function normalizeQuillHtml( html ) {
+		function normalizeEditorHtml( html ) {
+			if ( 'function' !== typeof window.Quill ) {
+				return html;
+			}
+
 			var temp = document.createElement( 'div' );
 			temp.innerHTML = html;
 

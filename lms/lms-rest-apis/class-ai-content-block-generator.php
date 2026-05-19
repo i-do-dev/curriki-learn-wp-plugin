@@ -49,7 +49,7 @@ class TL_AI_Content_Block_Generator {
 
 		return rest_ensure_response(
 			array(
-				'content'         => implode( "\n", $rendered_segments ),
+				'content'         => '<div class="lp-ai-lesson-template" style="max-width:980px;margin:0 auto;font-family:inherit;">' . "\n" . implode( "\n", $rendered_segments ) . "\n" . '</div>',
 				'blocks_rendered' => $rendered_count,
 				'errors'          => $errors,
 			)
@@ -514,6 +514,11 @@ class TL_AI_Content_Block_Generator {
 				break;
 		}
 
+		// Capstone override: [Capstone Box] is a runtime sentinel, not a content placeholder.
+		if ( 'capstone' === $block_type ) {
+			$policy_instruction = ' Fill [CAPSTONE_PROMPT] with the activity prompt derived from the author notes. CRITICAL: the text [Capstone Box] inside <div class="lxp-capstone-box"> is a protected runtime sentinel — output it verbatim exactly as written. Do NOT replace, remove, modify, or substitute [Capstone Box] under any circumstances.';
+		}
+
 		return 'You are an expert instructional designer formatting one lesson section at a time.'
 			. $title_instruction
 			. $context_instruction
@@ -524,7 +529,7 @@ class TL_AI_Content_Block_Generator {
 			. 'Replace every [PLACEHOLDER] token with content derived from the provided source text. '
 			. 'Preserve every inline style exactly as written. '
 			. 'Do not add scripts, classes, external assets, or extra sections. '
-			. 'If the section contains [Capstone Box], preserve that sentinel exactly as written. '
+			. 'If the template contains [Capstone Box], it is a protected runtime sentinel — output it verbatim and do NOT treat it as a regular [PLACEHOLDER] to fill. '
 			. 'Keep the result concise and aligned to a total page reading time under 15 minutes.';
 	}
 
