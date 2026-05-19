@@ -51,21 +51,50 @@
 #lxp-ai-content-gen-btn,
 #lxp-ai-blocks-gen-btn,
 #lxp-ai-block-picker-btn,
-#lxp-ai-content-reset-btn,
-.lxp-ai-doc-link {
+#lxp-ai-content-reset-btn {
   display: block;
   width: 100%;
   text-align: center;
   box-sizing: border-box;
 }
 
-.lxp-ai-doc-link {
-  text-decoration: none;
+/* Picker row: button left, help icon right */
+.lxp-ai-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.lxp-ai-doc-link:focus,
-.lxp-ai-doc-link:hover {
+.lxp-ai-picker-row #lxp-ai-block-picker-btn {
+  flex: 1;
+}
+
+.lxp-ai-doc-help-link {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: rgba(68, 46, 102, 0.45);
   text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.lxp-ai-doc-help-link:hover,
+.lxp-ai-doc-help-link:focus {
+  color: #442e66;
+  background: rgba(68, 46, 102, 0.1);
+  text-decoration: none;
+  outline: none;
+}
+
+.lxp-ai-doc-help-link .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
 }
 
 #lxp-ai-content-gen-btn:disabled,
