@@ -72,6 +72,7 @@ class TL_AI_Content_Block_Generator {
 		$prose_lines   = array();
 		$content       = preg_replace( '#</p>\s*<p>#i', "</p>\n<p>", (string) $content );
 		$content       = preg_replace( '#<br\s*/?>#i', "<br />\n", $content );
+		$content       = preg_replace( '#(<(?:span|ul|ol|li|p|h[1-6]|blockquote|div|section)\b)#i', "\n$1", $content );
 		$lines         = preg_split( '/\r\n|\r|\n/', $content );
 
 		foreach ( $lines as $line ) {
