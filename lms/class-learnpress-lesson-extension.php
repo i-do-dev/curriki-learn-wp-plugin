@@ -158,7 +158,7 @@ class TL_LearnPress_Lesson_Extension {
 		<div class="lxp-ai-action-group lxp-ai-action-group-reset">
 			<p class="lxp-ai-action-row">
 				<button type="button" id="lxp-ai-content-reset-btn" class="button">
-					<?php echo esc_html__( 'Reset Editor to Original Content', 'tiny-lxp-platform' ); ?>
+					<?php echo esc_html__( 'Restore Last Pre-AI Content', 'tiny-lxp-platform' ); ?>
 				</button>
 			</p>
 		</div>

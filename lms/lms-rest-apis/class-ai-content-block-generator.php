@@ -17,7 +17,7 @@ class TL_AI_Content_Block_Generator {
 			return $validation;
 		}
 
-		TL_AI_Content_Request_Helper::maybe_backup_original_content( $post_id );
+		TL_AI_Content_Request_Helper::persist_generation_input_backup( $post_id, $lesson_content );
 
 		$lesson_title      = get_the_title( $post_id );
 		$segments          = self::parse_block_markers( wp_unslash( $lesson_content ) );

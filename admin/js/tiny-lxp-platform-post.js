@@ -450,12 +450,12 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         return;
       }
 
-      if (!confirm('Restore the original lesson content? Any unsaved AI-generated content will be replaced.')) {
+      if (!confirm('Restore the last pre-AI lesson content? Any unsaved AI-generated content will be replaced.')) {
         return;
       }
 
       tinyLxpSetAiButtonsDisabled(true);
-      tinyLxpSetAiStatus('Restoring original content\u2026', false);
+      tinyLxpSetAiStatus('Restoring last pre-AI content\u2026', false);
 
       jQuery.ajax({
         type: 'get',
@@ -465,10 +465,10 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         success: function (response) {
           var html = response && response.content ? response.content : '';
           tinyLxpSetEditorContent(html);
-          tinyLxpSetAiStatus('Original content restored. Click \u201cUpdate\u201d to save.', false);
+          tinyLxpSetAiStatus('Last pre-AI content restored. Click \u201cUpdate\u201d to save.', false);
         },
         error: function (xhr) {
-          var msg = 'No original backup found.';
+          var msg = 'No pre-AI backup found.';
           try {
             var body = JSON.parse(xhr.responseText);
             if (body && body.message) {
