@@ -419,9 +419,10 @@ class TL_AI_Content_Block_Generator {
 	 * @return string|WP_Error
 	 */
 	private static function render_block( $type, $content, $post_id, $lesson_title = '', $lesson_context = '' ) {
-		$type           = strtolower( trim( (string) $type ) );
-		$raw_content    = trim( (string) $content );
-		$template_title = $lesson_title;
+		$type               = strtolower( trim( (string) $type ) );
+		$raw_content        = trim( (string) $content );
+		$normalized_content = self::normalize_block_content( $raw_content );
+		$template_title     = $lesson_title;
 
 		if ( 'prose' === $type ) {
 			return self::render_prose_block( $raw_content );
@@ -433,7 +434,7 @@ class TL_AI_Content_Block_Generator {
 
 		$template_html = TL_AI_Content_Template_Library::get_block_template(
 			$type,
-			'numbered-grid' === $type ? TL_AI_Content_Template_Library::detect_component_count( $raw_content ) : 0
+			'numbered-grid' === $type ? TL_AI_Content_Template_Library::detect_component_count( $normalized_content ) : 0
 		);
 
 		if ( empty( $template_html ) ) {
@@ -441,7 +442,7 @@ class TL_AI_Content_Block_Generator {
 		}
 
 		$system_prompt = self::build_block_system_prompt( $type, $template_title, $lesson_context );
-		$user_prompt   = self::build_block_user_message( $type, $raw_content, $template_html, $template_title );
+		$user_prompt   = self::build_block_user_message( $type, $normalized_content, $template_html, $template_title );
 		$result        = TL_AWS_Bedrock_Client::invoke_bedrock( $user_prompt, $system_prompt, 2048 );
 
 		if ( is_wp_error( $result ) ) {
@@ -460,6 +461,37 @@ class TL_AI_Content_Block_Generator {
 	private static function normalize_marker_line( $line ) {
 		$normalized = html_entity_decode( trim( wp_strip_all_tags( (string) $line ) ), ENT_QUOTES, 'UTF-8' );
 		return preg_replace( '/\x{00a0}/u', ' ', $normalized );
+	}
+
+	/**
+	 * Normalize editor-formatted block content into readable plain text.
+	 *
+	 * Preserves list and paragraph boundaries so downstream item detection
+	 * and AI prompting operate on author text instead of raw HTML markup.
+	 *
+	 * @param  string $content
+	 * @return string
+	 */
+	private static function normalize_block_content( $content ) {
+		$content = trim( (string) $content );
+
+		if ( '' === $content ) {
+			return '';
+		}
+
+		$content = preg_replace( '#<br\s*/?>#i', "\n", $content );
+		$content = preg_replace( '#<li\b[^>]*>#i', "\n- ", $content );
+		$content = preg_replace( '#</li\s*>#i', "\n", $content );
+		$content = preg_replace( '#</(p|div|section|blockquote|h[1-6]|tr|table|thead|tbody|ul|ol)\s*>#i', "$0\n", $content );
+
+		$normalized = html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES, 'UTF-8' );
+		$normalized = preg_replace( '/\x{00a0}/u', ' ', $normalized );
+		$normalized = preg_replace( "/\r\n?|\f/u", "\n", $normalized );
+		$normalized = preg_replace( '/[ \t]+\n/', "\n", $normalized );
+		$normalized = preg_replace( '/\n[ \t]+/', "\n", $normalized );
+		$normalized = preg_replace( "/\n{3,}/", "\n\n", $normalized );
+
+		return trim( $normalized );
 	}
 
 	/**
@@ -625,7 +657,7 @@ class TL_AI_Content_Block_Generator {
 			if ( 'prose' === $seg['type'] ) {
 				continue;
 			}
-			$lines[] = '[' . $seg['type'] . '] ' . wp_strip_all_tags( $seg['content'] );
+			$lines[] = '[' . $seg['type'] . '] ' . self::normalize_block_content( $seg['content'] );
 		}
 		return implode( "\n", $lines );
 	}
