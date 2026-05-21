@@ -510,6 +510,10 @@ class TL_AI_Content_Block_Generator {
 			return;
 		}
 
+		if ( 'prose' === $type && '' === self::normalize_block_content( $content ) ) {
+			return;
+		}
+
 		$segments[] = array(
 			'type'    => $type,
 			'content' => $content,
