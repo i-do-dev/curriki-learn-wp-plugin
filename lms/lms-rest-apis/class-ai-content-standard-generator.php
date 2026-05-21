@@ -5,9 +5,9 @@ class TL_AI_Content_Standard_Generator {
 	/**
 	 * Generate a richly formatted HTML lesson page via AWS Bedrock.
 	 *
-	 * Backs up the current post_content to meta (once, on first generation)
-	 * before returning AI-generated HTML. The caller is responsible for saving
-	 * the returned content to post_content - it is not auto-saved here.
+	 * Persists the latest pre-AI editor content to meta before returning
+	 * AI-generated HTML. The caller is responsible for saving the returned
+	 * content to post_content - it is not auto-saved here.
 	 *
 	 * @param  WP_REST_Request $request Required params: post_id (int), lesson_content (string).
 	 * @return WP_REST_Response|WP_Error
@@ -21,7 +21,7 @@ class TL_AI_Content_Standard_Generator {
 			return $validation;
 		}
 
-		TL_AI_Content_Request_Helper::maybe_backup_original_content( $post_id );
+		TL_AI_Content_Request_Helper::persist_generation_input_backup( $post_id, $lesson_content );
 
 		$lesson_title      = get_the_title( $post_id );
 		$sanitized_content = sanitize_textarea_field( wp_unslash( $lesson_content ) );

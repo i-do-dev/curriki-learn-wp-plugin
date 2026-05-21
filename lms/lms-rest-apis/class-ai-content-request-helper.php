@@ -25,24 +25,25 @@ class TL_AI_Content_Request_Helper {
 	}
 
 	/**
-	 * Persist the first-seen original lesson content only once.
+	 * Persist the latest pre-AI lesson content from the editor request.
 	 *
-	 * @param int $post_id
+	 * @param int    $post_id
+	 * @param string $lesson_content
 	 */
-	public static function maybe_backup_original_content( $post_id ) {
-		$existing_backup = get_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, true );
-		if ( ! empty( $existing_backup ) ) {
+	public static function persist_generation_input_backup( $post_id, $lesson_content ) {
+		if ( $post_id <= 0 ) {
 			return;
 		}
 
-		$post = get_post( $post_id );
-		if ( $post && ! empty( $post->post_content ) ) {
-			update_post_meta( $post_id, self::ORIGINAL_CONTENT_META_KEY, $post->post_content );
-		}
+		update_post_meta(
+			$post_id,
+			self::ORIGINAL_CONTENT_META_KEY,
+			wp_unslash( (string) $lesson_content )
+		);
 	}
 
 	/**
-	 * Return the original lesson content that was backed up before the first AI generation.
+	 * Return the latest pre-AI lesson content that was backed up before generation.
 	 *
 	 * @param  WP_REST_Request $request  Required param: post_id (int).
 	 * @return WP_REST_Response|WP_Error
