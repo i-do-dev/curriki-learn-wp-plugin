@@ -72,7 +72,11 @@ class Tiny_LXP_Platform_Admin
             wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/tiny-lxp-platform-post.css', array(), $this->version);
             wp_enqueue_script("script-ck-editor", 'https://cdn.ckeditor.com/4.20.1/full/ckeditor.js', array(), $this->version);
             wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/tiny-lxp-platform-post.js', array('wp-element', 'wp-editor', 'wp-rich-text'), $this->version, false);
-        } elseif (($hook === "settings_page_{$this->plugin_name}-settings") || ($hook === "settings_page_{$this->plugin_name}-edit")) {
+        } elseif (
+            ($hook === "settings_page_{$this->plugin_name}-settings") ||
+            ($hook === "settings_page_{$this->plugin_name}-edit") ||
+            ($hook === "curriki-learn_page_{$this->plugin_name}-settings")
+        ) {
             wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/tiny-lxp-platform-settings.js');
         }
     }
@@ -328,6 +332,15 @@ class Tiny_LXP_Platform_Admin
 
 		add_submenu_page(
 			'curriki-learn',
+            __( 'Remotion Lambda Settings', 'tiny-lxp-platform' ),
+            __( 'Remotion Lambda Settings', 'tiny-lxp-platform' ),
+            'manage_options',
+            Tiny_LXP_Platform::get_plugin_name() . '-settings',
+            array( $this, 'options_page_html' )
+        );
+
+        add_submenu_page(
+            'curriki-learn',
 			__( 'Block Reference', 'tiny-lxp-platform' ),
 			__( 'Block Reference', 'tiny-lxp-platform' ),
 			'manage_options',
