@@ -75,7 +75,7 @@ class Tiny_LXP_Platform_Admin
         } elseif (
             ($hook === "settings_page_{$this->plugin_name}-settings") ||
             ($hook === "settings_page_{$this->plugin_name}-edit") ||
-            ($hook === "curriki-learn_page_{$this->plugin_name}-settings")
+            ($hook === 'curriki-learn_page_curriki-learn-remotion-settings')
         ) {
             wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/tiny-lxp-platform-settings.js');
         }
@@ -335,8 +335,8 @@ class Tiny_LXP_Platform_Admin
             __( 'Remotion Lambda Settings', 'tiny-lxp-platform' ),
             __( 'Remotion Lambda Settings', 'tiny-lxp-platform' ),
             'manage_options',
-            Tiny_LXP_Platform::get_plugin_name() . '-settings',
-            array( $this, 'options_page_html' )
+            'curriki-learn-remotion-settings',
+            array( $this, 'remotion_settings_page_html' )
         );
 
         add_submenu_page(
@@ -841,6 +841,59 @@ class Tiny_LXP_Platform_Admin
         settings_errors(Tiny_LXP_Platform::get_plugin_name() . '_messages');
 
         require_once(plugin_dir_path(dirname(__FILE__)) . 'admin/partials/tiny-lxp-platform-admin-settings.php');
+    }
+
+    public function remotion_settings_page_html()
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        settings_errors();
+
+        echo('<div class="wrap">' . "\n");
+        echo('  <h1>' . esc_html__( 'Remotion Lambda Settings', 'tiny-lxp-platform' ) . '</h1>' . "\n");
+        echo('  <form action="' . esc_url( 'options.php' ) . '" method="post">' . "\n");
+
+        settings_fields('tiny-lxp-platform');
+
+        echo('    <table class="form-table" role="presentation">' . "\n");
+        echo('      <tbody>' . "\n");
+
+        echo('        <tr>' . "\n");
+        echo('          <th scope="row" colspan="2">');
+        $this->section_remotion();
+        echo('          </th>' . "\n");
+        echo('        </tr>' . "\n");
+
+        echo('        <tr>' . "\n");
+        echo('          <th scope="row"><label for="tl_remotion_region">' . esc_html__( 'AWS Region', 'tiny-lxp-platform' ) . '</label></th>' . "\n");
+        echo('          <td>');
+        $this->field_remotion_region();
+        echo('          </td>' . "\n");
+        echo('        </tr>' . "\n");
+
+        echo('        <tr>' . "\n");
+        echo('          <th scope="row"><label for="tl_remotion_function_name">' . esc_html__( 'Lambda Function Name', 'tiny-lxp-platform' ) . '</label></th>' . "\n");
+        echo('          <td>');
+        $this->field_remotion_function_name();
+        echo('          </td>' . "\n");
+        echo('        </tr>' . "\n");
+
+        echo('        <tr>' . "\n");
+        echo('          <th scope="row"><label for="tl_remotion_serve_url">' . esc_html__( 'Remotion Serve URL', 'tiny-lxp-platform' ) . '</label></th>' . "\n");
+        echo('          <td>');
+        $this->field_remotion_serve_url();
+        echo('          </td>' . "\n");
+        echo('        </tr>' . "\n");
+
+        echo('      </tbody>' . "\n");
+        echo('    </table>' . "\n");
+
+        submit_button();
+
+        echo('  </form>' . "\n");
+        echo('</div>' . "\n");
     }
 
     public function view_page_html()
