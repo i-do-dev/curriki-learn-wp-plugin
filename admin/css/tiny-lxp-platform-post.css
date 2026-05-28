@@ -180,6 +180,68 @@
   color: #cc0000;
 }
 
+/* -------------------------------------------------------------------------
+   AI Video Generation — metabox section + modal
+   ------------------------------------------------------------------------- */
+
+.lxp-ai-action-group-video {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.05), #fff 55%);
+}
+
+#lxp-ai-video-open-modal-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#lxp-ai-video-open-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lxp-ai-video-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-weight: 600;
+  color: #1a7e1a;
+  text-decoration: none;
+}
+
+.lxp-ai-video-link:hover {
+  text-decoration: underline;
+}
+
+/* Modal overlay — the outer fixed container is inline-styled from PHP */
+.lxp-ai-video-modal-overlay {
+  cursor: default;
+}
+
+/* Modal panel — inline-styled from PHP; these add micro-detail */
+.lxp-ai-video-modal-panel textarea {
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.lxp-ai-video-modal-panel textarea:focus {
+  border-color: #2271b1;
+  outline: none;
+  box-shadow: 0 0 0 1px #2271b1;
+}
+
+#lxp-ai-video-generate-btn {
+  box-sizing: border-box;
+}
+
+#lxp-ai-video-generate-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .tiny-lxp-platform-modal {
   display: none;
   position: fixed;
