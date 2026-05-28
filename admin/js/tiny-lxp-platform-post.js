@@ -500,6 +500,15 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       }
     });
 
+    // Insert layout block marker into video prompt textarea
+    $('body').on('click', '#lxp-video-insert-block-btn', function () {
+      var slug = $('#lxp-video-layout-picker').val();
+      if (slug) {
+        lxpInsertVideoBlock(slug);
+        $('#lxp-video-layout-picker').val('');
+      }
+    });
+
     // Generate video — call REST endpoint then start polling
     $('body').on('click', '#lxp-ai-video-generate-btn', function () {
       var postId = $('#lxp-ai-gen-post-id').val();
@@ -656,6 +665,22 @@ function tinyLxpSetEditorContent(html) {
 // Video render polling — called after a successful trigger_video_render POST.
 // Polls every 5 s; updates modal status and the metabox status div on completion.
 // ---------------------------------------------------------------------------
+function lxpInsertVideoBlock(slug) {
+  var ta = document.getElementById('lxp-ai-video-prompt');
+  if (!ta) { return; }
+  var start  = ta.selectionStart;
+  var end    = ta.selectionEnd;
+  var before = ta.value.substring(0, start);
+  var after  = ta.value.substring(end);
+  var prefix = (before.length > 0 && !/\n$/.test(before)) ? '\n\n' : '';
+  var block  = prefix + ':::' + slug + '\n\n:::';
+  ta.value   = before + block + '\n' + after;
+  // Position cursor on the blank line inside the block (after :::slug\n)
+  var cursorPos = start + prefix.length + 4 + slug.length;
+  ta.setSelectionRange(cursorPos, cursorPos);
+  ta.focus();
+}
+
 function lxpPollVideoStatus(postId, renderId) { // renderId kept for future use
   var pollInterval = setInterval(function () {
     jQuery.ajax({
