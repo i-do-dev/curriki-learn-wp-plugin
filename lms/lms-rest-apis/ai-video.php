@@ -25,7 +25,7 @@ class Rest_Lxp_AI_Video {
 	const META_URL       = 'lxp_lesson_video_url';
 
 	public static function init() {
-		add_action( 'rest_api_init', array( 'Rest_Lxp_AI_Video', 'register_routes' ) );
+		self::register_routes();
 	}
 
 	public static function register_routes() {
