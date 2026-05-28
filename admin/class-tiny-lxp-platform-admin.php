@@ -678,6 +678,25 @@ class Tiny_LXP_Platform_Admin
         add_settings_field('field_privatekey', __('Private key', Tiny_LXP_Platform::get_plugin_name()), array($this, 'field_textarea'),
             Tiny_LXP_Platform::get_plugin_name(), 'section_security',
             array('class' => 'row', 'label_for' => 'id_privatekey', 'name' => 'privatekey', 'options' => $options));
+        // Register Remotion Lambda settings
+        register_setting( 'tiny-lxp-platform', 'tl_remotion_region', array( 'sanitize_callback' => 'sanitize_text_field', 'default' => 'us-east-2' ) );
+        register_setting( 'tiny-lxp-platform', 'tl_remotion_function_name', array( 'sanitize_callback' => 'sanitize_text_field', 'default' => '' ) );
+        register_setting( 'tiny-lxp-platform', 'tl_remotion_serve_url', array( 'sanitize_callback' => 'esc_url_raw', 'default' => '' ) );
+
+        add_settings_section(
+            'section_remotion', __( 'Remotion Lambda Settings', Tiny_LXP_Platform::get_plugin_name() ), array( $this, 'section_remotion' ),
+            Tiny_LXP_Platform::get_plugin_name()
+        );
+        add_settings_field( 'field_remotion_region', __( 'AWS Region', Tiny_LXP_Platform::get_plugin_name() ),
+            array( $this, 'field_remotion_region' ), Tiny_LXP_Platform::get_plugin_name(), 'section_remotion',
+            array( 'class' => 'row', 'label_for' => 'tl_remotion_region' ) );
+        add_settings_field( 'field_remotion_function_name', __( 'Lambda Function Name', Tiny_LXP_Platform::get_plugin_name() ),
+            array( $this, 'field_remotion_function_name' ), Tiny_LXP_Platform::get_plugin_name(), 'section_remotion',
+            array( 'class' => 'row', 'label_for' => 'tl_remotion_function_name' ) );
+        add_settings_field( 'field_remotion_serve_url', __( 'Remotion Serve URL', Tiny_LXP_Platform::get_plugin_name() ),
+            array( $this, 'field_remotion_serve_url' ), Tiny_LXP_Platform::get_plugin_name(), 'section_remotion',
+            array( 'class' => 'row', 'label_for' => 'tl_remotion_serve_url' ) );
+
         // Register a new setting for 'edlink' options
         register_setting('edlink_options_group', 'edlink_options');
         
@@ -734,6 +753,32 @@ class Tiny_LXP_Platform_Admin
     public function section_security()
     {
 
+    }
+
+    public function section_remotion()
+    {
+        echo '<p>' . esc_html__( 'Configure the Remotion Lambda deployment that renders AI lesson videos. Run the deploy commands in remotion-video-service/ to obtain these values.', 'tiny-lxp-platform' ) . '</p>';
+    }
+
+    public function field_remotion_region()
+    {
+        $val = get_option( 'tl_remotion_region', 'us-east-2' );
+        echo '<input id="tl_remotion_region" type="text" name="tl_remotion_region" value="' . esc_attr( $val ) . '" class="regular-text" placeholder="us-east-2" />';
+        echo '<p class="description">' . esc_html__( 'AWS region where the Lambda function is deployed (e.g. us-east-2).', 'tiny-lxp-platform' ) . '</p>';
+    }
+
+    public function field_remotion_function_name()
+    {
+        $val = get_option( 'tl_remotion_function_name', '' );
+        echo '<input id="tl_remotion_function_name" type="text" name="tl_remotion_function_name" value="' . esc_attr( $val ) . '" class="regular-text" placeholder="remotion-render-4-0-467-mem2048mb-disk2048mb-120sec" />';
+        echo '<p class="description">' . esc_html__( 'Function name returned by: npx remotion lambda functions deploy', 'tiny-lxp-platform' ) . '</p>';
+    }
+
+    public function field_remotion_serve_url()
+    {
+        $val = get_option( 'tl_remotion_serve_url', '' );
+        echo '<input id="tl_remotion_serve_url" type="url" name="tl_remotion_serve_url" value="' . esc_attr( $val ) . '" class="regular-text" placeholder="https://s3.amazonaws.com/remotionlambda-xxx/sites/currikilearnai/index.html" />';
+        echo '<p class="description">' . esc_html__( 'Serve URL returned by: npx remotion lambda sites create src/index.ts --site-name=currikilearnai', 'tiny-lxp-platform' ) . '</p>';
     }
 
     public function field_checkbox($args)

@@ -118,6 +118,7 @@ class TL_LearnPress_Lesson_Extension {
 		$block_reference_url = admin_url( 'admin.php?page=curriki-learn-block-reference' );
 		?>
 		<input type="hidden" id="lxp-ai-gen-post-id" value="<?php echo esc_attr( $post->ID ); ?>" />
+		<input type="hidden" id="lxp-ai-video-post-title" value="<?php echo esc_attr( get_the_title( $post->ID ) ); ?>" />
 		<div class="lxp-ai-action-group lxp-ai-action-group-primary">
 			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Generate Full Lesson Layout', 'tiny-lxp-platform' ); ?></h4>
 			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use this when you want AI to transform the current lesson content into a complete lesson page in one pass.', 'tiny-lxp-platform' ); ?></p>
@@ -162,7 +163,40 @@ class TL_LearnPress_Lesson_Extension {
 				</button>
 			</p>
 		</div>
+		<div class="lxp-ai-action-group lxp-ai-action-group-video">
+			<h4 class="lxp-ai-action-title"><?php echo esc_html__( 'Generate Lesson Video', 'tiny-lxp-platform' ); ?></h4>
+			<p class="lxp-ai-action-help"><?php echo esc_html__( 'Use AI to generate a 60-second animated lesson video via Remotion Lambda.', 'tiny-lxp-platform' ); ?></p>
+			<p class="lxp-ai-action-row">
+				<button type="button" id="lxp-ai-video-open-modal-btn" class="button button-primary">
+					<?php echo esc_html__( 'Generate Video', 'tiny-lxp-platform' ); ?>
+				</button>
+			</p>
+			<div id="lxp-ai-video-status" style="margin-top:8px;font-size:12px;line-height:1.5;">
+				<?php
+				$video_url = get_post_meta( $post->ID, 'lxp_lesson_video_url', true );
+				if ( $video_url ) {
+					echo '<a href="' . esc_url( $video_url ) . '" target="_blank" rel="noopener" class="lxp-ai-video-link">&#9654; Play Last Generated Video</a>';
+				}
+				?>
+			</div>
+		</div>
+
 		<div id="lxp-ai-content-status" style="margin-top: 8px; font-size: 12px; line-height: 1.5;"></div>
+
+		<!-- AI Video Modal -->
+		<div id="lxp-ai-video-modal" style="display:none;position:fixed;inset:0;z-index:100000;" role="dialog" aria-modal="true" aria-labelledby="lxp-ai-video-modal-title">
+			<div class="lxp-ai-video-modal-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
+			<div class="lxp-ai-video-modal-panel" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:10px;padding:28px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.22);">
+				<button type="button" id="lxp-ai-video-modal-close" aria-label="<?php echo esc_attr__( 'Close', 'tiny-lxp-platform' ); ?>" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#50575e;line-height:1;">&times;</button>
+				<h3 id="lxp-ai-video-modal-title" style="margin:0 0 14px;font-size:16px;"><?php echo esc_html__( 'Describe the Lesson Content', 'tiny-lxp-platform' ); ?></h3>
+				<p style="font-size:12px;color:#50575e;margin:0 0 10px;"><?php echo esc_html__( 'This text is sent to AI to generate 8 animated scenes. Edit or expand it for better results.', 'tiny-lxp-platform' ); ?></p>
+				<textarea id="lxp-ai-video-prompt" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;resize:vertical;"></textarea>
+				<p style="margin:12px 0 0;">
+					<button type="button" id="lxp-ai-video-generate-btn" class="button button-primary" style="width:100%;"><?php echo esc_html__( 'Generate Video', 'tiny-lxp-platform' ); ?></button>
+				</p>
+				<div id="lxp-ai-video-modal-status" style="margin-top:10px;font-size:12px;line-height:1.5;color:#50575e;"></div>
+			</div>
+		</div>
 		<?php
 	}
 

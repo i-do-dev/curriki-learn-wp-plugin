@@ -1,0 +1,23 @@
+{
+  "name": "tinylxp-lesson-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "npx remotion studio",
+    "deploy-function": "REMOTION_SKIP_AWS_CREDENTIALS_CHECK=1 npx remotion lambda functions deploy --region=us-east-2",
+    "deploy-site": "REMOTION_SKIP_AWS_CREDENTIALS_CHECK=1 npx remotion lambda sites create src/index.ts --site-name=currikilearnai --region=us-east-2"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.467",
+    "@remotion/lambda": "4.0.467",
+    "remotion": "4.0.467",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}

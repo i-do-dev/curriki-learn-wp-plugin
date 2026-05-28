@@ -2,6 +2,7 @@
 
 require_once( LMS__PLUGIN_DIR . '../includes/class-aws-bedrock-client.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-content.php' );
+require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/ai-video.php' );
 require_once( LMS__PLUGIN_DIR . 'repositories/class-workbook-submission-repository.php' );
 require_once( LMS__PLUGIN_DIR . 'lms-rest-apis/workbook-submissions.php' );
 require_once( LMS__PLUGIN_DIR . 'repositories/class-capstone-submission-repository.php' );
@@ -78,6 +79,7 @@ class LMS_REST_API
 		Rest_Lxp_Workbook_Submission::init();
 		Rest_Lxp_Capstone_Submission::init();
 		Rest_Lxp_Policy_Document::init();
+		Rest_Lxp_AI_Video::init();
 
 		register_rest_route('lms/v1', '/scores', array(
 			array(

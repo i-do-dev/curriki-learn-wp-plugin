@@ -483,6 +483,60 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       });
     });
 
+    // ── AI Video Generation ────────────────────────────────────────────────
+
+    // Open modal — pre-fill textarea with post title
+    $('body').on('click', '#lxp-ai-video-open-modal-btn', function () {
+      var title = $('#lxp-ai-video-post-title').val() || '';
+      $('#lxp-ai-video-prompt').val(title);
+      $('#lxp-ai-video-modal-status').text('');
+      $('#lxp-ai-video-modal').show();
+    });
+
+    // Close modal via X button or overlay click
+    $('body').on('click', '#lxp-ai-video-modal-close, .lxp-ai-video-modal-overlay', function (e) {
+      if ($(e.target).is('#lxp-ai-video-modal-close') || $(e.target).is('.lxp-ai-video-modal-overlay')) {
+        $('#lxp-ai-video-modal').hide();
+      }
+    });
+
+    // Generate video — call REST endpoint then start polling
+    $('body').on('click', '#lxp-ai-video-generate-btn', function () {
+      var postId = $('#lxp-ai-gen-post-id').val();
+      var prompt = $('#lxp-ai-video-prompt').val().trim();
+      if (!prompt) {
+        $('#lxp-ai-video-modal-status').text('Please describe the lesson content.');
+        return;
+      }
+      tinyLxpSetAiButtonsDisabled(true);
+      $('#lxp-ai-video-modal-status').text('Generating video script via AI…');
+      jQuery.ajax({
+        type: 'post',
+        dataType: 'json',
+        url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video',
+        contentType: 'application/json',
+        data: JSON.stringify({ post_id: parseInt(postId, 10), prompt: prompt }),
+        success: function (response) {
+          if (response && response.render_id) {
+            $('#lxp-ai-video-modal-status').text('Rendering video on AWS \u2014 this may take 60\u201390 seconds\u2026');
+            lxpPollVideoStatus(postId, response.render_id);
+          } else {
+            tinyLxpSetAiButtonsDisabled(false);
+            $('#lxp-ai-video-modal-status').text('Unexpected response from server. Please try again.');
+          }
+        },
+        error: function (xhr) {
+          var msg = 'Video generation failed.';
+          try {
+            var body = JSON.parse(xhr.responseText);
+            if (body && body.message) { msg = body.message; }
+          } catch (e) {}
+          tinyLxpSetAiButtonsDisabled(false);
+          $('#lxp-ai-video-modal-status').text(msg);
+        }
+      });
+    });
+
   });
 })(jQuery);
 
@@ -500,7 +554,7 @@ function tinyLxpSetAiStatus(text, isError) {
 }
 
 function tinyLxpSetAiButtonsDisabled(isDisabled) {
-  jQuery('#lxp-ai-content-gen-btn, #lxp-ai-blocks-gen-btn, #lxp-ai-block-picker-btn, #lxp-ai-content-reset-btn').prop('disabled', isDisabled);
+  jQuery('#lxp-ai-content-gen-btn, #lxp-ai-blocks-gen-btn, #lxp-ai-block-picker-btn, #lxp-ai-content-reset-btn, #lxp-ai-video-open-modal-btn, #lxp-ai-video-generate-btn').prop('disabled', isDisabled);
 }
 
 function tinyLxpGetEditorContent() {
@@ -596,4 +650,45 @@ function tinyLxpSetEditorContent(html) {
   if (ta) {
     ta.value = html;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Video render polling — called after a successful trigger_video_render POST.
+// Polls every 5 s; updates modal status and the metabox status div on completion.
+// ---------------------------------------------------------------------------
+function lxpPollVideoStatus(postId, renderId) { // renderId kept for future use
+  var pollInterval = setInterval(function () {
+    jQuery.ajax({
+      type: 'get',
+      dataType: 'json',
+      url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video',
+      data: { post_id: parseInt(postId, 10) },
+      success: function (response) {
+        if (response.status === 'done') {
+          clearInterval(pollInterval);
+          tinyLxpSetAiButtonsDisabled(false);
+          var url = response.video_url || '';
+          var link = url
+            ? '<a href="' + url + '" target="_blank" rel="noopener" class="lxp-ai-video-link">\u25b6 Play Video</a>'
+            : 'Video ready.';
+          var statusEl = document.getElementById('lxp-ai-video-status');
+          if (statusEl) { statusEl.innerHTML = link; }
+          jQuery('#lxp-ai-video-modal-status').text('Video ready!');
+          setTimeout(function () { jQuery('#lxp-ai-video-modal').hide(); }, 1800);
+        } else if (response.status === 'error') {
+          clearInterval(pollInterval);
+          tinyLxpSetAiButtonsDisabled(false);
+          jQuery('#lxp-ai-video-modal-status').text('Render failed on AWS Lambda. Please try again.');
+        } else {
+          var pct = response.progress ? Math.round(response.progress * 100) : 0;
+          jQuery('#lxp-ai-video-modal-status').text('Rendering\u2026 ' + pct + '%');
+        }
+      },
+      error: function () {
+        clearInterval(pollInterval);
+        tinyLxpSetAiButtonsDisabled(false);
+        jQuery('#lxp-ai-video-modal-status').text('Error checking render status. Please refresh and check again.');
+      }
+    });
+  }, 5000);
 }

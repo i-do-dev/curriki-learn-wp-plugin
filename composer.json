@@ -18,6 +18,7 @@
   "require": {
     "celtic/lti": "^4.7.2",
     "aws/aws-sdk-php": "^3.337",
-    "dompdf/dompdf": "2.0"
+    "dompdf/dompdf": "2.0",
+    "remotion/lambda": "4.0.467"
   }
 }
