@@ -274,6 +274,12 @@ SCENE ORDERING RULES:
 - Total 6 to 10 scenes; total duration_frames should sum to approximately 1800 (target ~60 seconds at 30 fps).
 - Each scene duration: 150 (simple) to 240 (complex) frames.
 
+BLOCK MODE RULES (applied when the user message lists scenes explicitly with layout and content):
+- Scene count must equal the number of declared scenes exactly — do not add or remove scenes.
+- Each scene layout must be exactly the declared layout — never substitute a different layout.
+- Derive items[], title, on_screen_text, and narration from the block content prose.
+- Scene ordering and intro/conclusion position rules do NOT apply — honour the declared order exactly.
+
 CONTENT RULES:
 - All titles, phrases, and item text must be SPECIFIC to the lesson topic — no generic placeholders.
 - Narration: 1-2 clear, natural, instructional English sentences per scene.
@@ -281,9 +287,43 @@ CONTENT RULES:
 PROMPT;
 	}
 
+	/**
+	 * Parse :::layout-name\n[content]\n::: blocks from a prompt string.
+	 * Returns an array of ['layout' => string, 'content' => string] pairs.
+	 * Returns an empty array when no markers are found.
+	 */
+	private static function parse_scene_blocks( string $prompt ): array {
+		$blocks = array();
+		if ( preg_match_all( '/:::([a-z][a-z0-9-]+)\r?\n(.*?)\r?\n:::/s', $prompt, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $m ) {
+				$blocks[] = array(
+					'layout'  => str_replace( '-', '_', $m[1] ),
+					'content' => trim( $m[2] ),
+				);
+			}
+		}
+		return $blocks;
+	}
+
 	private static function build_user_message( string $post_title, string $prompt ): string {
 		$safe_title  = wp_strip_all_tags( $post_title );
 		$safe_prompt = wp_strip_all_tags( $prompt );
+
+		$blocks = self::parse_scene_blocks( $safe_prompt );
+
+		if ( ! empty( $blocks ) ) {
+			$count = count( $blocks );
+			$msg   = "Lesson title: {$safe_title}\n\n";
+			$msg  .= "Generate exactly {$count} scenes in the exact order listed below.\n";
+			$msg  .= "For each scene, use ONLY the specified layout — do not substitute a different layout.\n\n";
+			foreach ( $blocks as $i => $block ) {
+				$num   = $i + 1;
+				$msg  .= "Scene {$num} — layout: {$block['layout']}\nContent: {$block['content']}\n\n";
+			}
+			$msg .= 'Generate the video script JSON now.';
+			return $msg;
+		}
+
 		return "Lesson title: {$safe_title}\n\nLesson description:\n{$safe_prompt}\n\nGenerate the video script JSON now (6-10 scenes).";
 	}
 }

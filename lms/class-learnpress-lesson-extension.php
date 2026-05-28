@@ -189,9 +189,36 @@ class TL_LearnPress_Lesson_Extension {
 			<div class="lxp-ai-video-modal-panel" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:10px;padding:28px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.22);">
 				<button type="button" id="lxp-ai-video-modal-close" aria-label="<?php echo esc_attr__( 'Close', 'tiny-lxp-platform' ); ?>" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#50575e;line-height:1;">&times;</button>
 				<h3 id="lxp-ai-video-modal-title" style="margin:0 0 14px;font-size:16px;"><?php echo esc_html__( 'Describe the Lesson Content', 'tiny-lxp-platform' ); ?></h3>
-				<p style="font-size:12px;color:#50575e;margin:0 0 10px;"><?php echo esc_html__( 'This text is sent to AI to generate 8 animated scenes. Edit or expand it for better results.', 'tiny-lxp-platform' ); ?></p>
-				<textarea id="lxp-ai-video-prompt" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;resize:vertical;"></textarea>
-				<p style="margin:12px 0 0;">
+				<p style="font-size:12px;color:#50575e;margin:0 0 10px;"><?php echo esc_html__( 'Write plain prose, or use layout markers to control scene structure. Each :::layout-name block becomes one scene.', 'tiny-lxp-platform' ); ?></p>
+				<textarea id="lxp-ai-video-prompt" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;resize:vertical;font-family:monospace;"></textarea>
+				<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+					<select id="lxp-video-layout-picker" style="flex:1;font-size:12px;">
+						<option value=""><?php echo esc_html__( '— Insert a layout block —', 'tiny-lxp-platform' ); ?></option>
+						<option value="intro"><?php echo esc_html__( 'Intro', 'tiny-lxp-platform' ); ?></option>
+						<option value="problem"><?php echo esc_html__( 'Problem', 'tiny-lxp-platform' ); ?></option>
+						<option value="framework"><?php echo esc_html__( 'Framework', 'tiny-lxp-platform' ); ?></option>
+						<option value="process"><?php echo esc_html__( 'Process', 'tiny-lxp-platform' ); ?></option>
+						<option value="contrast"><?php echo esc_html__( 'Contrast', 'tiny-lxp-platform' ); ?></option>
+						<option value="evaluation"><?php echo esc_html__( 'Evaluation', 'tiny-lxp-platform' ); ?></option>
+						<option value="options"><?php echo esc_html__( 'Options', 'tiny-lxp-platform' ); ?></option>
+						<option value="conclusion"><?php echo esc_html__( 'Conclusion', 'tiny-lxp-platform' ); ?></option>
+						<option value="card-list"><?php echo esc_html__( 'Card List', 'tiny-lxp-platform' ); ?></option>
+						<option value="branching-flow"><?php echo esc_html__( 'Branching Flow', 'tiny-lxp-platform' ); ?></option>
+						<option value="before-after"><?php echo esc_html__( 'Before &amp; After', 'tiny-lxp-platform' ); ?></option>
+						<option value="quad-grid"><?php echo esc_html__( 'Quad Grid', 'tiny-lxp-platform' ); ?></option>
+						<option value="three-step-flow"><?php echo esc_html__( 'Three Step Flow', 'tiny-lxp-platform' ); ?></option>
+						<option value="cycle-loop"><?php echo esc_html__( 'Cycle Loop', 'tiny-lxp-platform' ); ?></option>
+						<option value="split-blueprint"><?php echo esc_html__( 'Split Blueprint', 'tiny-lxp-platform' ); ?></option>
+						<option value="fuel-engine"><?php echo esc_html__( 'Fuel Engine', 'tiny-lxp-platform' ); ?></option>
+						<option value="checklist-reveal"><?php echo esc_html__( 'Checklist Reveal', 'tiny-lxp-platform' ); ?></option>
+						<option value="deployment-circles"><?php echo esc_html__( 'Deployment Circles', 'tiny-lxp-platform' ); ?></option>
+					</select>
+					<button type="button" id="lxp-video-insert-block-btn" class="button"><?php echo esc_html__( 'Insert', 'tiny-lxp-platform' ); ?></button>
+				</div>
+				<p style="margin:5px 0 12px;font-size:11px;color:#646970;">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=curriki-learn-video-layouts' ) ); ?>" target="_blank" rel="noopener"><?php echo esc_html__( 'View Layout Reference \u2197', 'tiny-lxp-platform' ); ?></a>
+				</p>
+				<p style="margin:0;">
 					<button type="button" id="lxp-ai-video-generate-btn" class="button button-primary" style="width:100%;"><?php echo esc_html__( 'Generate Video', 'tiny-lxp-platform' ); ?></button>
 				</p>
 				<div id="lxp-ai-video-modal-status" style="margin-top:10px;font-size:12px;line-height:1.5;color:#50575e;"></div>

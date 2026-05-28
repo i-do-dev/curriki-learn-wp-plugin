@@ -348,6 +348,15 @@ class Tiny_LXP_Platform_Admin
 			array( $this, 'block_reference_page' )
 		);
 
+        add_submenu_page(
+            'curriki-learn',
+            __( 'Video Layout Reference', 'tiny-lxp-platform' ),
+            __( 'Video Layout Reference', 'tiny-lxp-platform' ),
+            'manage_options',
+            'curriki-learn-video-layouts',
+            array( $this, 'video_layouts_reference_page' )
+        );
+
         // Remove the auto-created duplicate top-level submenu item.
         remove_submenu_page( 'curriki-learn', 'curriki-learn' );
     }
@@ -462,6 +471,17 @@ class Tiny_LXP_Platform_Admin
         }
 
         include plugin_dir_path( __FILE__ ) . 'partials/block-reference-admin.php';
+    }
+
+    /**
+     * Render the video layout reference page.
+     */
+    public function video_layouts_reference_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'tiny-lxp-platform' ) );
+        }
+
+        include plugin_dir_path( __FILE__ ) . 'partials/video-layouts-reference-admin.php';
     }
 
     /**
