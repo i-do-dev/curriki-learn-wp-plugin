@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "886b1b786bb73be7c104f92208a07ea2",
+    "content-hash": "efd22faf5bf33928fe192659a1a46dee",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -1082,6 +1082,44 @@
                 "source": "https://github.com/ralouphie/getallheaders/tree/develop"
             },
             "time": "2019-03-08T08:55:37+00:00"
+        },
+        {
+            "name": "remotion/lambda",
+            "version": "4.0.467",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/remotion-dev/lambda-php-sdk.git",
+                "reference": "a11e78913f87279f5cfbe9e2f32708a8ecf66024"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/remotion-dev/lambda-php-sdk/zipball/a11e78913f87279f5cfbe9e2f32708a8ecf66024",
+                "reference": "a11e78913f87279f5cfbe9e2f32708a8ecf66024",
+                "shasum": ""
+            },
+            "require": {
+                "aws/aws-sdk-php": "^3.269"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.1 || ^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Remotion\\LambdaPhp\\": "src/",
+                    "Remotion\\LambdaPhp\\Tests\\": "tests/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "description": "A PHP library for working with Remotion Lambda",
+            "support": {
+                "issues": "https://github.com/remotion-dev/lambda-php-sdk/issues",
+                "source": "https://github.com/remotion-dev/lambda-php-sdk/tree/4.0.467"
+            },
+            "time": "2026-05-26T05:22:28+00:00"
         },
         {
             "name": "sabberworm/php-css-parser",
