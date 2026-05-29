@@ -171,13 +171,24 @@ class TL_LearnPress_Lesson_Extension {
 					<?php echo esc_html__( 'Generate Video', 'tiny-lxp-platform' ); ?>
 				</button>
 			</p>
-			<div id="lxp-ai-video-status" style="margin-top:8px;font-size:12px;line-height:1.5;">
+			<div id="lxp-ai-video-status">
 				<?php
 				$video_url = get_post_meta( $post->ID, 'lxp_lesson_video_url', true );
 				if ( $video_url ) {
-					echo '<a href="' . esc_url( $video_url ) . '" target="_blank" rel="noopener" class="lxp-ai-video-link">&#9654; Play Last Generated Video</a>';
+					?>
+					<a href="<?php echo esc_url( $video_url ); ?>" target="_blank" rel="noopener" class="lxp-ai-video-link">&#9654; <?php echo esc_html__( 'Play Last Generated Video', 'tiny-lxp-platform' ); ?></a>
+					<div class="lxp-ai-video-actions">
+						<button type="button" class="button lxp-ai-video-copy-btn" data-video-url="<?php echo esc_attr( $video_url ); ?>">
+							<?php echo esc_html__( 'Copy Link', 'tiny-lxp-platform' ); ?>
+						</button>
+						<button type="button" class="button lxp-ai-video-insert-btn" data-video-url="<?php echo esc_attr( $video_url ); ?>">
+							<?php echo esc_html__( 'Insert Into Editor', 'tiny-lxp-platform' ); ?>
+						</button>
+					</div>
+					<?php
 				}
 				?>
+				<p id="lxp-ai-video-action-status" class="lxp-ai-video-action-status"></p>
 			</div>
 		</div>
 
@@ -216,7 +227,10 @@ class TL_LearnPress_Lesson_Extension {
 					<button type="button" id="lxp-video-insert-block-btn" class="button"><?php echo esc_html__( 'Insert', 'tiny-lxp-platform' ); ?></button>
 				</div>
 				<p style="margin:5px 0 12px;font-size:11px;color:#646970;">
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=curriki-learn-video-layouts' ) ); ?>" target="_blank" rel="noopener"><?php echo esc_html__( 'View Layout Reference \u2197', 'tiny-lxp-platform' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=curriki-learn-video-layouts' ) ); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo esc_attr__( 'Open Layout Reference', 'tiny-lxp-platform' ); ?>" style="display:inline-flex;align-items:center;gap:6px;">
+						<span class="dashicons dashicons-editor-help" aria-hidden="true"></span>
+						<span><?php echo esc_html__( 'View Layout Reference', 'tiny-lxp-platform' ); ?></span>
+					</a>
 				</p>
 				<p style="margin:0;">
 					<button type="button" id="lxp-ai-video-generate-btn" class="button button-primary" style="width:100%;"><?php echo esc_html__( 'Generate Video', 'tiny-lxp-platform' ); ?></button>
