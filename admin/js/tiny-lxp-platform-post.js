@@ -546,6 +546,29 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       });
     });
 
+    // Copy Video Link
+    $('body').on('click', '.lxp-ai-video-copy-btn', function () {
+      var url = $(this).data('video-url');
+      tinyLxpCopyText(url, function (ok) {
+        var el = document.getElementById('lxp-ai-video-action-status');
+        if (!el) { return; }
+        el.textContent = ok ? 'Link copied to clipboard.' : 'Copy failed \u2014 please copy the link manually.';
+        el.className = 'lxp-ai-video-action-status ' + (ok ? 'lxp-ai-video-action-status-ok' : 'lxp-ai-video-action-status-error');
+        setTimeout(function () { el.textContent = ''; el.className = 'lxp-ai-video-action-status'; }, 3000);
+      });
+    });
+
+    // Insert Into Editor
+    $('body').on('click', '.lxp-ai-video-insert-btn', function () {
+      var url = $(this).data('video-url');
+      var ok = lxpInsertVideoIntoEditor(url);
+      var el = document.getElementById('lxp-ai-video-action-status');
+      if (!el) { return; }
+      el.textContent = ok ? 'Video embed inserted into editor.' : 'Could not insert \u2014 editor not available.';
+      el.className = 'lxp-ai-video-action-status ' + (ok ? 'lxp-ai-video-action-status-ok' : 'lxp-ai-video-action-status-error');
+      setTimeout(function () { el.textContent = ''; el.className = 'lxp-ai-video-action-status'; }, 3000);
+    });
+
   });
 })(jQuery);
 
@@ -665,6 +688,71 @@ function tinyLxpSetEditorContent(html) {
 // Video render polling — called after a successful trigger_video_render POST.
 // Polls every 5 s; updates modal status and the metabox status div on completion.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Video action-area helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Rebuild the metabox video action area with a play link, Copy Link button,
+ * and Insert Into Editor button. Calling with an empty url clears the area.
+ */
+function lxpRenderVideoActionArea(url) {
+  var el = document.getElementById('lxp-ai-video-status');
+  if (!el) { return; }
+  if (!url) {
+    el.innerHTML = '<p id="lxp-ai-video-action-status" class="lxp-ai-video-action-status"></p>';
+    return;
+  }
+  el.innerHTML =
+    '<a href="' + url + '" target="_blank" rel="noopener" class="lxp-ai-video-link">&#9654; Play Last Generated Video</a>' +
+    '<div class="lxp-ai-video-actions">' +
+      '<button type="button" class="button lxp-ai-video-copy-btn" data-video-url="' + url + '">Copy Link</button>' +
+      '<button type="button" class="button lxp-ai-video-insert-btn" data-video-url="' + url + '">Insert Into Editor</button>' +
+    '</div>' +
+    '<p id="lxp-ai-video-action-status" class="lxp-ai-video-action-status"></p>';
+}
+
+/**
+ * Append an HTML5 video embed into the current lesson editor without
+ * replacing the existing content.
+ * Returns true when an editor was found and the content was inserted.
+ */
+function lxpInsertVideoIntoEditor(url) {
+  var html =
+    '<div class="lxp-lesson-video-embed" style="margin:16px 0;">' +
+      '<video controls style="max-width:100%;display:block;">' +
+        '<source src="' + url + '" type="video/mp4">' +
+        '<a href="' + url + '" target="_blank" rel="noopener">Watch Video</a>' +
+      '</video>' +
+    '</div>';
+
+  // Block editor (Gutenberg) — insert as HTML block, does not replace content
+  if (typeof wp !== 'undefined' && wp.blocks && wp.data) {
+    try {
+      var dispatch = wp.data.dispatch('core/block-editor');
+      if (dispatch && wp.blocks.createBlock) {
+        dispatch.insertBlocks(wp.blocks.createBlock('core/html', { content: html }));
+        return true;
+      }
+    } catch (e) {}
+  }
+
+  // Classic editor (TinyMCE) — append at cursor
+  if (typeof tinymce !== 'undefined' && tinymce.get('content')) {
+    tinymce.get('content').execCommand('mceInsertContent', false, html);
+    return true;
+  }
+
+  // Plain textarea fallback — append to end
+  var ta = document.getElementById('content');
+  if (ta) {
+    ta.value += (ta.value.length > 0 && ta.value.slice(-1) !== '\n' ? '\n' : '') + html;
+    return true;
+  }
+
+  return false;
+}
+
 function lxpInsertVideoBlock(slug) {
   var ta = document.getElementById('lxp-ai-video-prompt');
   if (!ta) { return; }
@@ -693,11 +781,7 @@ function lxpPollVideoStatus(postId, renderId) { // renderId kept for future use
           clearInterval(pollInterval);
           tinyLxpSetAiButtonsDisabled(false);
           var url = response.video_url || '';
-          var link = url
-            ? '<a href="' + url + '" target="_blank" rel="noopener" class="lxp-ai-video-link">\u25b6 Play Video</a>'
-            : 'Video ready.';
-          var statusEl = document.getElementById('lxp-ai-video-status');
-          if (statusEl) { statusEl.innerHTML = link; }
+          lxpRenderVideoActionArea(url);
           jQuery('#lxp-ai-video-modal-status').text('Video ready!');
           setTimeout(function () { jQuery('#lxp-ai-video-modal').hide(); }, 1800);
         } else if (response.status === 'error') {

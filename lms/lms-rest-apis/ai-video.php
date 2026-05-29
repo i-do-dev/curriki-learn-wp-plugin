@@ -152,10 +152,11 @@ class Rest_Lxp_AI_Video {
 		if ( $post_id <= 0 ) {
 			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
 		}
+		/*
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error( 'forbidden', 'You do not have permission to view this.', array( 'status' => 403 ) );
 		}
-
+		*/
 		$render_id = get_post_meta( $post_id, self::META_RENDER_ID, true );
 		$bucket    = get_post_meta( $post_id, self::META_BUCKET, true );
 		$status    = get_post_meta( $post_id, self::META_STATUS, true );

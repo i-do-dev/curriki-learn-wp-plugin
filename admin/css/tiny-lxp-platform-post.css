@@ -242,6 +242,42 @@
   cursor: not-allowed;
 }
 
+/* Video action row — Copy Link + Insert Into Editor buttons */
+#lxp-ai-video-status {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lxp-ai-video-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.lxp-ai-video-actions .button {
+  font-size: 11px;
+  padding: 2px 8px;
+  height: auto;
+  line-height: 1.8;
+}
+
+.lxp-ai-video-action-status {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  min-height: 1.5em;
+}
+
+.lxp-ai-video-action-status-ok {
+  color: #1a7e1a;
+}
+
+.lxp-ai-video-action-status-error {
+  color: #cc1818;
+}
+
 .tiny-lxp-platform-modal {
   display: none;
   position: fixed;
