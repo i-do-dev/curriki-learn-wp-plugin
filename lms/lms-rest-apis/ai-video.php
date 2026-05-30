@@ -2,8 +2,15 @@
 /**
  * REST endpoints for AI-powered lesson video generation via Remotion Lambda.
  *
+ * POST /wp-json/lms/v1/lesson/ai-video-script
+ *   Converts raw lesson text to structured block-marker script via Bedrock.
+ *   Returns { script: string }.
+ *
+ * GET /wp-json/lms/v1/lesson/ai-video-script
+ *   Returns persisted { raw_text, script } from post meta.
+ *
  * POST /wp-json/lms/v1/lesson/ai-video
- *   Generates an 8-scene JSON script via Bedrock, triggers Remotion Lambda render.
+ *   Generates a JSON scene script via Bedrock, triggers Remotion Lambda render.
  *   Returns { render_id, status: 'processing' }.
  *
  * GET /wp-json/lms/v1/lesson/ai-video
@@ -18,17 +25,37 @@ class Rest_Lxp_AI_Video {
 	// Remotion composition ID (must match Root.tsx)
 	const COMPOSITION_ID = 'LessonVideo';
 
-	// Post meta keys
+	// Post meta keys — render/status
 	const META_RENDER_ID = 'lxp_lesson_video_render_id';
 	const META_BUCKET    = 'lxp_lesson_video_bucket';
 	const META_STATUS    = 'lxp_lesson_video_status';
 	const META_URL       = 'lxp_lesson_video_url';
+
+	// Post meta keys — script persistence (2-step workflow)
+	const META_RAW_TEXT  = 'lxp_lesson_video_raw_text';
+	const META_SCRIPT    = 'lxp_lesson_video_script';
 
 	public static function init() {
 		self::register_routes();
 	}
 
 	public static function register_routes() {
+		register_rest_route( 'lms/v1', '/lesson/ai-video-script', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( 'Rest_Lxp_AI_Video', 'get_video_script' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'post_id' => array( 'required' => true, 'type' => 'integer', 'minimum' => 1 ),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => array( 'Rest_Lxp_AI_Video', 'generate_video_script' ),
+				'permission_callback' => '__return_true',
+			),
+		) );
+
 		register_rest_route( 'lms/v1', '/lesson/ai-video', array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -44,6 +71,140 @@ class Rest_Lxp_AI_Video {
 				'permission_callback' => '__return_true',
 			),
 		) );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// POST  /lms/v1/lesson/ai-video-script
+	// Converts raw lesson text → block-marker scene script via Bedrock.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	public static function generate_video_script( WP_REST_Request $request ) {
+		$body = $request->get_json_params();
+		if ( empty( $body ) ) {
+			$body = $request->get_params();
+		}
+
+		$post_id  = absint( $body['post_id'] ?? 0 );
+		$raw_text = $body['raw_text'] ?? '';
+
+		if ( $post_id <= 0 ) {
+			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
+		}
+		if ( empty( trim( $raw_text ) ) ) {
+			return new WP_Error( 'missing_raw_text', 'Raw lesson text is required.', array( 'status' => 400 ) );
+		}
+
+		// Two-pass sanitisation: WP standard → structural clean-up
+		$raw_text = sanitize_textarea_field( $raw_text );
+		$raw_text = self::sanitize_raw_text( $raw_text );
+
+		if ( empty( $raw_text ) ) {
+			return new WP_Error( 'empty_after_sanitize', 'No usable text remained after sanitisation.', array( 'status' => 400 ) );
+		}
+
+		// Persist the sanitised raw text
+		update_post_meta( $post_id, self::META_RAW_TEXT, $raw_text );
+
+		$post_title   = get_the_title( $post_id );
+		$user_message = self::build_script_user_message( $post_title, $raw_text );
+		$system_prompt = self::build_script_system_prompt();
+
+		$script = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 2048 );
+
+		if ( is_wp_error( $script ) ) {
+			return $script;
+		}
+
+		// Strip accidental markdown fences
+		$script = trim( $script );
+		$script = preg_replace( '/^```[a-z]*\s*/i', '', $script );
+		$script = preg_replace( '/\s*```$/', '', $script );
+		$script = trim( $script );
+
+		// Persist the generated script
+		update_post_meta( $post_id, self::META_SCRIPT, $script );
+
+		return rest_ensure_response( array( 'script' => $script ) );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// GET  /lms/v1/lesson/ai-video-script
+	// Returns persisted raw_text and script from post meta.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	public static function get_video_script( WP_REST_Request $request ) {
+		$post_id = absint( $request->get_param( 'post_id' ) );
+
+		if ( $post_id <= 0 ) {
+			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
+		}
+
+		return rest_ensure_response( array(
+			'raw_text' => (string) get_post_meta( $post_id, self::META_RAW_TEXT, true ),
+			'script'   => (string) get_post_meta( $post_id, self::META_SCRIPT, true ),
+		) );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// SANITIZE RAW TEXT  (server-side structural clean-up)
+	// ─────────────────────────────────────────────────────────────────────────
+
+	private static function sanitize_raw_text( string $text ): string {
+		// 1. Strip any remaining HTML
+		$text = wp_strip_all_tags( $text );
+
+		// 2. Strip markdown headers (##, ###, etc.)
+		$text = preg_replace( '/^#{1,6}\s*/m', '', $text );
+
+		// 3. Strip markdown bold/italic wrappers (**text**, __text__, *text*, _text_)
+		$text = preg_replace( '/(\*\*|__)(.+?)\1/s', '$2', $text );
+		$text = preg_replace( '/(\*|_)(.+?)\1/s', '$2', $text );
+
+		// 4. Strip markdown links [label](url) → label
+		$text = preg_replace( '/\[([^\]]+)\]\([^)]+\)/', '$1', $text );
+
+		// 5. Normalise Unicode and ASCII bullet chars at line start → '- '
+		$text = preg_replace( '/^[\x{2022}\x{2023}\x{25E6}\x{2043}\x{2219}\*]\s*/mu', '- ', $text );
+
+		// 6. Remove horizontal rules
+		$text = preg_replace( '/^(-{3,}|\*{3,}|_{3,})\s*$/m', '', $text );
+
+		// 7. Collapse 3+ consecutive blank lines to 2
+		$text = preg_replace( '/\n{3,}/', "\n\n", $text );
+
+		return trim( $text );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// SCRIPT PROMPT BUILDERS
+	// ─────────────────────────────────────────────────────────────────────────
+
+	private static function build_script_system_prompt(): string {
+		return <<<'PROMPT'
+You are a lesson video scene architect. Your task is to read raw lesson content and convert it into a structured video scene script using block markers.
+
+Output ONLY the scene blocks — no JSON, no explanations, no intro or closing text.
+
+Each block must follow this exact format:
+:::layout-name
+[1-3 sentences describing what this specific scene should show, derived from the lesson content]
+:::
+
+RULES:
+- Produce 6 to 10 scene blocks total.
+- First block MUST use layout 'intro'.
+- Last block MUST use layout 'conclusion' or 'cycle-loop'.
+- Choose layouts from this list only: intro, problem, framework, process, contrast, evaluation, options, conclusion, card-list, branching-flow, before-after, quad-grid, three-step-flow, cycle-loop, split-blueprint, fuel-engine, checklist-reveal, deployment-circles, editorial
+- Match layout to content type: 'editorial' for concept definitions or prose explanations; 'process' for numbered steps; 'framework' for named components; 'contrast' for before/after or good/bad comparisons; 'checklist-reveal' for criteria or requirements; 'quad-grid' for exactly 4 parallel items; 'branching-flow' for one input producing multiple outputs; etc.
+- No layout type may repeat in a 6-8 block script. In a 9-10 block script allow at most one repeat.
+- Scene descriptions must be specific to the lesson topic — no generic filler text.
+- Output ONLY the raw :::layout-name\ncontent\n::: blocks. Any text outside the blocks will break the parser.
+PROMPT;
+	}
+
+	private static function build_script_user_message( string $post_title, string $raw_text ): string {
+		$safe_title = wp_strip_all_tags( $post_title );
+		return "Lesson title: {$safe_title}\n\nRaw lesson content:\n{$raw_text}\n\nConvert this lesson into a structured video scene script using the block marker format.";
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -65,12 +226,15 @@ class Rest_Lxp_AI_Video {
 		if ( empty( $prompt ) ) {
 			return new WP_Error( 'missing_prompt', 'A lesson description prompt is required.', array( 'status' => 400 ) );
 		}
-		
+
 		/*
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error( 'forbidden', 'You do not have permission to edit this post.', array( 'status' => 403 ) );
 		}
 		*/
+
+		// Persist the final script used for this generation
+		update_post_meta( $post_id, self::META_SCRIPT, $prompt );
 
 		$post_title = get_the_title( $post_id );
 

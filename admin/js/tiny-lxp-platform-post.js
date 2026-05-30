@@ -483,14 +483,39 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       });
     });
 
-    // ── AI Video Generation ────────────────────────────────────────────────
+    // ── AI Video Generation — 2-step workflow ─────────────────────────────
 
-    // Open modal — pre-fill textarea with post title
+    // Open modal — load persisted content, route to Step 2 if script exists
     $('body').on('click', '#lxp-ai-video-open-modal-btn', function () {
-      var title = $('#lxp-ai-video-post-title').val() || '';
-      $('#lxp-ai-video-prompt').val(title);
+      var postId = $('#lxp-ai-gen-post-id').val();
       $('#lxp-ai-video-modal-status').text('');
+      $('#lxp-video-step1-status').text('');
       $('#lxp-ai-video-modal').show();
+      lxpVideoGoToStep(1);
+
+      if (!postId) {
+        $('#lxp-ai-video-raw-text').val($('#lxp-ai-video-post-title').val() || '');
+        return;
+      }
+
+      jQuery.ajax({
+        type: 'get',
+        dataType: 'json',
+        url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video-script',
+        data: { post_id: parseInt(postId, 10) },
+        success: function (response) {
+          var rawText = response && response.raw_text ? response.raw_text : '';
+          var script  = response && response.script  ? response.script  : '';
+          $('#lxp-ai-video-raw-text').val(rawText || $('#lxp-ai-video-post-title').val() || '');
+          $('#lxp-ai-video-prompt').val(script);
+          if (script) {
+            lxpVideoGoToStep(2);
+          }
+        },
+        error: function () {
+          $('#lxp-ai-video-raw-text').val($('#lxp-ai-video-post-title').val() || '');
+        }
+      });
     });
 
     // Close modal via X button or overlay click
@@ -500,7 +525,95 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       }
     });
 
-    // Insert layout block marker into video prompt textarea
+    // Step 1 — Process with AI
+    $('body').on('click', '#lxp-ai-video-script-btn', function () {
+      var postId  = $('#lxp-ai-gen-post-id').val();
+      var rawText = $('#lxp-ai-video-raw-text').val();
+
+      if (!rawText.trim()) {
+        lxpVideoSetStep1Status('Please paste your lesson content before processing.', true);
+        return;
+      }
+
+      var sanitised = lxpSanitizeRawText(rawText);
+      $('#lxp-ai-video-raw-text').val(sanitised);
+
+      if (!sanitised.trim()) {
+        lxpVideoSetStep1Status('No usable text found after cleaning. Please paste plain lesson content.', true);
+        return;
+      }
+
+      tinyLxpSetAiButtonsDisabled(true);
+      lxpVideoSetStep1Status('Converting lesson to structured scenes…', false);
+
+      jQuery.ajax({
+        type: 'post',
+        dataType: 'json',
+        url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video-script',
+        contentType: 'application/json',
+        data: JSON.stringify({ post_id: parseInt(postId, 10), raw_text: sanitised }),
+        success: function (response) {
+          var script = response && response.script ? response.script : '';
+          if (!script) {
+            lxpVideoSetStep1Status('AI returned an empty script. Please try again.', true);
+            tinyLxpSetAiButtonsDisabled(false);
+            return;
+          }
+          $('#lxp-ai-video-prompt').val(script);
+          lxpVideoGoToStep(2);
+          tinyLxpSetAiButtonsDisabled(false);
+        },
+        error: function (xhr) {
+          var msg = 'Processing failed.';
+          try { var b = JSON.parse(xhr.responseText); if (b && b.message) { msg = b.message; } } catch (e) {}
+          lxpVideoSetStep1Status(msg, true);
+          tinyLxpSetAiButtonsDisabled(false);
+        }
+      });
+    });
+
+    // Step 1 — Restore Last Input
+    $('body').on('click', '#lxp-video-restore-raw-btn', function () {
+      var postId = $('#lxp-ai-gen-post-id').val();
+      if (!postId) { return; }
+      tinyLxpSetAiButtonsDisabled(true);
+      jQuery.ajax({
+        type: 'get', dataType: 'json',
+        url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video-script',
+        data: { post_id: parseInt(postId, 10) },
+        success: function (r) {
+          if (r && r.raw_text) { $('#lxp-ai-video-raw-text').val(r.raw_text); lxpVideoSetStep1Status('Last input restored.', false); }
+          else { lxpVideoSetStep1Status('No saved input found.', true); }
+        },
+        error: function () { lxpVideoSetStep1Status('Could not load saved input.', true); },
+        complete: function () { tinyLxpSetAiButtonsDisabled(false); }
+      });
+    });
+
+    // Step 2 — Back button
+    $('body').on('click', '#lxp-video-back-btn', function () {
+      lxpVideoGoToStep(1);
+    });
+
+    // Step 2 — Restore Last Script
+    $('body').on('click', '#lxp-video-restore-script-btn', function () {
+      var postId = $('#lxp-ai-gen-post-id').val();
+      if (!postId) { return; }
+      tinyLxpSetAiButtonsDisabled(true);
+      jQuery.ajax({
+        type: 'get', dataType: 'json',
+        url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video-script',
+        data: { post_id: parseInt(postId, 10) },
+        success: function (r) {
+          if (r && r.script) { $('#lxp-ai-video-prompt').val(r.script); $('#lxp-ai-video-modal-status').text('Last script restored.'); }
+          else { $('#lxp-ai-video-modal-status').text('No saved script found.'); }
+        },
+        error: function () { $('#lxp-ai-video-modal-status').text('Could not load saved script.'); },
+        complete: function () { tinyLxpSetAiButtonsDisabled(false); }
+      });
+    });
+
+    // Insert layout block marker into video prompt textarea (Step 2)
     $('body').on('click', '#lxp-video-insert-block-btn', function () {
       var slug = $('#lxp-video-layout-picker').val();
       if (slug) {
@@ -586,7 +699,7 @@ function tinyLxpSetAiStatus(text, isError) {
 }
 
 function tinyLxpSetAiButtonsDisabled(isDisabled) {
-  jQuery('#lxp-ai-content-gen-btn, #lxp-ai-blocks-gen-btn, #lxp-ai-block-picker-btn, #lxp-ai-content-reset-btn, #lxp-ai-video-open-modal-btn, #lxp-ai-video-generate-btn').prop('disabled', isDisabled);
+  jQuery('#lxp-ai-content-gen-btn, #lxp-ai-blocks-gen-btn, #lxp-ai-block-picker-btn, #lxp-ai-content-reset-btn, #lxp-ai-video-open-modal-btn, #lxp-ai-video-generate-btn, #lxp-ai-video-script-btn, #lxp-video-restore-raw-btn, #lxp-video-restore-script-btn').prop('disabled', isDisabled);
 }
 
 function tinyLxpGetEditorContent() {
@@ -767,6 +880,59 @@ function lxpInsertVideoBlock(slug) {
   var cursorPos = start + prefix.length + 4 + slug.length;
   ta.setSelectionRange(cursorPos, cursorPos);
   ta.focus();
+}
+
+// ---------------------------------------------------------------------------
+// 2-step video wizard helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Navigate between wizard steps.
+ * @param {number} step  1 or 2
+ */
+function lxpVideoGoToStep(step) {
+  var isStep1 = step === 1;
+  jQuery('#lxp-video-step-1').toggle(isStep1);
+  jQuery('#lxp-video-step-2').toggle(!isStep1);
+  jQuery('#lxp-vws-1').toggleClass('active', isStep1);
+  jQuery('#lxp-vws-2').toggleClass('active', !isStep1);
+}
+
+/**
+ * Set Step 1 status message.
+ * @param {string}  text
+ * @param {boolean} isError
+ */
+function lxpVideoSetStep1Status(text, isError) {
+  var el = document.getElementById('lxp-video-step1-status');
+  if (!el) { return; }
+  el.textContent = text;
+  el.className = 'lxp-video-step-status ' + (isError ? 'lxp-video-step-status-error' : 'lxp-video-step-status-ok');
+}
+
+/**
+ * Client-side sanitisation of raw lesson text before sending to the server.
+ * The server performs the authoritative sanitisation; this is UX feedback only.
+ * @param {string} text
+ * @returns {string}
+ */
+function lxpSanitizeRawText(text) {
+  // Strip HTML tags
+  text = text.replace(/<[^>]*>/g, '');
+  // Strip markdown headers (##, ###, …)
+  text = text.replace(/^#{1,6}\s*/gm, '');
+  // Strip markdown bold/italic (**text**, __text__, *text*, _text_)
+  text = text.replace(/(\*\*|__)(.+?)\1/gs, '$2');
+  text = text.replace(/(\*|_)(.+?)\1/gs, '$2');
+  // Strip markdown links [label](url) → label
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // Normalise Unicode and ASCII bullet chars at line start → '- '
+  text = text.replace(/^[•‣◦⁃∙\*]\s*/gm, '- ');
+  // Remove horizontal rules
+  text = text.replace(/^(-{3,}|\*{3,}|_{3,})\s*$/gm, '');
+  // Collapse 3+ blank lines to 2
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
 }
 
 function lxpPollVideoStatus(postId, renderId) { // renderId kept for future use
