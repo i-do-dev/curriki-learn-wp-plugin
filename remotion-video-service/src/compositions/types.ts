@@ -19,7 +19,9 @@ export type LayoutType =
   | 'split_blueprint'     // two-column: left = inputs, right = outputs
   | 'fuel_engine'         // inputs → engine box → output
   | 'checklist_reveal'    // ordered list; checkmarks reveal one by one
-  | 'deployment_circles'; // 4 concentric circles expanding outward
+  | 'deployment_circles' // 4 concentric circles expanding outward
+  // ── v3 additions ─────────────────────────────────────────────────────────
+  | 'editorial';         // rich text blocks: badge + heading + sub + paragraph + callout
 
 /** Properties for a single item within a scene's items array. */
 export interface SceneItem {
@@ -32,6 +34,10 @@ export interface SceneItem {
   /** Used by evaluation / checklist_reveal to colour code items. */
   status?: 'pass' | 'gap' | 'warn';
   icon?: string;
+  /** Short ALL-CAPS keyword label rendered as an accent pill tag (e.g. "KEY CONCEPT", "TIP"). */
+  badge?: string;
+  /** Body paragraph text rendered below sub_label; required in editorial layout. */
+  description?: string;
 }
 
 export interface Scene {
@@ -41,6 +47,8 @@ export interface Scene {
   narration: string;
   items: SceneItem[];
   duration_frames: number;
+  /** Highlighted insight block — the scene's single most important takeaway. */
+  callout?: string;
 }
 
 export interface InputProps {

@@ -242,12 +242,19 @@ Each scene object:
 
 SceneItem shape:
 {
-  "text": "<required — the display label>",
-  "sub_label": "<optional — secondary detail line>",
+  "text": "<required — the display label / heading>",
+  "sub_label": "<optional — secondary detail line or subheading>",
   "featured": <optional boolean — this item is the hero/recommended choice>,
   "role": "<optional — 'input' | 'output' | 'bad' | 'good'>",
   "status": "<optional — 'pass' | 'gap' | 'warn'>",
-  "icon": "<optional — a single emoji that adds immediate semantic meaning; omit when uncertain. Recommended: 🎯 📊 ⚡ 🔒 🌐 🔧 📱 💡 🚀 📈 🛡️ 🔄 ✅ ⚠️ 🏆 👥 💼 🧩 📋 🎓 🔍 🌱 ⚖️ 🔬 📡 🏛️ 💬 📐 🗂️>"
+  "icon": "<optional — a single emoji that adds immediate semantic meaning; omit when uncertain. Recommended: 🎯 📊 ⚡ 🔒 🌐 🔧 📱 💡 🚀 📈 🛡️ 🔄 ✅ ⚠️ 🏆 👥 💼 🧩 📋 🎓 🔍 🌱 ⚖️ 🔬 📡 🏛️ 💬 📐 🗂️>",
+  "badge": "<optional — a short ALL-CAPS keyword label shown as an accent pill tag. Vocabulary: KEY CONCEPT · TIP · EXAMPLE · WARNING · BEST PRACTICE · NOTE · STEP · TOOL · RULE · INSIGHT · MYTH · FACT. Use only when the item has a named semantic type.>",
+  "description": "<optional — a 1-2 sentence body paragraph explaining the concept; required in editorial layout; useful in framework, card_list, split_blueprint when items need full explanations not just labels.>"
+}
+
+Scene object also accepts:
+{
+  "callout": "<optional — the single most important takeaway of this scene, expressed as one clear sentence. Shown as a highlighted callout box. Use in editorial (recommended), framework, problem/card_list, checklist_reveal, and whenever you want to spotlight one key insight.>"
 }
 
 ACCENT SELECTION — choose the palette that best matches the lesson's primary domain:
@@ -282,6 +289,7 @@ AVAILABLE LAYOUTS and their items[] contract:
 | fuel_engine        | 3-5 items — set role:'input' on ingredients (left), role:'output' on exactly 1 result (right)   |
 | checklist_reveal   | 3-6 items — sequentially revealed checklist; use status:'gap' or 'warn' on weak/missing items   |
 | deployment_circles | exactly 4 items — concentric ring labels (innermost first, e.g. individual → team → org → all)  |
+| editorial          | 1-3 items — rich content blocks; each item MUST have description; badge and sub_label recommended; callout highly recommended; use for concept-explanation scenes with substantial prose |
 
 SCENE ORDERING RULES:
 - First scene MUST use layout 'intro'.
@@ -303,9 +311,13 @@ CONTENT RULES:
 
 DESIGN PRINCIPLES:
 - Layout variety: no layout type may repeat in a 6-8 scene video; in a 9-10 scene video allow at most one repeat. Structural diversity keeps the viewer engaged.
-- Scene rhythm: alternate between analytical layouts (framework, quad_grid, split_blueprint, checklist_reveal) and high-impact visual layouts (process, cycle_loop, contrast, before_after, branching_flow) for natural pacing. Avoid clustering the same category of layout.
+- Scene rhythm: alternate between analytical layouts (framework, quad_grid, split_blueprint, checklist_reveal, editorial) and high-impact visual layouts (process, cycle_loop, contrast, before_after, branching_flow) for natural pacing. Avoid clustering the same category of layout.
 - Icon economy: assign an icon only when an emoji unambiguously matches the item concept and adds meaning a viewer will register instantly. Omit the icon field entirely when uncertain — decoration is worse than absence.
-- Progressive density: open with visual impact (intro), build conceptual complexity in middle scenes, close with synthesis and call to action (conclusion or cycle_loop).
+- Badge labels: assign badge only when the item has a clear named semantic type (a TIP is different from a RULE; a MYTH is different from a FACT). Use the vocabulary provided. Do not add badges to every item.
+- Description usage: add description when an item needs a full explanation — not just for items that are labels. Required in editorial; optional elsewhere. Do not pad with repetition of item.text.
+- Callout placement: use callout for the scene's single most important insight. Prefer editorial for callout-heavy content. In other layouts, use callout sparingly — one callout per video is better than one per scene.
+- Editorial layout: choose editorial for scenes where the content is primarily conceptual prose — definitions, comparisons, explanations, analyses. Give every editorial item both sub_label and description; always include a callout.
+- Progressive density: open with visual impact (intro), build conceptual complexity in middle scenes (mix analytical + editorial), close with synthesis and call to action (conclusion or cycle_loop).
 - Color selection: choose the accent that best reflects the lesson's primary domain from the ACCENT SELECTION table. Prefer specificity over defaulting to gold.
 PROMPT;
 	}

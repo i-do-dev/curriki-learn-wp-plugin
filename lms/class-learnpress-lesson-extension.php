@@ -223,6 +223,7 @@ class TL_LearnPress_Lesson_Extension {
 						<option value="fuel-engine"><?php echo esc_html__( 'Fuel Engine', 'tiny-lxp-platform' ); ?></option>
 						<option value="checklist-reveal"><?php echo esc_html__( 'Checklist Reveal', 'tiny-lxp-platform' ); ?></option>
 						<option value="deployment-circles"><?php echo esc_html__( 'Deployment Circles', 'tiny-lxp-platform' ); ?></option>
+						<option value="editorial"><?php echo esc_html__( 'Editorial', 'tiny-lxp-platform' ); ?></option>
 					</select>
 					<button type="button" id="lxp-video-insert-block-btn" class="button"><?php echo esc_html__( 'Insert', 'tiny-lxp-platform' ); ?></button>
 				</div>

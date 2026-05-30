@@ -133,6 +133,46 @@ const NarrationBar: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+/** Pill tag for item.badge — short ALL-CAPS keyword label */
+const BadgePill: React.FC<{ text: string; palette: Palette }> = ({ text, palette }) => (
+  <div style={{
+    display: 'inline-block',
+    background: `${palette.accent}2E`,
+    border: `1px solid ${palette.cardBorder}`,
+    borderRadius: 20,
+    padding: '3px 12px',
+    fontSize: 12,
+    fontWeight: 700,
+    color: palette.accent,
+    letterSpacing: '0.6px',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  }}>
+    {text}
+  </div>
+);
+
+/** Highlighted callout box for scene.callout */
+const CalloutBlock: React.FC<{ text: string; palette: Palette; delay?: number }> = ({ text, palette, delay = 0 }) => {
+  const style = useSlideUp(delay, 28);
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 14,
+      background: `${palette.accent}14`,
+      borderLeft: `4px solid ${palette.accent}`,
+      borderRadius: 12,
+      padding: '16px 22px',
+      boxShadow: `inset 0 0 0 1px ${palette.cardBorder}`,
+      ...style,
+    }}>
+      <span style={{ fontSize: 20, lineHeight: 1.3, flexShrink: 0, marginTop: 2 }}>💡</span>
+      <div style={{ fontSize: 19, fontWeight: 500, color: WHITE, lineHeight: 1.55 }}>{text}</div>
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SCENE 1 — INTRO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -215,15 +255,22 @@ export const ProblemScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sce
               transform: `translateY(${isHl ? -riseP * 16 : 0}px) scale(${isHl ? 1 + riseP * 0.02 : 1})`,
               borderColor: lit ? palette.accent : CARD_PLAIN,
             }}>
+              {item.badge && <BadgePill text={item.badge} palette={palette} />}
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 {item.icon && <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
                 <span style={{ fontSize: 24, color: lit ? palette.accent : WHITE, fontWeight: isHl ? 700 : 400 }}>{item.text}</span>
               </div>
+              {item.description && <div style={{ fontSize: 15, color: WHITE_DIM, lineHeight: 1.6, marginTop: 8 }}>{item.description}</div>}
             </GlassCard>
           );
         })}
       </div>
-      <div style={{ marginTop: 32, ...useSlideUp(riseDelay + 18) }}>
+      {scene.callout && (
+        <div style={{ marginTop: 16 }}>
+          <CalloutBlock text={scene.callout} palette={palette} delay={riseDelay + 10} />
+        </div>
+      )}
+      <div style={{ marginTop: scene.callout ? 12 : 32, ...useSlideUp(riseDelay + 18) }}>
         <WhitePhrase text={scene.on_screen_text} />
       </div>
       <NarrationBar text={scene.narration} />
@@ -261,13 +308,20 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
                 fontSize: 13, fontWeight: 800, width: 26, height: 26, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{i + 1}</div>
-              {item.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8, marginTop: 6 }}>{item.icon}</div>}
-              <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: item.icon ? 0 : 6 }}>{item.text}</div>
+              {item.badge && <BadgePill text={item.badge} palette={palette} />}
+              {item.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8, marginTop: item.badge ? 0 : 6 }}>{item.icon}</div>}
+              <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: (item.icon || item.badge) ? 0 : 6 }}>{item.text}</div>
               {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+              {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
             </div>
           );
         })}
       </div>
+      {scene.callout && (
+        <div style={{ marginTop: 20 }}>
+          <CalloutBlock text={scene.callout} palette={palette} delay={scene.items.length * 10 + 38} />
+        </div>
+      )}
       <NarrationBar text={scene.narration} />
     </SceneWrap>
   );
@@ -568,9 +622,11 @@ export const BranchingFlowScene: React.FC<{ scene: Scene; palette: Palette }> = 
           {targets.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(55 + i * 12, 28) }}>
               <GlassCard style={{ padding: '20px 30px', minWidth: 240 }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 {item.icon && <div style={{ fontSize: 22, lineHeight: 1, marginBottom: 6 }}>{item.icon}</div>}
                 <div style={{ fontSize: 20, color: WHITE, fontWeight: 600 }}>{item.text}</div>
                 {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </GlassCard>
             </div>
           ))}
@@ -650,11 +706,13 @@ export const QuadGridScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sc
                 {checked && <div style={{ fontSize: 20, fontWeight: 800, color: palette.accent }}>✓</div>}
               </div>
               <div>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ fontSize: 22, fontWeight: 600, color: checked ? palette.accent : WHITE }}>
                   {item.icon && <span style={{ marginRight: 8 }}>{item.icon}</span>}
                   {item.text}
                 </div>
                 {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </div>
             </GlassCard>
           );
@@ -790,11 +848,13 @@ export const SplitBlueprintScene: React.FC<{ scene: Scene; palette: Palette }> =
           {left.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 12 + 8, 32) }}>
               <GlassCard style={{ padding: '18px 26px' }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
                   <div>
                     <div style={{ fontSize: 21, color: WHITE, fontWeight: 600 }}>{item.text}</div>
                     {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                    {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
                   </div>
                 </div>
               </GlassCard>
@@ -806,11 +866,13 @@ export const SplitBlueprintScene: React.FC<{ scene: Scene; palette: Palette }> =
           {right.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 12 + 32, 32) }}>
               <GlassCard accent palette={palette} style={{ padding: '18px 26px' }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
                   <div>
                     <div style={{ fontSize: 21, color: palette.accent, fontWeight: 600 }}>{item.text}</div>
                     {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                    {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
                   </div>
                 </div>
               </GlassCard>
@@ -850,10 +912,12 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
           {inputs.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 10 + 5, 30) }}>
               <GlassCard style={{ padding: '16px 22px' }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {item.icon && <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
                   <div style={{ fontSize: 18, color: WHITE_DIM, fontWeight: 500 }}>{item.text}</div>
                 </div>
+                {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </GlassCard>
             </div>
           ))}
@@ -916,17 +980,24 @@ export const ChecklistRevealScene: React.FC<{ scene: Scene; palette: Palette }> 
                 </div>
               </div>
               <div style={{ flex: 1 }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ fontSize: 23, color: showGap ? AMBER : WHITE, fontWeight: showGap ? 700 : 400, lineHeight: 1.3 }}>
                   {item.icon && <span style={{ marginRight: 10 }}>{item.icon}</span>}
                   {item.text}
                 </div>
                 {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 2 }}>{item.sub_label}</div>}
+                {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 4 }}>{item.description}</div>}
               </div>
             </div>
           );
         })}
       </div>
-      <div style={{ marginTop: 24, ...useSlideUp(scene.items.length * 18 + 40) }}><WhitePhrase text={scene.on_screen_text} size={26} /></div>
+      {scene.callout && (
+        <div style={{ marginTop: 16 }}>
+          <CalloutBlock text={scene.callout} palette={palette} delay={scene.items.length * 18 + 32} />
+        </div>
+      )}
+      <div style={{ marginTop: 16, ...useSlideUp(scene.items.length * 18 + 40) }}><WhitePhrase text={scene.on_screen_text} size={26} /></div>
       <NarrationBar text={scene.narration} />
     </SceneWrap>
   );
@@ -973,6 +1044,91 @@ export const DeploymentCirclesScene: React.FC<{ scene: Scene; palette: Palette }
         <div style={{ width: 20, height: 20, borderRadius: '50%', background: palette.accent, boxShadow: palette.glow, ...useScaleIn(5) }} />
       </div>
       <div style={{ marginTop: 4, ...useSlideUp(90) }}><WhitePhrase text={scene.on_screen_text} size={26} /></div>
+      <NarrationBar text={scene.narration} />
+    </SceneWrap>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V3 — EDITORIAL  (rich text blocks: badge + heading + sub + paragraph + callout)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const EditorialScene: React.FC<{ scene: Scene; palette: Palette }> = ({ scene, palette }) => {
+  const items = scene.items.slice(0, 3);
+  const isSingle  = items.length === 1;
+  const isDouble  = items.length === 2;
+  const calloutDelay = items.length * 18 + 40;
+
+  return (
+    <SceneWrap>
+      <AccentTitle text={scene.title} palette={palette} />
+      {/* Styled subheading — on_screen_text shown larger than NarrationBar */}
+      <div style={{ ...useSlideUp(12, 24), fontSize: 26, fontWeight: 500, color: WHITE, lineHeight: 1.35, marginBottom: 24, fontStyle: 'italic' }}>
+        {scene.on_screen_text}
+      </div>
+
+      {/* Items area */}
+      <div style={{
+        display: 'flex',
+        flexDirection: isSingle ? 'row' : 'column',
+        gap: 20,
+        flex: 1,
+      }}>
+        {/* Rich content blocks */}
+        <div style={{
+          display: 'flex',
+          flexDirection: isSingle ? 'column' : (isDouble ? 'row' : 'column'),
+          gap: 20,
+          flex: isSingle ? '0 0 60%' : 1,
+        }}>
+          {items.map((item, i) => {
+            const delay = i * 18 + 20;
+            const blockStyle = useSlideUp(delay, 28);
+            return (
+              <div key={i} style={{
+                ...blockStyle,
+                background: CARD_BG,
+                border: `1px solid ${palette.cardBorder}`,
+                borderRadius: 16,
+                padding: '22px 28px',
+                flex: 1,
+              }}>
+                {item.badge && <BadgePill text={item.badge} palette={palette} />}
+                {item.icon && (
+                  <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 10, marginTop: item.badge ? 4 : 0 }}>{item.icon}</div>
+                )}
+                <div style={{ fontSize: 26, fontWeight: 700, color: WHITE, lineHeight: 1.25, marginBottom: item.sub_label || item.description ? 8 : 0 }}>
+                  {item.text}
+                </div>
+                {item.sub_label && (
+                  <div style={{ fontSize: 17, color: palette.accent, fontWeight: 600, marginBottom: 10 }}>{item.sub_label}</div>
+                )}
+                {item.sub_label && item.description && (
+                  <div style={{ width: 40, height: 2, background: palette.cardBorder, marginBottom: 10, borderRadius: 2 }} />
+                )}
+                {item.description && (
+                  <div style={{ fontSize: 16, color: WHITE_DIM, lineHeight: 1.65 }}>{item.description}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Callout — right column for single item, full width below for multi */}
+        {scene.callout && isSingle && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <CalloutBlock text={scene.callout} palette={palette} delay={calloutDelay} />
+          </div>
+        )}
+      </div>
+
+      {/* Callout below items for 2-3 item layouts */}
+      {scene.callout && !isSingle && (
+        <div style={{ marginTop: 18 }}>
+          <CalloutBlock text={scene.callout} palette={palette} delay={calloutDelay} />
+        </div>
+      )}
+
       <NarrationBar text={scene.narration} />
     </SceneWrap>
   );

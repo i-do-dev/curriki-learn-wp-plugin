@@ -20,6 +20,7 @@ import {
   FuelEngineScene,
   ChecklistRevealScene,
   DeploymentCirclesScene,
+  EditorialScene,
 } from './Scenes';
 import {
   NAVY,
@@ -62,6 +63,8 @@ const LAYOUT_MAP: Record<LayoutType, SceneFC> = {
   fuel_engine:         FuelEngineScene,
   checklist_reveal:    ChecklistRevealScene,
   deployment_circles:  DeploymentCirclesScene,
+  // v3 additions
+  editorial:           EditorialScene,
 };
 
 export const LessonVideo: React.FC<InputProps> = ({ scenes, accent }) => {
