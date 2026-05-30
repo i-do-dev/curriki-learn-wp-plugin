@@ -78,7 +78,7 @@ const AccentTitle: React.FC<{ text: string; palette: Palette; delay?: number; si
   ({ text, palette, delay = 0, size = 58 }) => {
     const style = useSlideUp(delay, 40);
     return (
-      <div style={{ fontSize: size, fontWeight: 800, color: palette.accent, lineHeight: 1.1, letterSpacing: '-0.5px', marginBottom: 20, ...style }}>
+      <div style={{ fontSize: size, fontWeight: 800, color: palette.accent, lineHeight: 1.1, letterSpacing: '-0.5px', marginBottom: 28, ...style }}>
         {text}
       </div>
     );
@@ -104,7 +104,7 @@ const GlassCard: React.FC<{
     background: CARD_BG,
     border: `1px solid ${accent && palette ? palette.cardBorder : CARD_PLAIN}`,
     borderRadius: 16,
-    padding: '18px 26px',
+    padding: '22px 28px',
     boxShadow: accent && palette ? palette.glow : 'none',
     ...style,
   }}>
@@ -170,7 +170,9 @@ export const IntroScene: React.FC<{ scene: Scene; palette: Palette }> = ({ scene
                 background: CARD_BG, border: `1px solid ${CARD_PLAIN}`,
                 borderRadius: 24, padding: '7px 20px',
                 fontSize: 20, color: WHITE_DIM, whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 7,
               }}>
+                {item.icon && <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>}
                 {item.text}
               </div>
             );
@@ -202,7 +204,7 @@ export const ProblemScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sce
   return (
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {scene.items.map((item, i) => {
           const isHl = i === highlightIdx;
           const appearOp = interpolate(Math.max(0, frame - i * 9), [0, 15], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
@@ -213,7 +215,10 @@ export const ProblemScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sce
               transform: `translateY(${isHl ? -riseP * 16 : 0}px) scale(${isHl ? 1 + riseP * 0.02 : 1})`,
               borderColor: lit ? palette.accent : CARD_PLAIN,
             }}>
-              <span style={{ fontSize: 24, color: lit ? palette.accent : WHITE, fontWeight: isHl ? 700 : 400 }}>{item.text}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {item.icon && <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
+                <span style={{ fontSize: 24, color: lit ? palette.accent : WHITE, fontWeight: isHl ? 700 : 400 }}>{item.text}</span>
+              </div>
             </GlassCard>
           );
         })}
@@ -239,7 +244,7 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
       <WhitePhrase text={scene.on_screen_text} delay={15} size={26} />
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 20, marginTop: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 24, marginTop: 28 }}>
         {scene.items.map((item, i) => {
           const delay = i * 10 + 22;
           const p = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 15, stiffness: 110 } });
@@ -248,7 +253,7 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
             <div key={i} style={{
               opacity, transform: `translateX(${(1 - p) * 45}px)`,
               background: CARD_BG, border: `1px solid ${palette.cardBorder}`,
-              borderRadius: 14, padding: '20px 20px 16px', position: 'relative',
+              borderRadius: 14, padding: '24px 22px 20px', position: 'relative',
             }}>
               <div style={{
                 position: 'absolute', top: -12, left: 16,
@@ -256,7 +261,8 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
                 fontSize: 13, fontWeight: 800, width: 26, height: 26, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{i + 1}</div>
-              <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: 6 }}>{item.text}</div>
+              {item.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8, marginTop: 6 }}>{item.icon}</div>}
+              <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: item.icon ? 0 : 6 }}>{item.text}</div>
               {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
             </div>
           );
@@ -434,7 +440,7 @@ export const OptionsScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sce
                 boxShadow: isSelected ? palette.glow : 'none',
                 transform: `scale(${1 + (isSelected ? selectedP * 0.06 : 0)})`,
               }}>
-                <div style={{ fontSize: 52, fontWeight: 800, color: isSelected ? palette.accent : WHITE_DIM }}>{i + 1}</div>
+                <div style={{ fontSize: item.icon ? 48 : 52, fontWeight: 800, color: isSelected ? palette.accent : WHITE_DIM }}>{item.icon ?? (i + 1)}</div>
               </div>
               <div style={{ fontSize: 22, color: isSelected ? palette.accent : WHITE, marginTop: 20, textAlign: 'center', maxWidth: 200, fontWeight: isSelected ? 700 : 400 }}>
                 {item.text}
@@ -477,7 +483,7 @@ export const ConclusionScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transform: `scale(${p})`, boxShadow: palette.glow,
                 }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: NAVY }}>{i + 1}</div>
+                  <div style={{ fontSize: item.icon ? 26 : 22, fontWeight: 800, color: NAVY }}>{item.icon ?? (i + 1)}</div>
                 </div>
                 <div style={{ fontSize: 20, color: WHITE, marginTop: 12, textAlign: 'center', maxWidth: 180 }}>{item.text}</div>
               </div>
@@ -537,6 +543,7 @@ export const BranchingFlowScene: React.FC<{ scene: Scene; palette: Palette }> = 
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 40, height: 480, position: 'relative' }}>
         <div style={{ ...useScaleIn(5), flexShrink: 0 }}>
           <GlassCard accent palette={palette} style={{ padding: '28px 36px', minWidth: 220, textAlign: 'center' }}>
+            {inputItem?.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8 }}>{inputItem.icon}</div>}
             <div style={{ fontSize: 22, fontWeight: 700, color: palette.accent }}>{inputItem?.text ?? ''}</div>
           </GlassCard>
         </div>
@@ -557,10 +564,11 @@ export const BranchingFlowScene: React.FC<{ scene: Scene; palette: Palette }> = 
             );
           })}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, flexShrink: 0 }}>
           {targets.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(55 + i * 12, 28) }}>
-              <GlassCard style={{ padding: '18px 28px', minWidth: 240 }}>
+              <GlassCard style={{ padding: '20px 30px', minWidth: 240 }}>
+                {item.icon && <div style={{ fontSize: 22, lineHeight: 1, marginBottom: 6 }}>{item.icon}</div>}
                 <div style={{ fontSize: 20, color: WHITE, fontWeight: 600 }}>{item.text}</div>
                 {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
               </GlassCard>
@@ -623,7 +631,7 @@ export const QuadGridScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sc
   return (
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 28 }}>
         {items.map((item, i) => {
           const cardDelay  = i * 14 + 10;
           const checkDelay = cardDelay + 22;
@@ -631,7 +639,7 @@ export const QuadGridScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sc
           const checkP = spring({ frame: Math.max(0, frame - checkDelay), fps, config: { damping: 14, stiffness: 150 } });
           const checked = frame > checkDelay;
           return (
-            <GlassCard key={i} accent={checked} palette={palette} style={{ opacity: cardOp, padding: '28px 30px', display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+            <GlassCard key={i} accent={checked} palette={palette} style={{ opacity: cardOp, padding: '28px 32px', display: 'flex', alignItems: 'flex-start', gap: 18 }}>
               <div style={{
                 width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
                 border: `2px solid ${checked ? palette.accent : CARD_PLAIN}`,
@@ -642,7 +650,10 @@ export const QuadGridScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sc
                 {checked && <div style={{ fontSize: 20, fontWeight: 800, color: palette.accent }}>✓</div>}
               </div>
               <div>
-                <div style={{ fontSize: 22, fontWeight: 600, color: checked ? palette.accent : WHITE }}>{item.text}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: checked ? palette.accent : WHITE }}>
+                  {item.icon && <span style={{ marginRight: 8 }}>{item.icon}</span>}
+                  {item.text}
+                </div>
                 {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
               </div>
             </GlassCard>
@@ -735,7 +746,7 @@ export const CycleLoopScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
                 boxShadow: palette.glow, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 16,
               }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: palette.accent, marginBottom: 6 }}>{i + 1}</div>
+                <div style={{ fontSize: item.icon ? 32 : 28, fontWeight: 800, color: palette.accent, marginBottom: 6 }}>{item.icon ?? (i + 1)}</div>
                 <div style={{ fontSize: 17, color: WHITE, lineHeight: 1.3 }}>{item.text}</div>
               </div>
             </div>
@@ -775,23 +786,33 @@ export const SplitBlueprintScene: React.FC<{ scene: Scene; palette: Palette }> =
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
       <div style={{ display: 'flex', gap: 0, marginTop: 24, height: 460 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, paddingRight: 40 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, paddingRight: 40 }}>
           {left.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 12 + 8, 32) }}>
-              <GlassCard style={{ padding: '16px 22px' }}>
-                <div style={{ fontSize: 21, color: WHITE, fontWeight: 600 }}>{item.text}</div>
-                {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+              <GlassCard style={{ padding: '18px 26px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
+                  <div>
+                    <div style={{ fontSize: 21, color: WHITE, fontWeight: 600 }}>{item.text}</div>
+                    {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                  </div>
+                </div>
               </GlassCard>
             </div>
           ))}
         </div>
         <div style={{ width: 3, background: palette.accent, opacity: dividerOp, borderRadius: 2, boxShadow: `0 0 18px ${palette.accent}80`, alignSelf: 'stretch' }} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, paddingLeft: 40 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, paddingLeft: 40 }}>
           {right.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 12 + 32, 32) }}>
-              <GlassCard accent palette={palette} style={{ padding: '16px 22px' }}>
-                <div style={{ fontSize: 21, color: palette.accent, fontWeight: 600 }}>{item.text}</div>
-                {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+              <GlassCard accent palette={palette} style={{ padding: '18px 26px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
+                  <div>
+                    <div style={{ fontSize: 21, color: palette.accent, fontWeight: 600 }}>{item.text}</div>
+                    {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                  </div>
+                </div>
               </GlassCard>
             </div>
           ))}
@@ -825,11 +846,14 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 48, gap: 28, height: 380 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, width: 240 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flexShrink: 0, width: 240 }}>
           {inputs.map((item, i) => (
             <div key={i} style={{ ...useSlideUp(i * 10 + 5, 30) }}>
-              <GlassCard style={{ padding: '14px 20px' }}>
-                <div style={{ fontSize: 18, color: WHITE_DIM, fontWeight: 500 }}>{item.text}</div>
+              <GlassCard style={{ padding: '16px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {item.icon && <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>}
+                  <div style={{ fontSize: 18, color: WHITE_DIM, fontWeight: 500 }}>{item.text}</div>
+                </div>
               </GlassCard>
             </div>
           ))}
@@ -870,7 +894,7 @@ export const ChecklistRevealScene: React.FC<{ scene: Scene; palette: Palette }> 
   return (
     <SceneWrap>
       <AccentTitle text={scene.title} palette={palette} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22, marginTop: 20 }}>
         {scene.items.map((item, i) => {
           const itemDelay  = i * 18 + 8;
           const checkDelay = itemDelay + 16;
@@ -892,7 +916,10 @@ export const ChecklistRevealScene: React.FC<{ scene: Scene; palette: Palette }> 
                 </div>
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 23, color: showGap ? AMBER : WHITE, fontWeight: showGap ? 700 : 400, lineHeight: 1.3 }}>{item.text}</div>
+                <div style={{ fontSize: 23, color: showGap ? AMBER : WHITE, fontWeight: showGap ? 700 : 400, lineHeight: 1.3 }}>
+                  {item.icon && <span style={{ marginRight: 10 }}>{item.icon}</span>}
+                  {item.text}
+                </div>
                 {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 2 }}>{item.sub_label}</div>}
               </div>
             </div>

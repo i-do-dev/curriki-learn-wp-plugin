@@ -45,6 +45,6 @@ export interface Scene {
 
 export interface InputProps {
   title: string;
-  accent?: 'gold' | 'cyan_orange';
+  accent?: 'gold' | 'cyan_orange' | 'emerald' | 'violet' | 'rose' | 'teal';
   scenes: Scene[];
 }

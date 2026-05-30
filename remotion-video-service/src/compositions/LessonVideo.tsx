@@ -21,7 +21,23 @@ import {
   ChecklistRevealScene,
   DeploymentCirclesScene,
 } from './Scenes';
-import { NAVY, PALETTE_GOLD, PALETTE_CYAN, type Palette } from './theme';
+import {
+  NAVY,
+  PALETTE_GOLD, PALETTE_CYAN,
+  PALETTE_EMERALD, PALETTE_VIOLET, PALETTE_ROSE, PALETTE_TEAL,
+  type Palette,
+} from './theme';
+
+function resolvePalette(accent?: string): Palette {
+  switch (accent) {
+    case 'cyan_orange': return PALETTE_CYAN;
+    case 'emerald':     return PALETTE_EMERALD;
+    case 'violet':      return PALETTE_VIOLET;
+    case 'rose':        return PALETTE_ROSE;
+    case 'teal':        return PALETTE_TEAL;
+    default:            return PALETTE_GOLD;
+  }
+}
 
 type SceneFC = React.FC<{ scene: Scene; palette: Palette }>;
 
@@ -49,7 +65,7 @@ const LAYOUT_MAP: Record<LayoutType, SceneFC> = {
 };
 
 export const LessonVideo: React.FC<InputProps> = ({ scenes, accent }) => {
-  const palette = accent === 'cyan_orange' ? PALETTE_CYAN : PALETTE_GOLD;
+  const palette = resolvePalette(accent);
   let offset = 0;
   return (
     <AbsoluteFill style={{ background: NAVY }}>
