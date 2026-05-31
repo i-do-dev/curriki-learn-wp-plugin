@@ -131,6 +131,41 @@ $lxp_vl_layouts = array(
 		'best_for'    => 'Rollout strategies, organisational impact levels, or nested scope models.',
 		'sample'      => ":::deployment-circles\nThe AI differentiation rollout expands in four rings: start with a single teacher\nand one class, then expand to the department, scale to the whole school, and\nfinally deploy across the district with standardised prompt templates.\n:::",
 	),
+	array(
+		'slug'        => 'comparison',
+		'name'        => 'Comparison (A vs B)',
+		'description' => 'Two panels shown side-by-side with a central VS marker, optionally resolving into a single merged result card.',
+		'best_for'    => 'Head-to-head choices: chat box vs. document, spreadsheet vs. PDF, blueprint vs. bricks.',
+		'sample'      => ":::comparison\nCompare drafting a prompt directly in the chat box against drafting it first in a\nreusable external document, and show that the document approach wins.\n:::",
+	),
+	array(
+		'slug'        => 'gate',
+		'name'        => 'Gate (Clarify / Confirm)',
+		'description' => 'A checkpoint that surfaces clarifying questions or confirmation checks, then opens to reveal the cleared result.',
+		'best_for'    => 'Tools that should ask before they act: clarification mandates and confirmation gates.',
+		'sample'      => ":::gate\nBefore the tool generates a lesson it must ask three questions \xe2\x80\x94 grade level,\nsubject, and format \xe2\x80\x94 and only proceed once they are answered.\n:::",
+	),
+	array(
+		'slug'        => 'routing',
+		'name'        => 'Routing (Sort to Buckets)',
+		'description' => 'Each item animates from a source into its correct labelled destination bucket.',
+		'best_for'    => 'Matching tasks to categories: routing each request to the right AI engine or sharing tier.',
+		'sample'      => ":::routing\nRoute each task to the right engine: a routine email to Fast Mode, a curriculum map\nto Deep Reasoning, and a current-events question to Web Search.\n:::",
+	),
+	array(
+		'slug'        => 'stat-highlight',
+		'name'        => 'Stat Highlight (Metric)',
+		'description' => 'One striking hero metric, or a before\xe2\x86\x92after pair of numbers, displayed large and centred.',
+		'best_for'    => 'Quantified impact and leverage: time saved, effort reduced, scale achieved.',
+		'sample'      => ":::stat-highlight\nShow how a custom grading tool turns a two-hour feedback workflow into a\nten-minute one.\n:::",
+	),
+	array(
+		'slug'        => 'transform-text',
+		'name'        => 'Transform Text (Rewrite)',
+		'description' => 'A single weak statement morphs in place into a sharp, precise version.',
+		'best_for'    => 'Showing instruction or tone improvements: vague rule rewritten into a precise one.',
+		'sample'      => ":::transform-text\nRewrite the vague instruction \xe2\x80\x9cgive feedback\xe2\x80\x9d into the precise rule \xe2\x80\x9cprovide two\nstrengths and one improvement tied to the rubric.\xe2\x80\x9d\n:::",
+	),
 );
 ?>
 <div class="wrap">

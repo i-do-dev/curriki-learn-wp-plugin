@@ -278,6 +278,85 @@
   color: #cc1818;
 }
 
+/* ── 2-step video wizard ─────────────────────────────────────────────────── */
+
+.lxp-video-wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #dcdcde;
+}
+
+.lxp-video-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #a0a5aa;
+}
+
+.lxp-video-wizard-step.active {
+  color: #1a7e1a;
+}
+
+.lxp-vws-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: #dcdcde;
+  color: #50575e;
+  flex-shrink: 0;
+}
+
+.lxp-video-wizard-step.active .lxp-vws-num {
+  background: #1a7e1a;
+  color: #fff;
+}
+
+.lxp-vws-arrow {
+  font-size: 16px;
+  color: #c3c4c7;
+  flex-shrink: 0;
+}
+
+.lxp-video-step-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.lxp-video-step-btn-primary {
+  box-sizing: border-box;
+}
+
+.lxp-video-step-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lxp-video-step-status {
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 1.5em;
+}
+
+.lxp-video-step-status-ok {
+  color: #1a7e1a;
+}
+
+.lxp-video-step-status-error {
+  color: #cc1818;
+}
+
 .tiny-lxp-platform-modal {
   display: none;
   position: fixed;

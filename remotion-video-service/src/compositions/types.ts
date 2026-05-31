@@ -19,7 +19,15 @@ export type LayoutType =
   | 'split_blueprint'     // two-column: left = inputs, right = outputs
   | 'fuel_engine'         // inputs → engine box → output
   | 'checklist_reveal'    // ordered list; checkmarks reveal one by one
-  | 'deployment_circles'; // 4 concentric circles expanding outward
+  | 'deployment_circles' // 4 concentric circles expanding outward
+  // ── v3 additions ─────────────────────────────────────────────────────────
+  | 'editorial'          // rich text blocks: badge + heading + sub + paragraph + callout
+  // ── v4 additions (Tier-1 from course-brief gap analysis) ─────────────────
+  | 'comparison'         // two panels A vs B side-by-side; optional merged result
+  | 'gate'               // clarify/confirm checkpoint: questions reveal, gate opens
+  | 'routing'            // each item routes from a source into its labeled bucket
+  | 'stat_highlight'     // hero metric; single big number or before→after
+  | 'transform_text';    // a single statement morphs weak → sharp in place
 
 /** Properties for a single item within a scene's items array. */
 export interface SceneItem {
@@ -32,6 +40,10 @@ export interface SceneItem {
   /** Used by evaluation / checklist_reveal to colour code items. */
   status?: 'pass' | 'gap' | 'warn';
   icon?: string;
+  /** Short ALL-CAPS keyword label rendered as an accent pill tag (e.g. "KEY CONCEPT", "TIP"). */
+  badge?: string;
+  /** Body paragraph text rendered below sub_label; required in editorial layout. */
+  description?: string;
 }
 
 export interface Scene {
@@ -41,10 +53,23 @@ export interface Scene {
   narration: string;
   items: SceneItem[];
   duration_frames: number;
+  /** Highlighted insight block — the scene's single most important takeaway. */
+  callout?: string;
+  /**
+   * Where the content zone sits when a full-screen background_clip is present (overlay mode).
+   * Keeps the animation off the video's center subject. Defaults to 'bottom'.
+   */
+  overlay_anchor?: 'bottom' | 'left' | 'right';
 }
 
 export interface InputProps {
   title: string;
-  accent?: 'gold' | 'cyan_orange';
+  accent?: 'gold' | 'cyan_orange' | 'emerald' | 'violet' | 'rose' | 'teal';
   scenes: Scene[];
+  /**
+   * Optional external video URL played full-screen behind every scene for the whole video.
+   * When set, scenes render transparent over it (overlay mode); the clip is trimmed to the
+   * composition length (sum of scene durations = the author's target). Plays its own audio.
+   */
+  background_clip?: string;
 }

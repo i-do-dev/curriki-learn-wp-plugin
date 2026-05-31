@@ -6,6 +6,9 @@ import type { InputProps } from './compositions/types';
 const defaultProps: InputProps = {
   title: 'Sample Lesson',
   accent: 'gold',
+  // To preview overlay mode in Studio, set background_clip to a PUBLIC, direct video URL
+  // (.mp4/.webm/.mov). Scenes render transparent over it; the clip is trimmed to the total length.
+  // background_clip: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
   scenes: [
     {
       layout: 'intro',
