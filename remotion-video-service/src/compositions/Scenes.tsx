@@ -73,19 +73,10 @@ export interface OverlayState {
 
 export const OverlayContext = React.createContext<OverlayState>({ overlay: false, anchor: 'bottom' });
 
-/** Uniform shrink toward the anchor point so the whole animated scene avoids the video subject. */
-function overlayFrame(anchor: OverlayState['anchor']): React.CSSProperties {
-  switch (anchor) {
-    case 'left':  return { transform: 'scale(0.86)', transformOrigin: '8% center' };
-    case 'right': return { transform: 'scale(0.86)', transformOrigin: '92% center' };
-    default:      return { transform: 'scale(0.90)', transformOrigin: 'center 82%' };
-  }
-}
-
-/** Directional scrim: clear through the upper-center (subject), darkening toward bottom/edges. */
-const OVERLAY_SCRIM =
-  'linear-gradient(to bottom, rgba(11,26,59,0.10) 0%, rgba(11,26,59,0.30) 45%, rgba(11,26,59,0.74) 100%),' +
-  ' radial-gradient(ellipse at 50% 38%, rgba(11,26,59,0) 28%, rgba(11,26,59,0.45) 100%)';
+// Split-frame immersion: when a background clip plays, the footage occupies the right ~38% of the
+// frame (see LessonVideo.tsx) and scene content is confined to the left zone on solid NAVY. This
+// reserves the right portion so content never overlaps the footage.
+const OVERLAY_CONTENT_RIGHT_PAD = '42%';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PALETTE CONTEXT + RICH TEXT  (inline *keyword* emphasis in accent colour)
@@ -128,21 +119,20 @@ function renderIcon(icon: string | undefined, size: number): React.ReactNode {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SceneWrap: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { overlay, anchor } = React.useContext(OverlayContext);
+  const { overlay } = React.useContext(OverlayContext);
   return (
-    <>
-      {overlay && <AbsoluteFill style={{ background: OVERLAY_SCRIM }} />}
-      <AbsoluteFill style={{
-        background: overlay ? 'transparent' : NAVY,
-        fontFamily: FONT,
-        padding: SAFE,
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-        ...(overlay ? overlayFrame(anchor) : {}),
-      }}>
-        {children}
-      </AbsoluteFill>
-    </>
+    // In overlay mode the fill is transparent so the NAVY base + right-band footage (from
+    // LessonVideo) show through; content is pushed into the left dark zone via right padding.
+    <AbsoluteFill style={{
+      background: overlay ? 'transparent' : NAVY,
+      fontFamily: FONT,
+      padding: SAFE,
+      paddingRight: overlay ? OVERLAY_CONTENT_RIGHT_PAD : SAFE,
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+    }}>
+      {children}
+    </AbsoluteFill>
   );
 };
 
@@ -154,7 +144,7 @@ const AccentTitle: React.FC<{ text: string; palette: Palette; delay?: number; si
       <div style={{
         fontSize: size, fontWeight: 800, color: palette.accent, lineHeight: 1.1,
         letterSpacing: '-0.5px', marginBottom: 28,
-        ...(overlay ? { textShadow: '0 2px 14px rgba(0,0,0,0.55)' } : {}),
+        ...(overlay ? { borderLeft: `5px solid ${palette.accent}`, paddingLeft: 20 } : {}),
         ...style,
       }}>
         <RichText text={text} />
@@ -163,7 +153,7 @@ const AccentTitle: React.FC<{ text: string; palette: Palette; delay?: number; si
   };
 
 const WhitePhrase: React.FC<{ text: string; delay?: number; size?: number; italic?: boolean }> =
-  ({ text, delay = 0, size = 32, italic }) => {
+  ({ text, delay = 0, size = 34, italic }) => {
     const { overlay } = React.useContext(OverlayContext);
     const style = useSlideUp(delay, overlay ? 22 : 30);
     return (
@@ -187,8 +177,8 @@ const GlassCard: React.FC<{
   const { overlay } = React.useContext(OverlayContext);
   return (
     <div style={{
-      // Over live footage, lift the fill and frost the panel so it reads as glass.
-      background: overlay ? 'rgba(11,26,59,0.42)' : CARD_BG,
+      // Over live footage, lift the fill and frost the panel so it reads as a solid glass card.
+      background: overlay ? 'rgba(11,26,59,0.72)' : CARD_BG,
       ...(overlay ? { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } : {}),
       border: `1px solid ${accent && palette ? palette.cardBorder : CARD_PLAIN}`,
       borderRadius: 16,
@@ -201,26 +191,9 @@ const GlassCard: React.FC<{
   );
 };
 
-const NarrationBar: React.FC<{ text: string }> = ({ text }) => {
-  const op = useFadeIn(20, 16);
-  if (!text) return null;
-  return (
-    <div style={{
-      position: 'absolute',
-      bottom: SAFE - 28,
-      left: SAFE,
-      right: SAFE,
-      opacity: op,
-      fontSize: 21,
-      color: WHITE_DIM,
-      textAlign: 'center',
-      lineHeight: 1.5,
-      fontStyle: 'italic',
-    }}>
-      {text}
-    </div>
-  );
-};
+// Narration is voice-over / caption copy — intentionally NOT drawn on screen.
+// Kept as a no-op (and `scene.narration` retained in data) for future subtitle/TTS use.
+const NarrationBar: React.FC<{ text: string }> = () => null;
 
 /** Pill tag for item.badge — short ALL-CAPS keyword label */
 const BadgePill: React.FC<{ text: string; palette: Palette }> = ({ text, palette }) => (
@@ -228,14 +201,14 @@ const BadgePill: React.FC<{ text: string; palette: Palette }> = ({ text, palette
     display: 'inline-block',
     background: `${palette.accent}2E`,
     border: `1px solid ${palette.cardBorder}`,
-    borderRadius: 20,
-    padding: '3px 12px',
-    fontSize: 12,
+    borderRadius: 22,
+    padding: '5px 14px',
+    fontSize: 15,
     fontWeight: 700,
     color: palette.accent,
     letterSpacing: '0.6px',
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 10,
   }}>
     {text}
   </div>
@@ -249,73 +222,75 @@ const CalloutBlock: React.FC<{ text: string; palette: Palette; delay?: number }>
     <div style={{
       display: 'flex',
       alignItems: 'flex-start',
-      gap: 14,
-      background: overlay ? 'rgba(11,26,59,0.50)' : `${palette.accent}14`,
+      gap: 16,
+      background: overlay ? 'rgba(11,26,59,0.72)' : `${palette.accent}14`,
       ...(overlay ? { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } : {}),
-      borderLeft: `4px solid ${palette.accent}`,
+      borderLeft: `5px solid ${palette.accent}`,
       borderRadius: 12,
-      padding: '16px 22px',
+      padding: '18px 24px',
       boxShadow: `inset 0 0 0 1px ${palette.cardBorder}`,
       ...style,
     }}>
-      <span style={{ fontSize: 20, lineHeight: 1.3, flexShrink: 0, marginTop: 2 }}>💡</span>
-      <div style={{ fontSize: 19, fontWeight: 500, color: WHITE, lineHeight: 1.55 }}>{text}</div>
+      <span style={{ fontSize: 26, lineHeight: 1.3, flexShrink: 0, marginTop: 2 }}>💡</span>
+      <div style={{ fontSize: 22, fontWeight: 500, color: WHITE, lineHeight: 1.55 }}>{text}</div>
     </div>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCENE 1 — INTRO
+// SCENE 1 — INTRO  (professional left-aligned hero; concept chips in a wrap row)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const BADGE_OFFSETS: Array<Partial<{ top: number; left: number; right: number; bottom: number }>> = [
-  { top: -130, left: -70 },
-  { top: -125, right: -130 },
-  { top:   10, left: -215 },
-  { top:   10, right: -220 },
-  { bottom: -115, left: -60 },
-  { bottom: -110, right: -75 },
-];
 
 export const IntroScene: React.FC<{ scene: Scene; palette: Palette }> = ({ scene, palette }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const phraseStyle = useSlideUp(40, 30);
+  const kicker = useSlideUp(0, 24);
+  const titleStyle = useSlideUp(8, 44);
+  const phraseStyle = useSlideUp(22, 30);
+  const chips = scene.items.slice(0, 6);
 
   return (
     <SceneWrap>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <div style={{ position: 'relative', marginBottom: 52 }}>
-          <GlassCard accent palette={palette} style={{ padding: '32px 60px', textAlign: 'center', ...useScaleIn(0) }}>
-            <div style={{ fontSize: 34, fontWeight: 700, color: palette.accent }}>{scene.title}</div>
-          </GlassCard>
-          {scene.items.slice(0, 6).map((item, i) => {
-            const pos = BADGE_OFFSETS[i] ?? { top: -130, left: 0 };
-            const delay = i * 8 + 12;
-            const p = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 14, stiffness: 100 } });
-            const opacity = interpolate(Math.max(0, frame - delay), [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-            return (
-              <div key={i} style={{
-                position: 'absolute', ...(pos as React.CSSProperties),
-                opacity, transform: `scale(${p})`,
-                background: CARD_BG, border: `1px solid ${CARD_PLAIN}`,
-                borderRadius: 24, padding: '7px 20px',
-                fontSize: 20, color: WHITE_DIM, whiteSpace: 'nowrap',
-                display: 'flex', alignItems: 'center', gap: 7,
-              }}>
-                {item.icon && <span style={{ fontSize: 18, lineHeight: 1 }}>{renderIcon(item.icon, 18)}</span>}
-                {item.text}
-              </div>
-            );
-          })}
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', maxWidth: 1080 }}>
+        {/* accent kicker bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22, ...kicker }}>
+          <div style={{ width: 54, height: 6, borderRadius: 3, background: palette.accent, boxShadow: palette.glow }} />
+          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: palette.accentAlt }}>Lesson</div>
         </div>
-        <div style={phraseStyle}>
-          <div style={{ fontSize: 38, fontWeight: 600, color: WHITE, textAlign: 'center', fontStyle: 'italic' }}>
-            "{scene.on_screen_text}"
+
+        {/* title */}
+        <div style={{ fontSize: 78, fontWeight: 800, color: palette.accent, lineHeight: 1.05, letterSpacing: '-1px', ...titleStyle }}>
+          <RichText text={scene.title} />
+        </div>
+
+        {/* supporting phrase */}
+        <div style={{ fontSize: 36, fontWeight: 600, color: WHITE, lineHeight: 1.3, marginTop: 22, ...phraseStyle }}>
+          <RichText text={scene.on_screen_text} />
+        </div>
+
+        {/* concept chips */}
+        {chips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 40 }}>
+            {chips.map((item, i) => {
+              const delay = i * 7 + 34;
+              const p = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 15, stiffness: 110 } });
+              const opacity = interpolate(Math.max(0, frame - delay), [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+              return (
+                <div key={i} style={{
+                  opacity, transform: `translateY(${(1 - p) * 16}px)`,
+                  background: CARD_BG, border: `1px solid ${palette.cardBorder}`,
+                  borderRadius: 999, padding: '11px 22px',
+                  fontSize: 23, color: WHITE, whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center', gap: 9,
+                }}>
+                  {item.icon && <span style={{ fontSize: 22, lineHeight: 1, color: palette.accent, display: 'inline-flex' }}>{renderIcon(item.icon, 22)}</span>}
+                  {item.text}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
-      <NarrationBar text={scene.narration} />
     </SceneWrap>
   );
 };
@@ -351,7 +326,7 @@ export const ProblemScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sce
                 {item.icon && <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 28)}</span>}
                 <span style={{ fontSize: 24, color: lit ? palette.accent : WHITE, fontWeight: isHl ? 700 : 400 }}>{item.text}</span>
               </div>
-              {item.description && <div style={{ fontSize: 15, color: WHITE_DIM, lineHeight: 1.6, marginTop: 8 }}>{item.description}</div>}
+              {item.description && <div style={{ fontSize: 18, color: WHITE_DIM, lineHeight: 1.6, marginTop: 8 }}>{item.description}</div>}
             </GlassCard>
           );
         })}
@@ -402,8 +377,8 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
               {item.badge && <BadgePill text={item.badge} palette={palette} />}
               {item.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8, marginTop: item.badge ? 0 : 6 }}>{renderIcon(item.icon, 26)}</div>}
               <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: (item.icon || item.badge) ? 0 : 6 }}>{item.text}</div>
-              {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
-              {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
+              {item.sub_label && <div style={{ fontSize: 17, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+              {item.description && <div style={{ fontSize: 17, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
             </div>
           );
         })}
@@ -716,7 +691,7 @@ export const BranchingFlowScene: React.FC<{ scene: Scene; palette: Palette }> = 
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 {item.icon && <div style={{ fontSize: 22, lineHeight: 1, marginBottom: 6 }}>{renderIcon(item.icon, 22)}</div>}
                 <div style={{ fontSize: 20, color: WHITE, fontWeight: 600 }}>{item.text}</div>
-                {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                {item.sub_label && <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
                 {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </GlassCard>
             </div>
@@ -802,8 +777,8 @@ export const QuadGridScene: React.FC<{ scene: Scene; palette: Palette }> = ({ sc
                   {item.icon && <span style={{ marginRight: 8 }}>{renderIcon(item.icon, 22)}</span>}
                   {item.text}
                 </div>
-                {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
-                {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
+                {item.sub_label && <div style={{ fontSize: 17, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                {item.description && <div style={{ fontSize: 17, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </div>
             </GlassCard>
           );
@@ -841,7 +816,7 @@ export const ThreeStepFlowScene: React.FC<{ scene: Scene; palette: Palette }> = 
                 <div style={{ background: CARD_BG, border: `2px solid ${palette.cardBorder}`, borderRadius: 14, padding: '28px 20px', textAlign: 'center', boxShadow: palette.glow }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: palette.accent, color: NAVY, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>{i + 1}</div>
                   <div style={{ fontSize: 22, color: WHITE, fontWeight: 600, lineHeight: 1.3 }}>{item.text}</div>
-                  {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 6 }}>{item.sub_label}</div>}
+                  {item.sub_label && <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 6 }}>{item.sub_label}</div>}
                 </div>
               </div>
               {!isLast && (
@@ -941,10 +916,10 @@ export const SplitBlueprintScene: React.FC<{ scene: Scene; palette: Palette }> =
               <GlassCard style={{ padding: '18px 26px' }}>
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 20)}</span>}
+                  {item.icon && <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 24)}</span>}
                   <div>
                     <div style={{ fontSize: 21, color: WHITE, fontWeight: 600 }}>{item.text}</div>
-                    {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                    {item.sub_label && <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
                     {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
                   </div>
                 </div>
@@ -959,10 +934,10 @@ export const SplitBlueprintScene: React.FC<{ scene: Scene; palette: Palette }> =
               <GlassCard accent palette={palette} style={{ padding: '18px 26px' }}>
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {item.icon && <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 20)}</span>}
+                  {item.icon && <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 24)}</span>}
                   <div>
                     <div style={{ fontSize: 21, color: palette.accent, fontWeight: 600 }}>{item.text}</div>
-                    {item.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+                    {item.sub_label && <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
                     {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
                   </div>
                 </div>
@@ -1005,7 +980,7 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
               <GlassCard style={{ padding: '16px 22px' }}>
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {item.icon && <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 18)}</span>}
+                  {item.icon && <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 24)}</span>}
                   <div style={{ fontSize: 18, color: WHITE_DIM, fontWeight: 500 }}>{item.text}</div>
                 </div>
                 {item.description && <div style={{ fontSize: 13, color: WHITE_DIM, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
@@ -1019,7 +994,7 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
         <div style={{ flexShrink: 0, opacity: engineOp, transform: `scale(${enginePulse})` }}>
           <div style={{ width: 150, height: 150, borderRadius: 20, background: CARD_BG, border: `3px solid ${palette.accent}`, boxShadow: palette.glow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             <div style={{ fontSize: 36, color: palette.accent }}>⚙</div>
-            <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 6, fontWeight: 600 }}>AI Engine</div>
+            <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 6, fontWeight: 600 }}>AI Engine</div>
           </div>
         </div>
         <div style={{ flex: 1, height: 3, background: CARD_PLAIN, position: 'relative' }}>
@@ -1028,7 +1003,7 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
         <div style={{ flexShrink: 0, opacity: outOp, transform: `scale(${outP})` }}>
           <GlassCard accent palette={palette} style={{ padding: '28px 32px', minWidth: 200, textAlign: 'center' }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: palette.accent }}>{outputs[0]?.text ?? 'Output'}</div>
-            {outputs[0]?.sub_label && <div style={{ fontSize: 14, color: WHITE_DIM, marginTop: 6 }}>{outputs[0].sub_label}</div>}
+            {outputs[0]?.sub_label && <div style={{ fontSize: 16, color: WHITE_DIM, marginTop: 6 }}>{outputs[0].sub_label}</div>}
           </GlassCard>
         </div>
       </div>
@@ -1076,8 +1051,8 @@ export const ChecklistRevealScene: React.FC<{ scene: Scene; palette: Palette }> 
                   {item.icon && <span style={{ marginRight: 10 }}>{renderIcon(item.icon, 23)}</span>}
                   {item.text}
                 </div>
-                {item.sub_label && <div style={{ fontSize: 15, color: WHITE_DIM, marginTop: 2 }}>{item.sub_label}</div>}
-                {item.description && <div style={{ fontSize: 14, color: WHITE_DIM, lineHeight: 1.6, marginTop: 4 }}>{item.description}</div>}
+                {item.sub_label && <div style={{ fontSize: 17, color: WHITE_DIM, marginTop: 2 }}>{item.sub_label}</div>}
+                {item.description && <div style={{ fontSize: 17, color: WHITE_DIM, lineHeight: 1.6, marginTop: 4 }}>{item.description}</div>}
               </div>
             </div>
           );
@@ -1251,7 +1226,7 @@ export const ComparisonScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
         {item?.icon && <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 12, color: hot ? palette.accent : WHITE }}>{renderIcon(item.icon, 36)}</div>}
         <div style={{ fontSize: 30, fontWeight: 700, color: hot ? palette.accent : WHITE, lineHeight: 1.2 }}><RichText text={item?.text ?? ''} /></div>
         {item?.sub_label && <div style={{ fontSize: 17, color: WHITE_DIM, marginTop: 8 }}>{item.sub_label}</div>}
-        {item?.description && <div style={{ fontSize: 15, color: WHITE_DIM, lineHeight: 1.6, marginTop: 10 }}><RichText text={item.description} /></div>}
+        {item?.description && <div style={{ fontSize: 18, color: WHITE_DIM, lineHeight: 1.6, marginTop: 10 }}><RichText text={item.description} /></div>}
       </GlassCard>
     );
   };

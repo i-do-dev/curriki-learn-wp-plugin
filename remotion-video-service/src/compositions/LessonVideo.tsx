@@ -84,16 +84,31 @@ export const LessonVideo: React.FC<InputProps> = ({ scenes, accent, background_c
   const hasClip = !!background_clip;
   let offset = 0;
   return (
-    // NAVY stays as the fallback for any letterbox edges; when a clip is present it fills the frame.
+    // Solid NAVY base. Scene content always renders on this dark field (crisp text); when a clip is
+    // present the footage is immersed as a right-side band that melts into the navy (see below).
     <AbsoluteFill style={{ background: NAVY }}>
       {hasClip && (
-        // Bottom layer: the external clip plays full-screen for the whole video. It carries its own
-        // audio (the only audio in the render) and is truncated at the composition end automatically,
-        // since total duration = sum of scene durations (the author's target length).
-        <OffthreadVideo
-          src={background_clip as string}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
+        // Split-frame immersion: footage occupies the right ~38% only. A left→right navy gradient
+        // dissolves its inner edge into the dark frame (no hard seam) and a faint full-band tint
+        // harmonises it with the palette. The clip plays its own audio (the only audio in the
+        // render); it is not looped — it holds its last frame once it ends. Total duration = the
+        // scene-duration sum (the author's set length), so the lesson is never trimmed.
+        <div style={{ position: 'absolute', top: 0, right: 0, width: '38%', height: '100%', overflow: 'hidden' }}>
+          {/* Footage is wider than the band and biased right (center at ~60% of the band) so the
+              clip's subject lands in the gradient's CLEAR zone, not under the navy melt. The >100%
+              width guarantees no empty gap on the left after the shift; overflow:hidden clips it. */}
+          <OffthreadVideo
+            src={background_clip as string}
+            style={{ position: 'absolute', top: 0, height: '100%', width: '132%', left: '60%', transform: 'translateX(-50%)', objectFit: 'cover' }}
+          />
+          <AbsoluteFill style={{
+            // Soft navy melt on the inner (left) edge only; clear from ~52% onward where the subject sits.
+            background:
+              'linear-gradient(to right,' +
+              ' #0B1A3B 0%, rgba(11,26,59,0.82) 10%, rgba(11,26,59,0.38) 30%,' +
+              ' rgba(11,26,59,0.10) 52%, rgba(11,26,59,0.10) 100%)',
+          }} />
+        </div>
       )}
       <PaletteContext.Provider value={palette}>
         {scenes.map((scene, i) => {

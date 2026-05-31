@@ -642,6 +642,62 @@ function lxp_vl_render_mockup( $slug ) {
 </div>
 		<?php break;
 
+		case 'comparison': ?>
+<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;">
+	<div style="flex:1;background:#162236;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:20px 16px;text-align:center;color:rgba(255,255,255,.7);">
+		<div style="font-size:15px;font-weight:700;">Option A</div>
+		<div style="font-size:11px;margin-top:6px;color:rgba(255,255,255,.45);">the weaker choice</div>
+	</div>
+	<div style="width:42px;height:42px;border-radius:50%;border:2px solid #F5B800;color:#F5B800;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;">VS</div>
+	<div style="flex:1;background:#162236;border:2px solid #F5B800;border-radius:10px;padding:20px 16px;text-align:center;color:#F5B800;box-shadow:0 0 20px rgba(245,184,0,.25);">
+		<div style="font-size:15px;font-weight:700;">Option B</div>
+		<div style="font-size:11px;margin-top:6px;color:rgba(245,184,0,.7);">the preferred choice</div>
+	</div>
+</div>
+		<?php break;
+
+		case 'gate': ?>
+<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:24px;box-sizing:border-box;">
+	<div style="background:#162236;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 14px;color:rgba(255,255,255,.7);font-size:13px;display:flex;align-items:center;gap:10px;"><span style="width:22px;height:22px;border-radius:50%;border:2px solid #F5B800;color:#F5B800;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">?</span> What grade level?</div>
+	<div style="background:#162236;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 14px;color:rgba(255,255,255,.7);font-size:13px;display:flex;align-items:center;gap:10px;"><span style="width:22px;height:22px;border-radius:50%;border:2px solid #F5B800;color:#F5B800;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">?</span> What subject?</div>
+	<div style="background:#162236;border:2px solid #F5B800;border-radius:8px;padding:10px 14px;color:#F5B800;font-size:13px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 0 18px rgba(245,184,0,.25);">&#10003; Cleared to proceed</div>
+</div>
+		<?php break;
+
+		case 'routing': ?>
+<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;">
+	<?php for ( $i = 0; $i < 3; $i++ ) : ?>
+	<div style="display:flex;align-items:center;">
+		<div style="flex:1;background:#162236;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 12px;color:rgba(255,255,255,.7);font-size:12px;">Task item</div>
+		<div style="flex:0 0 46px;height:2px;background:#F5B800;margin:0 4px;position:relative;"><span style="position:absolute;right:-3px;top:-5px;color:#F5B800;font-size:11px;">&#9654;</span></div>
+		<div style="flex:0 0 120px;background:rgba(245,184,0,.14);border:1px solid rgba(245,184,0,.4);border-radius:8px;padding:10px 12px;color:#F5B800;font-size:12px;font-weight:700;text-align:center;">Bucket</div>
+	</div>
+	<?php endfor; ?>
+</div>
+		<?php break;
+
+		case 'stat-highlight': ?>
+<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:26px;padding:24px;box-sizing:border-box;">
+	<div style="text-align:center;color:rgba(255,255,255,.45);">
+		<div style="font-size:52px;font-weight:800;line-height:1;">2 hrs</div>
+		<div style="font-size:12px;margin-top:8px;">before</div>
+	</div>
+	<div style="color:#F5B800;font-size:34px;">&rarr;</div>
+	<div style="text-align:center;color:#F5B800;text-shadow:0 0 22px rgba(245,184,0,.4);">
+		<div style="font-size:52px;font-weight:800;line-height:1;">10 min</div>
+		<div style="font-size:12px;margin-top:8px;color:rgba(255,255,255,.85);">after</div>
+	</div>
+</div>
+		<?php break;
+
+		case 'transform-text': ?>
+<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;box-sizing:border-box;">
+	<div style="max-width:90%;text-align:center;font-size:14px;color:rgba(255,255,255,.4);background:#162236;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:14px 18px;">&ldquo;Give feedback&rdquo;</div>
+	<div style="color:#F5B800;font-size:24px;">&darr;</div>
+	<div style="max-width:90%;text-align:center;font-size:15px;font-weight:700;color:#F5B800;background:#162236;border:2px solid #F5B800;border-radius:10px;padding:16px 20px;box-shadow:0 0 20px rgba(245,184,0,.22);">&ldquo;Two strengths and one improvement tied to the rubric&rdquo;</div>
+</div>
+		<?php break;
+
 		default:
 			echo '<div style="background:#0F1B2D;height:322px;border-radius:6px;display:flex;align-items:center;justify-content:center;"><span style="color:rgba(255,255,255,.3);font-size:13px;">' . esc_html( $slug ) . '</span></div>';
 			break;
