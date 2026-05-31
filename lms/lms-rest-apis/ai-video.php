@@ -35,6 +35,7 @@ class Rest_Lxp_AI_Video {
 	const META_RAW_TEXT       = 'lxp_lesson_video_raw_text';
 	const META_SCRIPT         = 'lxp_lesson_video_script';
 	const META_TARGET_SECONDS = 'lxp_lesson_video_target_seconds';
+	const META_BG_CLIP        = 'lxp_lesson_video_bg_clip';
 
 	public static function init() {
 		self::register_routes();
@@ -145,9 +146,10 @@ class Rest_Lxp_AI_Video {
 
 		$saved_seconds = (int) get_post_meta( $post_id, self::META_TARGET_SECONDS, true );
 		return rest_ensure_response( array(
-			'raw_text'       => (string) get_post_meta( $post_id, self::META_RAW_TEXT, true ),
-			'script'         => (string) get_post_meta( $post_id, self::META_SCRIPT, true ),
-			'target_seconds' => $saved_seconds > 0 ? $saved_seconds : 60,
+			'raw_text'         => (string) get_post_meta( $post_id, self::META_RAW_TEXT, true ),
+			'script'           => (string) get_post_meta( $post_id, self::META_SCRIPT, true ),
+			'target_seconds'   => $saved_seconds > 0 ? $saved_seconds : 60,
+			'background_clip'  => (string) get_post_meta( $post_id, self::META_BG_CLIP, true ),
 		) );
 	}
 
@@ -179,6 +181,37 @@ class Rest_Lxp_AI_Video {
 		$text = preg_replace( '/\n{3,}/', "\n\n", $text );
 
 		return trim( $text );
+	}
+
+	/**
+	 * Validate an optional external background-clip URL.
+	 *
+	 * Returns the sanitised URL, or '' when empty. Returns a WP_Error when a non-empty value
+	 * is not an http(s) URL ending in an allowed video extension.
+	 * Remotion Lambda must be able to fetch this URL over the public internet.
+	 *
+	 * @return string|WP_Error
+	 */
+	private static function sanitize_clip_url( $url ) {
+		$url = trim( (string) $url );
+		if ( $url === '' ) {
+			return '';
+		}
+
+		$safe   = esc_url_raw( $url, array( 'http', 'https' ) );
+		$path   = (string) wp_parse_url( $safe, PHP_URL_PATH );
+		$ext    = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
+		$allowed = array( 'mp4', 'webm', 'mov' );
+
+		if ( empty( $safe ) || ! in_array( $ext, $allowed, true ) ) {
+			return new WP_Error(
+				'invalid_clip_url',
+				'Background clip must be a public http(s) URL ending in .mp4, .webm, or .mov.',
+				array( 'status' => 400 )
+			);
+		}
+
+		return $safe;
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -259,8 +292,8 @@ RULES:
 - Produce exactly {$n_min} to {$n_max} scene blocks total (matching the target video duration).
 - First block MUST use layout 'intro'.
 - Last block MUST use layout 'conclusion' or 'cycle-loop'.
-- Choose layouts from this list only: intro, problem, framework, process, contrast, evaluation, options, conclusion, card-list, branching-flow, before-after, quad-grid, three-step-flow, cycle-loop, split-blueprint, fuel-engine, checklist-reveal, deployment-circles, editorial
-- Match layout to content type: 'editorial' for concept definitions or prose explanations; 'process' for numbered steps; 'framework' for named components; 'contrast' for before/after or good/bad comparisons; 'checklist-reveal' for criteria or requirements; 'quad-grid' for exactly 4 parallel items; 'branching-flow' for one input producing multiple outputs; etc.
+- Choose layouts from this list only: intro, problem, framework, process, contrast, evaluation, options, conclusion, card-list, branching-flow, before-after, quad-grid, three-step-flow, cycle-loop, split-blueprint, fuel-engine, checklist-reveal, deployment-circles, editorial, comparison, gate, routing, stat-highlight, transform-text
+- Match layout to content type: 'editorial' for concept definitions or prose explanations; 'process' for numbered steps; 'framework' for named components; 'contrast' for before/after or good/bad comparisons; 'checklist-reveal' for criteria or requirements; 'quad-grid' for exactly 4 parallel items; 'branching-flow' for one input producing multiple outputs; 'comparison' for two competing options shown side-by-side (X vs Y); 'gate' for a clarify/confirm checkpoint where the tool asks questions before acting; 'routing' for sorting several items each to its correct destination/category; 'stat-highlight' for a single striking metric or a before→after number (e.g. 2 hours → 10 minutes); 'transform-text' for one weak statement rewritten into a sharp one; etc.
 - {$repeat_rule}
 - Scene descriptions must be specific to the lesson topic — no generic filler text.
 - Output ONLY the raw :::layout-name\ncontent\n::: blocks. Any text outside the blocks will break the parser.
@@ -293,21 +326,30 @@ PROMPT;
 			return new WP_Error( 'missing_prompt', 'A lesson description prompt is required.', array( 'status' => 400 ) );
 		}
 
+		// Optional full-screen background clip — played behind every scene (overlay mode).
+		$bg_clip = self::sanitize_clip_url( $body['background_clip'] ?? '' );
+		if ( is_wp_error( $bg_clip ) ) {
+			return $bg_clip;
+		}
+		$has_bg_clip = ( $bg_clip !== '' );
+
 		/*
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error( 'forbidden', 'You do not have permission to edit this post.', array( 'status' => 403 ) );
 		}
 		*/
 
-		// Persist the final script and duration used for this generation
+		// Persist the final script, duration, and background clip used for this generation
 		update_post_meta( $post_id, self::META_SCRIPT, $prompt );
 		update_post_meta( $post_id, self::META_TARGET_SECONDS, $target_seconds );
+		update_post_meta( $post_id, self::META_BG_CLIP, $bg_clip );
 
 		$post_title = get_the_title( $post_id );
 
 		// ── Step 1: Generate scene JSON via AWS Bedrock ───────────────────────
+		// When a background clip is present, nudge Bedrock toward overlay-friendly layouts.
 		$user_message  = self::build_user_message( $post_title, $prompt );
-		$system_prompt = self::build_system_prompt( $target_seconds );
+		$system_prompt = self::build_system_prompt( $target_seconds, $has_bg_clip );
 
 		$json_response = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 4096 );
 
@@ -327,6 +369,11 @@ PROMPT;
 				'Bedrock did not return valid JSON. Response: ' . substr( $clean_json, 0, 200 ),
 				array( 'status' => 502 )
 			);
+		}
+
+		// Attach the background clip as a top-level inputProp so Remotion plays it behind every scene.
+		if ( $has_bg_clip ) {
+			$script['background_clip'] = $bg_clip;
 		}
 
 		// ── Step 2: Fire off Remotion Lambda render ───────────────────────────
@@ -448,14 +495,14 @@ PROMPT;
 	// PROMPT BUILDERS
 	// ─────────────────────────────────────────────────────────────────────────
 
-	private static function build_system_prompt( int $target_seconds = 60 ): string {
+	private static function build_system_prompt( int $target_seconds = 60, bool $has_background_clip = false ): string {
 		$p            = self::resolve_duration_params( $target_seconds );
 		$target_frames = $p['target_frames'];
 		$n_min         = $p['n_min'];
 		$n_max         = $p['n_max'];
 		$frames_min    = $p['frames_min'];
 		$frames_max    = $p['frames_max'];
-		return <<<PROMPT
+		$prompt = <<<PROMPT
 You are a professional instructional video designer and motion graphics director. You apply modern video design principles: purposeful layout selection, visual hierarchy, progressive content disclosure, scene rhythm, and thematic color harmony. Your output powers a real animated lesson video watched by students, so every design decision must serve clarity and engagement.
 
 Your output MUST be a single valid JSON object — no markdown fences, no explanations, no text outside the JSON.
@@ -484,7 +531,7 @@ SceneItem shape:
   "featured": <optional boolean — this item is the hero/recommended choice>,
   "role": "<optional — 'input' | 'output' | 'bad' | 'good'>",
   "status": "<optional — 'pass' | 'gap' | 'warn'>",
-  "icon": "<optional — a single emoji that adds immediate semantic meaning; omit when uncertain. Recommended: 🎯 📊 ⚡ 🔒 🌐 🔧 📱 💡 🚀 📈 🛡️ 🔄 ✅ ⚠️ 🏆 👥 💼 🧩 📋 🎓 🔍 🌱 ⚖️ 🔬 📡 🏛️ 💬 📐 🗂️>",
+  "icon": "<optional — adds immediate semantic meaning; omit when uncertain. PREFER a named icon that renders as a crisp accent-coloured glyph: shield, lock, globe, building, mic, calendar, fuel, target, gauge, document, network, checkmark. Otherwise a single emoji: 🎯 📊 ⚡ 🔒 🌐 🔧 📱 💡 🚀 📈 🛡️ 🔄 ✅ ⚠️ 🏆 👥 💼 🧩 📋 🎓 🔍 🌱 ⚖️ 🔬 📡 🏛️ 💬 📐 🗂️>",
   "badge": "<optional — a short ALL-CAPS keyword label shown as an accent pill tag. Vocabulary: KEY CONCEPT · TIP · EXAMPLE · WARNING · BEST PRACTICE · NOTE · STEP · TOOL · RULE · INSIGHT · MYTH · FACT. Use only when the item has a named semantic type.>",
   "description": "<optional — a 1-2 sentence body paragraph explaining the concept; required in editorial layout; useful in framework, card_list, split_blueprint when items need full explanations not just labels.>"
 }
@@ -527,6 +574,11 @@ AVAILABLE LAYOUTS and their items[] contract:
 | checklist_reveal   | 3-6 items — sequentially revealed checklist; use status:'gap' or 'warn' on weak/missing items   |
 | deployment_circles | exactly 4 items — concentric ring labels (innermost first, e.g. individual → team → org → all)  |
 | editorial          | 1-3 items — rich content blocks; each item MUST have description; badge and sub_label recommended; callout highly recommended; use for concept-explanation scenes with substantial prose |
+| comparison         | exactly 2 items — items[0]=left, items[1]=right; set featured:true on the preferred side. Optional 3rd item = the merged/result card. Use for "X vs Y" or "blueprint vs bricks" scenes |
+| gate               | 2-4 items — the clarifying questions or confirm checks shown before the gate opens; on_screen_text is the result once cleared. Use for "ask before acting" / confirmation-checkpoint scenes |
+| routing            | 3-5 items — set item.text = the thing being sorted and item.sub_label = its destination/category bucket. Use for "route each task to the right place" scenes |
+| stat_highlight     | 1-2 items — item.text = the value/number, item.sub_label = its label. For a before→after metric use exactly 2 items with role:'bad' (before) and role:'good' (after). Use for one striking metric |
+| transform_text     | exactly 2 items — role:'bad' = the weak/before statement, role:'good' = the sharp/after statement. Use for "rewrite this vague instruction into a precise one" scenes |
 
 SCENE ORDERING RULES:
 - First scene MUST use layout 'intro'.
@@ -543,6 +595,7 @@ BLOCK MODE RULES (applied when the user message lists scenes explicitly with lay
 
 CONTENT RULES:
 - All titles, phrases, and item text must be SPECIFIC to the lesson topic — no generic placeholders.
+- Emphasis: you may wrap ONE or TWO key words in *asterisks* inside on_screen_text, item text, or descriptions to render them in the accent colour (e.g. "Two *focused* tools beat one"). Use sparingly — at most a couple per scene; do NOT asterisk whole phrases. Plain text without asterisks is fine.
 - Narration: write confident, declarative, student-facing sentences. State a fact or principle — do not preview the slide ("In this scene we will see..."). Avoid passive voice.
 - Output ONLY the raw JSON object. Any text outside the JSON causes a fatal parse error.
 
@@ -557,6 +610,22 @@ DESIGN PRINCIPLES:
 - Progressive density: open with visual impact (intro), build conceptual complexity in middle scenes (mix analytical + editorial), close with synthesis and call to action (conclusion or cycle_loop).
 - Color selection: choose the accent that best reflects the lesson's primary domain from the ACCENT SELECTION table. Prefer specificity over defaulting to gold.
 PROMPT;
+
+		if ( $has_background_clip ) {
+			$prompt .= <<<OVERLAYHINT
+
+
+OVERLAY MODE (a full-screen background VIDEO plays behind every scene):
+- The animated content is composited on top of live footage, so design for legibility and breathing room.
+- Strongly prefer text-forward layouts that leave the frame's center open: editorial, intro, conclusion, card_list, checklist_reveal, process.
+- Avoid center-owning layouts that fight the video subject: quad_grid, cycle_loop, deployment_circles. Use them at most once, only if essential.
+- Keep items[] short — 2 to 4 items per scene — so panels stay sparse over the footage.
+- Add an "overlay_anchor" field to EACH scene object: "bottom" (default, lower-third caption band), "left", or "right" (side column for card-heavy scenes). Vary it for rhythm; default to "bottom".
+- Keep titles and on_screen_text concise; the footage carries the visual energy.
+OVERLAYHINT;
+		}
+
+		return $prompt;
 	}
 
 	/**

@@ -510,6 +510,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
           $('#lxp-ai-video-raw-text').val(rawText || $('#lxp-ai-video-post-title').val() || '');
           $('#lxp-ai-video-prompt').val(script);
           $('#lxp-video-duration').val(lxpFormatSecondsToMinSec(savedSecs));
+          $('#lxp-video-bg-clip-url').val(response && response.background_clip ? response.background_clip : '');
           if (script) {
             lxpVideoGoToStep(2);
           }
@@ -615,6 +616,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         success: function (r) {
           if (r && r.script) { $('#lxp-ai-video-prompt').val(r.script); $('#lxp-ai-video-modal-status').text('Last script restored.'); }
           else { $('#lxp-ai-video-modal-status').text('No saved script found.'); }
+          $('#lxp-video-bg-clip-url').val(r && r.background_clip ? r.background_clip : '');
         },
         error: function () { $('#lxp-ai-video-modal-status').text('Could not load saved script.'); },
         complete: function () { tinyLxpSetAiButtonsDisabled(false); }
@@ -630,6 +632,30 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
       }
     });
 
+    // Background clip — pick from the WP Media Library
+    var lxpBgClipFrame = null;
+    $('body').on('click', '#lxp-video-bg-clip-browse-btn', function (e) {
+      e.preventDefault();
+      if (typeof wp === 'undefined' || !wp.media) { return; }
+      if (lxpBgClipFrame) { lxpBgClipFrame.open(); return; }
+      lxpBgClipFrame = wp.media({
+        title: 'Select a background video',
+        button: { text: 'Use this video' },
+        library: { type: 'video' },
+        multiple: false
+      });
+      lxpBgClipFrame.on('select', function () {
+        var att = lxpBgClipFrame.state().get('selection').first().toJSON();
+        if (att && att.url) { $('#lxp-video-bg-clip-url').val(att.url); }
+      });
+      lxpBgClipFrame.open();
+    });
+
+    // Background clip — clear
+    $('body').on('click', '#lxp-video-bg-clip-clear-btn', function () {
+      $('#lxp-video-bg-clip-url').val('');
+    });
+
     // Generate video — call REST endpoint then start polling
     $('body').on('click', '#lxp-ai-video-generate-btn', function () {
       var postId = $('#lxp-ai-gen-post-id').val();
@@ -643,6 +669,11 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         $('#lxp-ai-video-modal-status').text('Invalid video length. Use M:SS format, e.g. 1:00. Minimum 0:30, maximum 5:00.');
         return;
       }
+      var bgClip = ($('#lxp-video-bg-clip-url').val() || '').trim();
+      if (bgClip && !lxpIsValidClipUrl(bgClip)) {
+        $('#lxp-ai-video-modal-status').text('Background clip must be a public http(s) URL ending in .mp4, .webm, or .mov.');
+        return;
+      }
       tinyLxpSetAiButtonsDisabled(true);
       $('#lxp-ai-video-modal-status').text('Generating video script via AI…');
       jQuery.ajax({
@@ -650,7 +681,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         dataType: 'json',
         url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video',
         contentType: 'application/json',
-        data: JSON.stringify({ post_id: parseInt(postId, 10), prompt: prompt, target_seconds: genDurationSecs }),
+        data: JSON.stringify({ post_id: parseInt(postId, 10), prompt: prompt, target_seconds: genDurationSecs, background_clip: bgClip }),
         success: function (response) {
           if (response && response.render_id) {
             $('#lxp-ai-video-modal-status').text('Rendering video on AWS \u2014 this may take 60\u201390 seconds\u2026');
@@ -909,6 +940,14 @@ function lxpParseDurationToSeconds(val) {
   var secs  = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
   if (secs < 30 || secs > 300) { return null; }
   return secs;
+}
+
+/**
+ * True when the URL is an http(s) link ending in an allowed video extension.
+ * Mirrors the server-side allowlist in Rest_Lxp_AI_Video::sanitize_clip_url().
+ */
+function lxpIsValidClipUrl(url) {
+  return /^https?:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test((url || '').trim());
 }
 
 /**

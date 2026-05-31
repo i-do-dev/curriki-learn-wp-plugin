@@ -77,6 +77,7 @@ wp rest route list --namespace=lms/v1 --fields=route,methods
 | 8 | Standard AI templates (15 total) have **no quiz** — `quiz_html()` returns `''`. Do not add "Check for Understanding" to standard templates. |
 | 9 | `lxp-capstone.js` is a single IIFE — any syntax error silently disables all capstone boxes sitewide. Check browser console after edits. |
 | 10 | AI Video REST callbacks have `current_user_can()` checks **commented out** — auth not enforced at route level. |
+| 11 | AI Video `background_clip` (overlay mode) bypasses Bedrock — injected into the scene JSON in PHP after generation. It makes every `SceneWrap` transparent via `OverlayContext`; new scene components must use `SceneWrap`. Clip is trimmed to the author's M:SS length; Lambda must reach the URL over the public internet (localhost uploads won't render). |
 
 ---
 

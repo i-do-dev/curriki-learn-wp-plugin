@@ -56,6 +56,7 @@ Backend keys and persistence
 | `lxp_lesson_video_raw_text` | Sanitised raw lesson text from Step 1 |
 | `lxp_lesson_video_script` | Block-marker scene script (from Step 1 AI or last Generate click) |
 | `lxp_lesson_video_target_seconds` | Target video duration in seconds (30–300, default 60) |
+| `lxp_lesson_video_bg_clip` | Optional external background-clip URL (overlay mode); empty = none |
 
 ---
 
@@ -115,7 +116,7 @@ npm run deploy-site   # updates the Remotion site bundle; copy new serve URL to 
 
 All palettes render over a `#0B1A3B` (navy) background.
 
-**Scene layouts** (`Scenes.tsx`) — 19 total:
+**Scene layouts** (`Scenes.tsx`) — 24 total (19 original + 5 Tier-1 additions):
 
 | Layout | Description |
 |---|---|
@@ -138,6 +139,11 @@ All palettes render over a `#0B1A3B` (navy) background.
 | `checklist_reveal` | Ordered checklist; items check off one by one |
 | `deployment_circles` | 4 concentric rings expanding outward |
 | `editorial` | Rich text blocks: badge pill + heading + sub + paragraph + callout |
+| `comparison` | Two panels A vs B with a VS marker; optional 3rd item = merged result card |
+| `gate` | Clarify/confirm checkpoint: question cards reveal, then the gate opens to the result |
+| `routing` | Each item routes from a source chip into its labelled destination bucket |
+| `stat_highlight` | Hero metric — single big number, or before→after (`role:'bad'`→`role:'good'`) |
+| `transform_text` | One statement morphs in place: `role:'bad'` (weak) → `role:'good'` (sharp) |
 
 **`SceneItem` fields** (`types.ts`):
 
@@ -178,7 +184,7 @@ AI system prompts
 - Role: "lesson video scene architect"
 - Output: ONLY `:::layout-name\n[description]\n:::` blocks — no JSON
 - Scene count driven by `n_min`/`n_max` (from `resolve_duration_params()`)
-- Layout list includes all 19 layouts; layout-to-content matching guidance included
+- Layout list includes all 24 layouts; layout-to-content matching guidance included
 - No-repeat rule enforced (at most 1 repeat for long scripts)
 
 **Step 2 — `build_system_prompt(target_seconds)`**
@@ -205,7 +211,7 @@ Admin UX
 - **Step 2**: Block-marker textarea (monospace) + layout picker `<select>` + Insert button + Layout Reference link + `← Back` + `Restore Last Script` + `Generate Video`
 - Modal width: 520px
 
-**Layout picker** (in Step 2 and in the content block-markers section): lists all 19 layout names including `editorial`.
+**Layout picker** (in Step 2 and in the content block-markers section): lists all 24 layout names including `editorial`, `comparison`, `gate`, `routing`, `stat-highlight`, `transform-text`.
 
 ---
 
@@ -239,6 +245,56 @@ AWS credentials are resolved automatically from the EC2 IAM role (same mechanism
 
 ---
 
+External background video (overlay mode)
+
+The author can attach **one external video clip** that plays **full-screen behind every scene** for
+the whole lesson video, with the animated content composited on top as overlays.
+
+- **Authoring**: Step 2 of the wizard has a **Background Video Clip** field — a URL input + **Browse
+  Media** (`wp.media`, video library) + **Clear**. Accepts a public `.mp4/.webm/.mov` URL. Empty =
+  the normal navy-background video (unchanged).
+- **Data flow**: the URL is validated (`Rest_Lxp_AI_Video::sanitize_clip_url()` — http/https +
+  extension allowlist), persisted to `lxp_lesson_video_bg_clip`, and injected as the top-level
+  `background_clip` field of the scene JSON **after** Bedrock returns — Bedrock never sees the URL.
+- **Duration**: the author's M:SS length drives the total (scene durations sum to it, as before);
+  the clip is **trimmed** to that length automatically (the Remotion composition ends there). The
+  clip plays its own audio (the only audio in the render).
+- **Rendering** (`LessonVideo.tsx`): when `background_clip` is set, an `OffthreadVideo`
+  (`objectFit: cover`) renders as the bottom layer; each scene is wrapped in `OverlayContext`
+  (`overlay: true`, `anchor: scene.overlay_anchor`).
+- **Art direction** (`Scenes.tsx`, driven by `OverlayContext`): `SceneWrap` drops its solid navy to
+  transparent + a directional gradient scrim, and clusters content into an anchored zone
+  (`overlay_anchor`: `bottom` default / `left` / `right`) to avoid the video's center subject;
+  `GlassCard`/`CalloutBlock` become frosted (`backdropFilter: blur`); titles/phrases gain a
+  text-shadow. When no clip is present, every scene renders exactly as before.
+- **AI nudge**: when a clip is attached, `build_system_prompt($target_seconds, true)` appends an
+  OVERLAY MODE hint — favor text-forward layouts (`editorial`, `intro`, `conclusion`, `card_list`,
+  `checklist_reveal`, `process`), fewer items per scene, avoid center-owning layouts
+  (`quad_grid`, `cycle_loop`, `deployment_circles`), and set `overlay_anchor` per scene.
+- **Env constraint**: Remotion Lambda fetches the clip over the **public internet** — a clip on a
+  local XAMPP `wp-content/uploads` URL (localhost) is unreachable; test with a public URL.
+
+`InputProps.background_clip?: string` and `Scene.overlay_anchor?: 'bottom'|'left'|'right'` are the
+two new schema fields (`types.ts`). No new `SceneItem` fields.
+
+---
+
+Inline text emphasis + named SVG icons
+
+- **`*keyword*` emphasis**: any `*word*` span inside a title, `on_screen_text`, item text, or
+  description renders in the accent colour (bold). Implemented by the `RichText` helper in
+  `Scenes.tsx`, wired through `AccentTitle`/`WhitePhrase` (covers every scene) and the 5 new
+  components. The accent comes from `PaletteContext` (provided once per video in `LessonVideo`).
+  Plain text without asterisks is unchanged, so existing scripts are unaffected. The Step-2 prompt
+  instructs the AI to emphasise sparingly (one or two words per scene).
+- **Named SVG icons** (`icons.tsx`): `item.icon` may be a named glyph — `shield`, `lock`, `globe`,
+  `building`, `mic`, `calendar`, `fuel`, `target`, `gauge`, `document`, `network`, `checkmark` —
+  rendered as a crisp stroke SVG that inherits the surrounding text colour (`currentColor`). Any
+  unrecognised `item.icon` (e.g. an emoji) falls back to the raw string via the `renderIcon()`
+  helper, so all existing emoji keep working. The prompt lists the named vocabulary first.
+
+---
+
 Known limitations / watch-outs
 
 - Only the **latest render** is tracked per lesson. Generating a new video deletes `lxp_lesson_video_url` and overwrites all render meta.
@@ -246,7 +302,8 @@ Known limitations / watch-outs
 - The generated video URL is **admin-only** — it is not exposed on the public lesson frontend.
 - The Remotion `vendor/` PHP SDK is in `composer.json`; run `composer install` after clone.
 - The Remotion React source (`remotion-video-service/`) has **no node_modules in git** — run `npm install` before local studio preview or deploy.
-- After any change to `Scenes.tsx`, `theme.ts`, `types.ts`, or `LessonVideo.tsx`, the Remotion site must be **redeployed** (`npm run deploy-site`); the Lambda function itself does not need redeployment.
+- After any change to `Scenes.tsx`, `theme.ts`, `types.ts`, `LessonVideo.tsx`, `Root.tsx`, or `icons.tsx`, the Remotion site must be **redeployed** (`npm run deploy-site`); the Lambda function itself does not need redeployment.
+- A background clip makes every scene's `SceneWrap` **transparent** (overlay mode via `OverlayContext`). Any new scene component MUST use `SceneWrap` to inherit this; painting its own opaque background would hide the footage.
 - The `build_system_prompt()` heredoc is now a **PHP interpolating heredoc** (not nowdoc) because it injects duration variables — do not accidentally convert it back to single-quoted nowdoc (`<<<'PROMPT'`).
 
 ---

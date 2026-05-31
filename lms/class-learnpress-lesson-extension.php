@@ -257,6 +257,11 @@ class TL_LearnPress_Lesson_Extension {
 							<option value="checklist-reveal"><?php echo esc_html__( 'Checklist Reveal', 'tiny-lxp-platform' ); ?></option>
 							<option value="deployment-circles"><?php echo esc_html__( 'Deployment Circles', 'tiny-lxp-platform' ); ?></option>
 							<option value="editorial"><?php echo esc_html__( 'Editorial', 'tiny-lxp-platform' ); ?></option>
+							<option value="comparison"><?php echo esc_html__( 'Comparison (A vs B)', 'tiny-lxp-platform' ); ?></option>
+							<option value="gate"><?php echo esc_html__( 'Gate (Clarify / Confirm)', 'tiny-lxp-platform' ); ?></option>
+							<option value="routing"><?php echo esc_html__( 'Routing (Sort to Buckets)', 'tiny-lxp-platform' ); ?></option>
+							<option value="stat-highlight"><?php echo esc_html__( 'Stat Highlight (Metric)', 'tiny-lxp-platform' ); ?></option>
+							<option value="transform-text"><?php echo esc_html__( 'Transform Text (Rewrite)', 'tiny-lxp-platform' ); ?></option>
 						</select>
 						<button type="button" id="lxp-video-insert-block-btn" class="button"><?php echo esc_html__( 'Insert', 'tiny-lxp-platform' ); ?></button>
 					</div>
@@ -266,6 +271,17 @@ class TL_LearnPress_Lesson_Extension {
 							<span><?php echo esc_html__( 'View Layout Reference', 'tiny-lxp-platform' ); ?></span>
 						</a>
 					</p>
+					<!-- ── Optional full-screen background video clip ──────────── -->
+					<div style="margin:12px 0 4px;padding-top:10px;border-top:1px solid #e0e0e0;">
+						<label for="lxp-video-bg-clip-url" style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;"><?php echo esc_html__( 'Background Video Clip (optional)', 'tiny-lxp-platform' ); ?></label>
+						<div style="display:flex;gap:6px;align-items:center;">
+							<input type="url" id="lxp-video-bg-clip-url" placeholder="https://… .mp4" style="flex:1;font-size:12px;" />
+							<button type="button" id="lxp-video-bg-clip-browse-btn" class="button"><?php echo esc_html__( 'Browse Media', 'tiny-lxp-platform' ); ?></button>
+							<button type="button" id="lxp-video-bg-clip-clear-btn" class="button" title="<?php echo esc_attr__( 'Clear', 'tiny-lxp-platform' ); ?>">&times;</button>
+						</div>
+						<p style="margin:5px 0 0;font-size:11px;color:#646970;"><?php echo esc_html__( 'Plays full-screen behind the whole lesson and is trimmed to the video length set above. Must be a public .mp4/.webm/.mov URL reachable by the renderer.', 'tiny-lxp-platform' ); ?></p>
+					</div>
+
 					<div class="lxp-video-step-actions">
 						<button type="button" id="lxp-video-back-btn" class="button"><?php echo esc_html__( '← Back', 'tiny-lxp-platform' ); ?></button>
 						<button type="button" id="lxp-video-restore-script-btn" class="button"><?php echo esc_html__( 'Restore Last Script', 'tiny-lxp-platform' ); ?></button>
