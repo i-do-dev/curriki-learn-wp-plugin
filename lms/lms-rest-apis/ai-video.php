@@ -351,7 +351,9 @@ PROMPT;
 		$user_message  = self::build_user_message( $post_title, $prompt );
 		$system_prompt = self::build_system_prompt( $target_seconds, $has_bg_clip );
 
-		$json_response = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 4096 );
+		// 8192 = max output tokens for Claude Sonnet via Converse API.
+		// 14-scene videos with descriptions + callouts + overlay fields exceed 4096 tokens.
+		$json_response = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 8192 );
 
 		if ( is_wp_error( $json_response ) ) {
 			return $json_response;
