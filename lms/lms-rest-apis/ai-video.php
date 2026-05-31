@@ -32,8 +32,9 @@ class Rest_Lxp_AI_Video {
 	const META_URL       = 'lxp_lesson_video_url';
 
 	// Post meta keys — script persistence (2-step workflow)
-	const META_RAW_TEXT  = 'lxp_lesson_video_raw_text';
-	const META_SCRIPT    = 'lxp_lesson_video_script';
+	const META_RAW_TEXT       = 'lxp_lesson_video_raw_text';
+	const META_SCRIPT         = 'lxp_lesson_video_script';
+	const META_TARGET_SECONDS = 'lxp_lesson_video_target_seconds';
 
 	public static function init() {
 		self::register_routes();
@@ -84,8 +85,9 @@ class Rest_Lxp_AI_Video {
 			$body = $request->get_params();
 		}
 
-		$post_id  = absint( $body['post_id'] ?? 0 );
-		$raw_text = $body['raw_text'] ?? '';
+		$post_id        = absint( $body['post_id'] ?? 0 );
+		$raw_text       = $body['raw_text'] ?? '';
+		$target_seconds = self::parse_duration_input( $body['target_seconds'] ?? 60 );
 
 		if ( $post_id <= 0 ) {
 			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
@@ -102,12 +104,14 @@ class Rest_Lxp_AI_Video {
 			return new WP_Error( 'empty_after_sanitize', 'No usable text remained after sanitisation.', array( 'status' => 400 ) );
 		}
 
-		// Persist the sanitised raw text
+		// Persist the sanitised raw text and duration preference
 		update_post_meta( $post_id, self::META_RAW_TEXT, $raw_text );
+		update_post_meta( $post_id, self::META_TARGET_SECONDS, $target_seconds );
 
-		$post_title   = get_the_title( $post_id );
-		$user_message = self::build_script_user_message( $post_title, $raw_text );
-		$system_prompt = self::build_script_system_prompt();
+		$params        = self::resolve_duration_params( $target_seconds );
+		$post_title    = get_the_title( $post_id );
+		$user_message  = self::build_script_user_message( $post_title, $raw_text );
+		$system_prompt = self::build_script_system_prompt( $params['n_min'], $params['n_max'] );
 
 		$script = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 2048 );
 
@@ -139,9 +143,11 @@ class Rest_Lxp_AI_Video {
 			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
 		}
 
+		$saved_seconds = (int) get_post_meta( $post_id, self::META_TARGET_SECONDS, true );
 		return rest_ensure_response( array(
-			'raw_text' => (string) get_post_meta( $post_id, self::META_RAW_TEXT, true ),
-			'script'   => (string) get_post_meta( $post_id, self::META_SCRIPT, true ),
+			'raw_text'       => (string) get_post_meta( $post_id, self::META_RAW_TEXT, true ),
+			'script'         => (string) get_post_meta( $post_id, self::META_SCRIPT, true ),
+			'target_seconds' => $saved_seconds > 0 ? $saved_seconds : 60,
 		) );
 	}
 
@@ -176,11 +182,70 @@ class Rest_Lxp_AI_Video {
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
+	// DURATION PARAMS RESOLVER
+	// ─────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Parse a duration value that is either an integer seconds or a "M:SS" string.
+	 * Returns seconds clamped to [30, 300].
+	 *
+	 * Accepts:  90  |  "1:30"  |  "01:30"
+	 */
+	private static function parse_duration_input( $input ): int {
+		$input = trim( (string) $input );
+
+		// M:SS or MM:SS format
+		if ( preg_match( '/^(\d{1,2}):([0-5]\d)$/', $input, $m ) ) {
+			$seconds = (int) $m[1] * 60 + (int) $m[2];
+		} else {
+			$seconds = absint( $input );
+		}
+
+		return max( 30, min( 300, $seconds ) );
+	}
+
+	/**
+	 * Map a target duration (seconds) to scene-count and frame-budget parameters.
+	 *
+	 * @return array{ target_frames: int, n_min: int, n_max: int, frames_min: int, frames_max: int }
+	 */
+	private static function resolve_duration_params( int $target_seconds ): array {
+		if ( $target_seconds <= 30 ) {
+			return array( 'target_frames' => 900,  'n_min' => 4,  'n_max' => 6,  'frames_min' => 120, 'frames_max' => 190 );
+		}
+		if ( $target_seconds <= 60 ) {
+			return array( 'target_frames' => 1800, 'n_min' => 6,  'n_max' => 10, 'frames_min' => 150, 'frames_max' => 240 );
+		}
+		if ( $target_seconds <= 90 ) {
+			return array( 'target_frames' => 2700, 'n_min' => 9,  'n_max' => 13, 'frames_min' => 180, 'frames_max' => 250 );
+		}
+		if ( $target_seconds <= 120 ) {
+			return array( 'target_frames' => 3600, 'n_min' => 12, 'n_max' => 17, 'frames_min' => 190, 'frames_max' => 260 );
+		}
+		if ( $target_seconds <= 180 ) {
+			return array( 'target_frames' => 5400, 'n_min' => 16, 'n_max' => 22, 'frames_min' => 200, 'frames_max' => 270 );
+		}
+		// 181–300 s (up to 5 min): compute dynamically
+		$target_frames = $target_seconds * 30;
+		$n_ideal       = (int) round( $target_frames / 215 );
+		return array(
+			'target_frames' => $target_frames,
+			'n_min'         => max( 18, $n_ideal - 3 ),
+			'n_max'         => $n_ideal + 3,
+			'frames_min'    => 210,
+			'frames_max'    => 280,
+		);
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
 	// SCRIPT PROMPT BUILDERS
 	// ─────────────────────────────────────────────────────────────────────────
 
-	private static function build_script_system_prompt(): string {
-		return <<<'PROMPT'
+	private static function build_script_system_prompt( int $n_min = 6, int $n_max = 10 ): string {
+		$repeat_rule = $n_max <= 8
+			? 'No layout type may repeat.'
+			: "No layout type may repeat in a {$n_min}-" . min( $n_max, 8 ) . " block script. For longer scripts allow at most one repeat.";
+		return <<<PROMPT
 You are a lesson video scene architect. Your task is to read raw lesson content and convert it into a structured video scene script using block markers.
 
 Output ONLY the scene blocks — no JSON, no explanations, no intro or closing text.
@@ -191,12 +256,12 @@ Each block must follow this exact format:
 :::
 
 RULES:
-- Produce 6 to 10 scene blocks total.
+- Produce exactly {$n_min} to {$n_max} scene blocks total (matching the target video duration).
 - First block MUST use layout 'intro'.
 - Last block MUST use layout 'conclusion' or 'cycle-loop'.
 - Choose layouts from this list only: intro, problem, framework, process, contrast, evaluation, options, conclusion, card-list, branching-flow, before-after, quad-grid, three-step-flow, cycle-loop, split-blueprint, fuel-engine, checklist-reveal, deployment-circles, editorial
 - Match layout to content type: 'editorial' for concept definitions or prose explanations; 'process' for numbered steps; 'framework' for named components; 'contrast' for before/after or good/bad comparisons; 'checklist-reveal' for criteria or requirements; 'quad-grid' for exactly 4 parallel items; 'branching-flow' for one input producing multiple outputs; etc.
-- No layout type may repeat in a 6-8 block script. In a 9-10 block script allow at most one repeat.
+- {$repeat_rule}
 - Scene descriptions must be specific to the lesson topic — no generic filler text.
 - Output ONLY the raw :::layout-name\ncontent\n::: blocks. Any text outside the blocks will break the parser.
 PROMPT;
@@ -217,8 +282,9 @@ PROMPT;
 			$body = $request->get_params();
 		}
 
-		$post_id = absint( $body['post_id'] ?? 0 );
-		$prompt  = sanitize_textarea_field( $body['prompt'] ?? '' );
+		$post_id        = absint( $body['post_id'] ?? 0 );
+		$prompt         = sanitize_textarea_field( $body['prompt'] ?? '' );
+		$target_seconds = self::parse_duration_input( $body['target_seconds'] ?? 60 );
 
 		if ( $post_id <= 0 ) {
 			return new WP_Error( 'invalid_post_id', 'A valid post_id is required.', array( 'status' => 400 ) );
@@ -233,14 +299,15 @@ PROMPT;
 		}
 		*/
 
-		// Persist the final script used for this generation
+		// Persist the final script and duration used for this generation
 		update_post_meta( $post_id, self::META_SCRIPT, $prompt );
+		update_post_meta( $post_id, self::META_TARGET_SECONDS, $target_seconds );
 
 		$post_title = get_the_title( $post_id );
 
-		// ── Step 1: Generate 8-scene JSON via AWS Bedrock ────────────────────
-		$user_message = self::build_user_message( $post_title, $prompt );
-		$system_prompt = self::build_system_prompt();
+		// ── Step 1: Generate scene JSON via AWS Bedrock ───────────────────────
+		$user_message  = self::build_user_message( $post_title, $prompt );
+		$system_prompt = self::build_system_prompt( $target_seconds );
 
 		$json_response = TL_AWS_Bedrock_Client::invoke_bedrock( $user_message, $system_prompt, 4096 );
 
@@ -381,8 +448,14 @@ PROMPT;
 	// PROMPT BUILDERS
 	// ─────────────────────────────────────────────────────────────────────────
 
-	private static function build_system_prompt(): string {
-		return <<<'PROMPT'
+	private static function build_system_prompt( int $target_seconds = 60 ): string {
+		$p            = self::resolve_duration_params( $target_seconds );
+		$target_frames = $p['target_frames'];
+		$n_min         = $p['n_min'];
+		$n_max         = $p['n_max'];
+		$frames_min    = $p['frames_min'];
+		$frames_max    = $p['frames_max'];
+		return <<<PROMPT
 You are a professional instructional video designer and motion graphics director. You apply modern video design principles: purposeful layout selection, visual hierarchy, progressive content disclosure, scene rhythm, and thematic color harmony. Your output powers a real animated lesson video watched by students, so every design decision must serve clarity and engagement.
 
 Your output MUST be a single valid JSON object — no markdown fences, no explanations, no text outside the JSON.
@@ -459,8 +532,8 @@ SCENE ORDERING RULES:
 - First scene MUST use layout 'intro'.
 - Last scene MUST use layout 'conclusion' or 'cycle_loop'.
 - Middle scenes (2nd to n-1): choose layouts that best illustrate the lesson content — no rigid order required.
-- Total 6 to 10 scenes; total duration_frames should sum to approximately 1800 (target ~60 seconds at 30 fps).
-- Each scene duration: 150 (simple) to 240 (complex) frames.
+- Total {$n_min} to {$n_max} scenes; total duration_frames should sum to approximately {$target_frames} (target ~{$target_seconds} seconds at 30 fps).
+- Each scene duration: {$frames_min} (simple) to {$frames_max} (complex) frames.
 
 BLOCK MODE RULES (applied when the user message lists scenes explicitly with layout and content):
 - Scene count must equal the number of declared scenes exactly — do not add or remove scenes.

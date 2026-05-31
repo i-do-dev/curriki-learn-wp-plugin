@@ -218,6 +218,11 @@ class TL_LearnPress_Lesson_Extension {
 					<h3 id="lxp-ai-video-modal-title" style="margin:0 0 6px;font-size:15px;"><?php echo esc_html__( 'Paste Your Lesson Content', 'tiny-lxp-platform' ); ?></h3>
 					<p style="font-size:12px;color:#50575e;margin:0 0 10px;"><?php echo esc_html__( 'Paste the full lesson text below. Formatting, bullet points and markup are cleaned automatically before AI processing.', 'tiny-lxp-platform' ); ?></p>
 					<textarea id="lxp-ai-video-raw-text" rows="9" placeholder="<?php echo esc_attr__( 'Paste your lesson content here…', 'tiny-lxp-platform' ); ?>" style="width:100%;box-sizing:border-box;font-size:13px;resize:vertical;line-height:1.6;"></textarea>
+					<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+						<label for="lxp-video-duration" style="font-size:12px;font-weight:600;white-space:nowrap;"><?php echo esc_html__( 'Video length:', 'tiny-lxp-platform' ); ?></label>
+						<input type="text" id="lxp-video-duration" value="1:00" maxlength="5" placeholder="M:SS" style="width:60px;font-size:12px;text-align:center;" />
+						<span style="font-size:11px;color:#646970;"><?php echo esc_html__( 'M:SS &mdash; e.g. 0:30 · 1:30 · 3:00 (max 5:00)', 'tiny-lxp-platform' ); ?></span>
+					</div>
 					<div class="lxp-video-step-actions">
 						<button type="button" id="lxp-ai-video-script-btn" class="button button-primary lxp-video-step-btn-primary"><?php echo esc_html__( 'Process with AI →', 'tiny-lxp-platform' ); ?></button>
 						<button type="button" id="lxp-video-restore-raw-btn" class="button"><?php echo esc_html__( 'Restore Last Input', 'tiny-lxp-platform' ); ?></button>

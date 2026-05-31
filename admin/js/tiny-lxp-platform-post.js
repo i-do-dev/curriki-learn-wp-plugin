@@ -506,8 +506,10 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         success: function (response) {
           var rawText = response && response.raw_text ? response.raw_text : '';
           var script  = response && response.script  ? response.script  : '';
+          var savedSecs = response && response.target_seconds ? response.target_seconds : 60;
           $('#lxp-ai-video-raw-text').val(rawText || $('#lxp-ai-video-post-title').val() || '');
           $('#lxp-ai-video-prompt').val(script);
+          $('#lxp-video-duration').val(lxpFormatSecondsToMinSec(savedSecs));
           if (script) {
             lxpVideoGoToStep(2);
           }
@@ -543,6 +545,12 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         return;
       }
 
+      var durationSecs = lxpParseDurationToSeconds($('#lxp-video-duration').val());
+      if (durationSecs === null) {
+        lxpVideoSetStep1Status('Invalid video length. Use M:SS format, e.g. 1:00. Minimum 0:30, maximum 5:00.', true);
+        return;
+      }
+
       tinyLxpSetAiButtonsDisabled(true);
       lxpVideoSetStep1Status('Converting lesson to structured scenes…', false);
 
@@ -551,7 +559,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         dataType: 'json',
         url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video-script',
         contentType: 'application/json',
-        data: JSON.stringify({ post_id: parseInt(postId, 10), raw_text: sanitised }),
+        data: JSON.stringify({ post_id: parseInt(postId, 10), raw_text: sanitised, target_seconds: durationSecs }),
         success: function (response) {
           var script = response && response.script ? response.script : '';
           if (!script) {
@@ -630,6 +638,11 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         $('#lxp-ai-video-modal-status').text('Please describe the lesson content.');
         return;
       }
+      var genDurationSecs = lxpParseDurationToSeconds($('#lxp-video-duration').val());
+      if (genDurationSecs === null) {
+        $('#lxp-ai-video-modal-status').text('Invalid video length. Use M:SS format, e.g. 1:00. Minimum 0:30, maximum 5:00.');
+        return;
+      }
       tinyLxpSetAiButtonsDisabled(true);
       $('#lxp-ai-video-modal-status').text('Generating video script via AI…');
       jQuery.ajax({
@@ -637,7 +650,7 @@ window.tinyLxpHandleCurrikiSelection = tinyLxpRenderCurrikiPreview;
         dataType: 'json',
         url: (window.location.origin || '') + '/wp-json/lms/v1/lesson/ai-video',
         contentType: 'application/json',
-        data: JSON.stringify({ post_id: parseInt(postId, 10), prompt: prompt }),
+        data: JSON.stringify({ post_id: parseInt(postId, 10), prompt: prompt, target_seconds: genDurationSecs }),
         success: function (response) {
           if (response && response.render_id) {
             $('#lxp-ai-video-modal-status').text('Rendering video on AWS \u2014 this may take 60\u201390 seconds\u2026');
@@ -880,6 +893,31 @@ function lxpInsertVideoBlock(slug) {
   var cursorPos = start + prefix.length + 4 + slug.length;
   ta.setSelectionRange(cursorPos, cursorPos);
   ta.focus();
+}
+
+// ---------------------------------------------------------------------------
+// Video duration helpers  (M:SS format)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a "M:SS" or "MM:SS" string to integer seconds.
+ * Returns null if the format is invalid or out of the 0:30–5:00 range.
+ */
+function lxpParseDurationToSeconds(val) {
+  if (!val || !/^\d{1,2}:[0-5]\d$/.test(val.trim())) { return null; }
+  var parts = val.trim().split(':');
+  var secs  = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  if (secs < 30 || secs > 300) { return null; }
+  return secs;
+}
+
+/**
+ * Format integer seconds to "M:SS" string (e.g. 90 → "1:30").
+ */
+function lxpFormatSecondsToMinSec(seconds) {
+  var m = Math.floor(seconds / 60);
+  var s = seconds % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
 }
 
 // ---------------------------------------------------------------------------
