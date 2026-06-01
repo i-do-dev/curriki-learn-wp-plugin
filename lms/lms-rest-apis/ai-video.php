@@ -270,6 +270,53 @@ class Rest_Lxp_AI_Video {
 		);
 	}
 
+	/**
+	 * Force the scene durations to sum to EXACTLY the author's set length.
+	 *
+	 * The composition (Remotion `calculateMetadata`) totals `scene.duration_frames`, and Bedrock
+	 * only approximates the requested budget — so the rendered video drifted shorter/longer than the
+	 * chosen M:SS. We rescale every scene proportionally; the last scene absorbs the rounding
+	 * remainder so the total lands on `target_seconds * 30` precisely. Scene COUNT and relative
+	 * pacing are preserved.
+	 *
+	 * @param array $scenes        Scene objects, modified in place.
+	 * @param int   $target_seconds Author-chosen duration (already clamped to 30–300).
+	 */
+	private static function normalize_scene_durations( array &$scenes, int $target_seconds ): void {
+		$fps           = 30; // must match Root.tsx Composition fps
+		$count         = count( $scenes );
+		$target_frames = max( $fps, $target_seconds * $fps );
+
+		if ( $count === 0 ) {
+			return;
+		}
+
+		// Sum the current (sanitised) durations.
+		$sum = 0;
+		foreach ( $scenes as $s ) {
+			$sum += max( 1, (int) ( $s['duration_frames'] ?? 0 ) );
+		}
+
+		$acc = 0;
+		foreach ( $scenes as $i => &$s ) {
+			$is_last = ( $i === $count - 1 );
+			if ( $is_last ) {
+				// Last scene absorbs the remainder → exact total. Guard against a non-positive value.
+				$s['duration_frames'] = max( 1, $target_frames - $acc );
+			} elseif ( $sum > 0 ) {
+				$df                   = max( 1, (int) round( max( 1, (int) ( $s['duration_frames'] ?? 0 ) ) * ( $target_frames / $sum ) ) );
+				$s['duration_frames'] = $df;
+				$acc                 += $df;
+			} else {
+				// No usable durations from Bedrock → even split.
+				$df                   = max( 1, (int) floor( $target_frames / $count ) );
+				$s['duration_frames'] = $df;
+				$acc                 += $df;
+			}
+		}
+		unset( $s );
+	}
+
 	// ─────────────────────────────────────────────────────────────────────────
 	// SCRIPT PROMPT BUILDERS
 	// ─────────────────────────────────────────────────────────────────────────
@@ -377,6 +424,10 @@ PROMPT;
 		if ( $has_bg_clip ) {
 			$script['background_clip'] = $bg_clip;
 		}
+
+		// Pin the rendered length to the author's exact set duration. Bedrock only approximates the
+		// requested frame budget, which otherwise left the video shorter/longer than the chosen M:SS.
+		self::normalize_scene_durations( $script['scenes'], $target_seconds );
 
 		// ── Step 2: Fire off Remotion Lambda render ───────────────────────────
 		$region        = get_option( 'tl_remotion_region', 'us-east-2' );
