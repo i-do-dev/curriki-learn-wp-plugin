@@ -433,10 +433,15 @@ class TL_AI_Content_Block_Generator {
 			$template_title = get_the_title( $post_id );
 		}
 
-		$template_html = TL_AI_Content_Template_Library::get_block_template(
-			$type,
-			'numbered-grid' === $type ? TL_AI_Content_Template_Library::detect_component_count( $normalized_content ) : 0
-		);
+		if ( 'numbered-grid' === $type ) {
+			$component_count = TL_AI_Content_Template_Library::detect_component_count( $normalized_content );
+		} elseif ( in_array( $type, array( 'option-cards', 'checklist' ), true ) ) {
+			$component_count = self::detect_item_count( $normalized_content );
+		} else {
+			$component_count = 0;
+		}
+
+		$template_html = TL_AI_Content_Template_Library::get_block_template( $type, $component_count );
 
 		if ( empty( $template_html ) ) {
 			return new WP_Error( 'unknown_block_type', sprintf( 'Unsupported block type "%s".', $type ) );
@@ -694,7 +699,17 @@ class TL_AI_Content_Block_Generator {
 			return $bullet_count;
 		}
 
-		// Fall back to sentence count when no bullets are found.
+		// Count labeled-section patterns: "Option A:", "Step One:", "Phase 2:", etc.
+		// Uses word boundary so mid-paragraph labels (no line break before them) are detected.
+		$label_count = preg_match_all(
+			'/\b(?:Option|Phase|Step|Stage|Part|Section|Approach|Method|Strategy|Path|Track|Level|Tier|Mode|Type|Category)\s+(?:[A-Z]|\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s*[:.]/i',
+			$content
+		);
+		if ( $label_count >= 2 ) {
+			return $label_count;
+		}
+
+		// Fall back to sentence count when no bullets or labels are found.
 		$sentence_count = preg_match_all( '/(?<=[.!?])\s+(?=[A-Z])|[.!?]\s*$/', $content );
 		if ( $sentence_count >= 3 ) {
 			return $sentence_count;

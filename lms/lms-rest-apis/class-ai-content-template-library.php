@@ -41,9 +41,9 @@ class TL_AI_Content_Template_Library {
       case 'role-split':
         return self::_block_role_split();
       case 'option-cards':
-        return self::_block_option_cards();
+        return self::_block_option_cards( $component_count );
       case 'checklist':
-        return self::_block_checklist();
+        return self::_block_checklist( $component_count );
       case 'cycle':
         return self::_block_cycle();
       case 'myth-reality':
@@ -425,12 +425,12 @@ HTML;
       <li><span style="color:#1a7a1a;font-weight:700;">&#10003;</span> [LEFT_3]</li>
     </ul>
   </div>
-  <div style="padding:22px;border-radius:14px;background:#fdf6f6;border:1px solid rgba(180,0,0,.2);">
-    <h4 style="margin:0 0 12px;color:#b40000;">[CONTRAST_RIGHT_HEADING]</h4>
+  <div style="padding:22px;border-radius:14px;background:#f0f4ff;border:1px solid rgba(66,100,180,.2);">
+    <h4 style="margin:0 0 12px;color:#2d5ca6;">[CONTRAST_RIGHT_HEADING]</h4>
     <ul style="margin:0;padding-left:18px;">
-      <li style="margin-bottom:6px;"><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_1]</li>
-      <li style="margin-bottom:6px;"><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_2]</li>
-      <li><span style="color:#b40000;font-weight:700;">&#10007;</span> [RIGHT_3]</li>
+      <li style="margin-bottom:6px;"><span style="color:#2d5ca6;font-weight:700;">&#8594;</span> [RIGHT_1]</li>
+      <li style="margin-bottom:6px;"><span style="color:#2d5ca6;font-weight:700;">&#8594;</span> [RIGHT_2]</li>
+      <li><span style="color:#2d5ca6;font-weight:700;">&#8594;</span> [RIGHT_3]</li>
     </ul>
   </div>
 </section>
@@ -498,44 +498,44 @@ HTML;
 HTML;
 	}
 
-	public static function _block_option_cards() {
-		return <<<'HTML'
-<section style="margin-bottom:22px;">
-  <h3 style="color:var(--lp-secondary-color,#442e66);">[OPTIONS_HEADING]</h3>
-  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
-    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
-      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_1_NAME]</p>
-      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_1_DESC]</p>
-    </div>
-    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
-      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_2_NAME]</p>
-      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_2_DESC]</p>
-    </div>
-    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
-      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_3_NAME]</p>
-      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_3_DESC]</p>
-    </div>
-    <div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
-      <p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_4_NAME]</p>
-      <p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_4_DESC]</p>
-    </div>
-  </div>
-</section>
-HTML;
+	public static function _block_option_cards( $component_count = 0 ) {
+		$count = ( $component_count >= 2 ) ? $component_count : 4;
+		$cards = array();
+
+		for ( $i = 1; $i <= $count; $i++ ) {
+			$cards[] = '<div style="padding:20px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">'
+				. '<p style="margin:0 0 6px;font-weight:700;color:var(--lp-secondary-color,#442e66);">[OPTION_' . $i . '_NAME]</p>'
+				. '<p style="margin:0;font-size:0.88rem;color:#555;">[OPTION_' . $i . '_DESC]</p>'
+				. '</div>';
+		}
+
+		return '<section style="margin-bottom:22px;">'
+			. '<h3 style="color:var(--lp-secondary-color,#442e66);">[OPTIONS_HEADING]</h3>'
+			. '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">'
+			. implode( '', $cards )
+			. '</div>'
+			. '</section>';
 	}
 
-	public static function _block_checklist() {
-		return <<<'HTML'
-<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">
-  <h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);">[CHECKLIST_HEADING]</h3>
-  <ul style="margin:0;padding-left:0;list-style:none;">
-    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_1]</li>
-    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_2]</li>
-    <li style="padding:8px 0;border-bottom:1px solid rgba(68,46,102,.07);display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_3]</li>
-    <li style="padding:8px 0;display:flex;align-items:flex-start;gap:10px;"><span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:2px;">&#10003;</span> [CHECK_4]</li>
-  </ul>
-</section>
-HTML;
+	public static function _block_checklist( $component_count = 0 ) {
+		$count = ( $component_count >= 2 ) ? $component_count : 4;
+		$items = array();
+
+		for ( $i = 1; $i <= $count; $i++ ) {
+			$border = ( $i < $count ) ? 'border-bottom:1px solid rgba(68,46,102,.07);' : '';
+			$items[] = '<li style="padding:10px 0;' . $border . 'display:flex;align-items:flex-start;gap:10px;">'
+				. '<span style="color:var(--lp-secondary-color,#442e66);font-weight:700;margin-top:3px;flex-shrink:0;">&#10003;</span>'
+				. '<div><strong style="color:var(--lp-secondary-color,#442e66);">[CHECK_' . $i . '_LABEL]</strong>'
+				. '<br><span style="font-size:0.88rem;color:#555;">[CHECK_' . $i . '_DESC]</span></div>'
+				. '</li>';
+		}
+
+		return '<section style="margin-bottom:22px;padding:22px;border-radius:14px;background:#fff;border:1px solid rgba(68,46,102,.12);box-shadow:0 10px 30px -10px rgba(68,46,102,.15);">'
+			. '<h3 style="margin-top:0;color:var(--lp-secondary-color,#442e66);">[CHECKLIST_HEADING]</h3>'
+			. '<ul style="margin:0;padding-left:0;list-style:none;">'
+			. implode( '', $items )
+			. '</ul>'
+			. '</section>';
 	}
 
 	public static function _block_cycle() {
@@ -626,13 +626,34 @@ HTML;
 	 * @return int  Component count in [3, 30], or 6 when no count is detectable.
    */
   public static function detect_component_count( $lesson_content ) {
+		$content = wp_strip_all_tags( (string) $lesson_content );
+
+		// 1. Count explicit numbered list lines: "1.", "2.", "3." at start of line.
+		$lines       = preg_split( '/\r\n|\r|\n/', $content );
+		$highest_num = 0;
+		$num_line_count = 0;
+		foreach ( $lines as $line ) {
+			if ( preg_match( '/^\s*(\d+)[.)]\s*\S/', $line, $m ) ) {
+				$n = (int) $m[1];
+				if ( $n >= 1 && $n <= 30 ) {
+					++$num_line_count;
+					$highest_num = max( $highest_num, $n );
+				}
+			}
+		}
+		if ( $num_line_count >= 2 && $highest_num >= 2 ) {
+			return $highest_num;
+		}
+
+		// 2. Count-noun phrase: "3 steps", "five principles", etc.
 		$count_noun_pattern = '/\b(\d+)\s+(?:component|step|principle|element|part|type|way|factor|point|item|section|rule|stage|phase|aspect|concept|skill|strategy|pillar|layer|dimension|area|domain|category|criterion|criteria|key|core|essential|fundamental|basic|important|critical|major|main)s?\b/i';
-		if ( preg_match( $count_noun_pattern, $lesson_content, $matches ) ) {
+		if ( preg_match( $count_noun_pattern, $content, $matches ) ) {
 			$n = (int) $matches[1];
 			if ( $n >= 3 && $n <= 30 ) {
 				return $n;
 			}
 		}
+
 		return 6;
 	}
 
