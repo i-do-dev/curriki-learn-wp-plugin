@@ -58,7 +58,7 @@
     <!-- Welcome: section-->
     <div class="welcome-section">
         <h2 class="welcome-heading">Welcome Administrator!</h2>
-        <p class="welcome-text">LXP</p>
+        <p class="welcome-text">Curriki Learn</p>
     </div>
 
     <!-- Total Schools: section-->
