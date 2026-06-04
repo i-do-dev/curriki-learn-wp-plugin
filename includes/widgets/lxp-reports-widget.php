@@ -77,7 +77,7 @@ class LXP_Reports_Widget extends Widget_Base {
         $student_post = lxp_get_student_post(get_current_user_id());
         $assignments = lxp_get_student_assignments($student_post->ID);
         $assignments_submissions = assignments_submissions($assignments, $student_post);
-        $assets_src = content_url().'/plugins/TinyLxp-wp-plugin/lms/templates/tinyLxpTheme/treks-src/';
+        $assets_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
         ob_start();
         ?>
         <style>
