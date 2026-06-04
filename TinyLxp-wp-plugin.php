@@ -48,6 +48,13 @@ define('Tiny_LXP_PLATFORM_NAME', 'lti-platform');
 define('Tiny_LXP_PLATFORM_VERSION', '2.0.3');
 
 /**
+ * Plugin root URL (with trailing slash).
+ */
+if (!defined('TL_PLUGIN_URL')) {
+    define('TL_PLUGIN_URL', plugin_dir_url(__FILE__));
+}
+
+/**
  * The core plugin class that is used to define internationalization,
  * admin-specific hooks, and public-facing site hooks.
  */

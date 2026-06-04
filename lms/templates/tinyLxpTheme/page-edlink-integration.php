@@ -1,5 +1,5 @@
 <?php	
-	$treks_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
+	$treks_src = TL_PLUGIN_URL . 'lms/templates/tinyLxpTheme/treks-src/';
 	$livePath = dirname( __FILE__ );
 	$error = '';		
 	// Get the authorization code from the query string

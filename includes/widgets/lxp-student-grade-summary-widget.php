@@ -117,7 +117,7 @@ class Student_Grade_Summay_Widget extends Widget_Base {
 		$course_title = esc_html($course->post_title);
 		$lesson_title = esc_html($lxp_lesson_post->post_title);
 		$section_title = esc_html($section_title);
-		$assets_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
+		$assets_src = TL_PLUGIN_URL . 'lms/templates/tinyLxpTheme/treks-src/';
 		// Start output buffering
 		ob_start();
 		?>
@@ -389,14 +389,14 @@ class Student_Grade_Summay_Widget extends Widget_Base {
 			// Enqueue CSS
 			wp_enqueue_style(
 				'widget-feedback-modal-css',
-				plugins_url('includes/widgets/assets/style/feedback-view-style.css', __FILE__),
+				TL_PLUGIN_URL . 'includes/widgets/assets/style/feedback-view-style.css',
 				array(),
 				'1.0'
 			);
 			// Enqueue JS (depends on jQuery + Bootstrap)
 			wp_enqueue_script(
 				'widget-feedback-modal',
-				plugins_url('includes/widgets/assets/js/feedback-view-modal.js', __FILE__),
+				TL_PLUGIN_URL . 'includes/widgets/assets/js/feedback-view-modal.js',
 				array('jquery'),
 				'1.0',
 				true
@@ -589,7 +589,7 @@ class Student_Grade_Summay_Widget extends Widget_Base {
 			// Enqueue JS (depends on jQuery + Bootstrap)
 			wp_enqueue_script(
 				'animated-circular-progress',
-				plugins_url('includes/widgets/assets/js/Animated-Circular-Progress-Bar-with-jQuery-Canvas-Circle-Progress/dist/circle-progress.js', __FILE__),
+				TL_PLUGIN_URL . 'includes/widgets/assets/js/Animated-Circular-Progress-Bar-with-jQuery-Canvas-Circle-Progress/dist/circle-progress.js',
 				array('jquery'),
 				'1.0',
 				true
@@ -597,7 +597,7 @@ class Student_Grade_Summay_Widget extends Widget_Base {
 
 			wp_enqueue_script(
 				'widget-interactive-book-circle',
-				plugins_url('includes/widgets/assets/js/ib-custom-circular.js', __FILE__),
+				TL_PLUGIN_URL . 'includes/widgets/assets/js/ib-custom-circular.js',
 				array('jquery'),
 				'1.0',
 				true
