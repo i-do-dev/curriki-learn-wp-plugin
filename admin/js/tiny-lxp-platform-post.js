@@ -875,20 +875,16 @@ function lxpRenderVideoActionArea(url) {
  * Returns true when an editor was found and the content was inserted.
  */
 function lxpInsertVideoIntoEditor(url) {
-  var html =
-    '<div class="lxp-lesson-video-embed" style="margin:16px 0;">' +
-      '<video controls style="max-width:100%;display:block;">' +
-        '<source src="' + url + '" type="video/mp4">' +
-        '<a href="' + url + '" target="_blank" rel="noopener">Watch Video</a>' +
-      '</video>' +
-    '</div>';
+  // WordPress embed shortcode — WP_Embed's video handler renders a responsive,
+  // full-width player for direct .mp4/.webm/.mov URLs.
+  var shortcode = '[embed]' + url + '[/embed]';
 
-  // Block editor (Gutenberg) — insert as HTML block, does not replace content
+  // Block editor (Gutenberg) — insert as a Shortcode block, does not replace content
   if (typeof wp !== 'undefined' && wp.blocks && wp.data) {
     try {
       var dispatch = wp.data.dispatch('core/block-editor');
       if (dispatch && wp.blocks.createBlock) {
-        dispatch.insertBlocks(wp.blocks.createBlock('core/html', { content: html }));
+        dispatch.insertBlocks(wp.blocks.createBlock('core/shortcode', { text: shortcode }));
         return true;
       }
     } catch (e) {}
@@ -896,14 +892,14 @@ function lxpInsertVideoIntoEditor(url) {
 
   // Classic editor (TinyMCE) — append at cursor
   if (typeof tinymce !== 'undefined' && tinymce.get('content')) {
-    tinymce.get('content').execCommand('mceInsertContent', false, html);
+    tinymce.get('content').execCommand('mceInsertContent', false, shortcode);
     return true;
   }
 
   // Plain textarea fallback — append to end
   var ta = document.getElementById('content');
   if (ta) {
-    ta.value += (ta.value.length > 0 && ta.value.slice(-1) !== '\n' ? '\n' : '') + html;
+    ta.value += (ta.value.length > 0 && ta.value.slice(-1) !== '\n' ? '\n' : '') + shortcode;
     return true;
   }
 
