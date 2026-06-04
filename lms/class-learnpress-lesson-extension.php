@@ -528,7 +528,7 @@ class TL_LearnPress_Lesson_Extension {
 		$course_id = absint(get_post_meta($assignment->ID, 'course_id', true));
 		$course = $course_id > 0 ? get_post($course_id) : null;
 		$section_name = $this->section_repository()->get_section_name_by_item_id($lesson_id);
-		$assets_src = content_url() . '/plugins/TinyLxp-wp-plugin/lms/templates/tinyLxpTheme/treks-src/';
+		$assets_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
 
 		return array(
 			'assignment' => $assignment,

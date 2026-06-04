@@ -1,5 +1,5 @@
 <?php
-$treks_src = content_url().'/plugins/TinyLxp-wp-plugin/lms/templates/tinyLxpTheme/treks-src/';
+$treks_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
 // Start the loop.
 $courseId =  isset($_GET['courseid']) ? $_GET['courseid'] : get_post_meta($post->ID, 'tl_course_id', true);
 $args = array(

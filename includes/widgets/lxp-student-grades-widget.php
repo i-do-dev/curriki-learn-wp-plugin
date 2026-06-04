@@ -70,7 +70,7 @@ class Student_Grades_Widget extends Widget_Base {
 			return $assignment_submission && get_post_meta($assignment_submission['ID'], 'mark_as_graded', true) == 'true';
 		});
         // $assignments_submissions = assignments_submissions($assignments, $student_post);
-        $treks_src = content_url().'/plugins/TinyLxp-wp-plugin/lms/templates/tinyLxpTheme/treks-src/';
+        $treks_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
         echo '
 			<style>
 				.polygon-shap {
