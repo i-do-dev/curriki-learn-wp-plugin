@@ -1,6 +1,6 @@
 <?php
 $livePath = dirname( __FILE__ );
-$treks_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
+$treks_src = TL_PLUGIN_URL . 'lms/templates/tinyLxpTheme/treks-src/';
 // Get the Edlink API Settings
 $edlink_options = get_option('edlink_options');
 $edlink_sso_link = '';

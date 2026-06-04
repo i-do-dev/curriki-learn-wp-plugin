@@ -1,5 +1,5 @@
 <?php
-    $treks_src = plugins_url('lms/templates/tinyLxpTheme/treks-src/', __FILE__);
+    $treks_src = TL_PLUGIN_URL . 'lms/templates/tinyLxpTheme/treks-src/';
 	$homeUrl = home_url();
 ?>
 <!DOCTYPE html>
