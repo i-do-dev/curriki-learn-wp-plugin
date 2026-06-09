@@ -482,6 +482,7 @@ class LXP_Course_HTML_Widget extends Widget_Base {
 		$allowed_html['button']  = [ 'type' => true, 'class' => true, 'id' => true, 'name' => true, 'value' => true, 'style' => true, 'data-course-id' => true, 'data-id' => true ];
 		$allowed_html['section'] = [ 'id' => true, 'class' => true, 'style' => true ];
 		$allowed_html['hr']      = [ 'class' => true, 'style' => true ];
+		$allowed_html['center']  = [];
 
 		// Allow <source> so [video]/[audio] shortcode output (which nests <source src>) survives kses.
 		// Core's 'post' allowlist permits <video>/<audio>/<track> but NOT <source>, so without this
