@@ -483,6 +483,19 @@ class LXP_Course_HTML_Widget extends Widget_Base {
 		$allowed_html['section'] = [ 'id' => true, 'class' => true, 'style' => true ];
 		$allowed_html['hr']      = [ 'class' => true, 'style' => true ];
 
+		// Allow <source> so [video]/[audio] shortcode output (which nests <source src>) survives kses.
+		// Core's 'post' allowlist permits <video>/<audio>/<track> but NOT <source>, so without this
+		// the media URL is stripped and the player initializes with nothing to play.
+		$allowed_html['source'] = [ 'src' => true, 'type' => true, 'media' => true, 'srcset' => true, 'sizes' => true ];
+		// Ensure <video>/<audio> keep the attrs MediaElement.js relies on (core post allowlist omits class).
+		$allowed_html['video']  = array_merge( $allowed_html['video'] ?? [], [
+			'class' => true, 'id' => true, 'controls' => true, 'preload' => true, 'poster' => true,
+			'width' => true, 'height' => true, 'playsinline' => true, 'autoplay' => true, 'loop' => true, 'muted' => true,
+		] );
+		$allowed_html['audio']  = array_merge( $allowed_html['audio'] ?? [], [
+			'class' => true, 'id' => true, 'controls' => true, 'preload' => true, 'autoplay' => true, 'loop' => true, 'muted' => true,
+		] );
+
 		echo wp_kses( $output, $allowed_html );
 	}
 }
