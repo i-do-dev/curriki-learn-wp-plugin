@@ -1161,19 +1161,19 @@ export const EditorialScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
               }}>
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
                 {item.icon && (
-                  <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 10, marginTop: item.badge ? 4 : 0 }}>{renderIcon(item.icon, 30)}</div>
+                  <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 10, marginTop: item.badge ? 4 : 0 }}>{renderIcon(item.icon, 36)}</div>
                 )}
-                <div style={{ fontSize: 26, fontWeight: 700, color: WHITE, lineHeight: 1.25, marginBottom: item.sub_label || item.description ? 8 : 0 }}>
+                <div style={{ fontSize: 32, fontWeight: 700, color: WHITE, lineHeight: 1.25, marginBottom: item.sub_label || item.description ? 8 : 0 }}>
                   {item.text}
                 </div>
                 {item.sub_label && (
-                  <div style={{ fontSize: 17, color: palette.accent, fontWeight: 600, marginBottom: 10 }}>{item.sub_label}</div>
+                  <div style={{ fontSize: 21, color: palette.accent, fontWeight: 600, marginBottom: 10 }}>{item.sub_label}</div>
                 )}
                 {item.sub_label && item.description && (
                   <div style={{ width: 40, height: 2, background: palette.cardBorder, marginBottom: 10, borderRadius: 2 }} />
                 )}
                 {item.description && (
-                  <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.65 }}>{item.description}</div>
+                  <div style={{ fontSize: 24, color: WHITE_SOFT, lineHeight: 1.65 }}>{item.description}</div>
                 )}
               </div>
             );
