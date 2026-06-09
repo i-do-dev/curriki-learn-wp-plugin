@@ -3,6 +3,7 @@ export const NAVY        = '#0B1A3B';
 export const GOLD        = '#F0B429';
 export const WHITE       = '#FFFFFF';
 export const WHITE_DIM   = 'rgba(255, 255, 255, 0.72)';
+export const WHITE_SOFT  = 'rgba(255, 255, 255, 0.88)';
 export const AMBER       = '#F59E0B';
 export const CARD_BG     = 'rgba(255, 255, 255, 0.07)';
 export const CARD_BORDER = 'rgba(240, 180, 41, 0.28)';
