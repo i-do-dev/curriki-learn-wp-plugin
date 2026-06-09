@@ -369,16 +369,34 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
               borderRadius: 14, padding: '24px 22px 20px', position: 'relative',
             }}>
               <div style={{
-                position: 'absolute', top: -12, left: 16,
+                position: 'absolute', top: -16, left: 16,
                 background: palette.accent, color: NAVY,
-                fontSize: 13, fontWeight: 800, width: 26, height: 26, borderRadius: '50%',
+                fontSize: 16, fontWeight: 800, width: 32, height: 32, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{i + 1}</div>
               {item.badge && <BadgePill text={item.badge} palette={palette} />}
-              {item.icon && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 8, marginTop: item.badge ? 0 : 6 }}>{renderIcon(item.icon, 26)}</div>}
-              <div style={{ fontSize: 20, color: WHITE, fontWeight: 600, marginTop: (item.icon || item.badge) ? 0 : 6 }}>{item.text}</div>
-              {item.sub_label && <div style={{ fontSize: 17, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
-              {item.description && <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
+              {item.icon && <div style={{ fontSize: 32, lineHeight: 1, marginBottom: 8, marginTop: item.badge ? 0 : 6 }}>{renderIcon(item.icon, 32)}</div>}
+              <div style={{ fontSize: 26, color: WHITE, fontWeight: 700, marginTop: (item.icon || item.badge) ? 0 : 6 }}>{item.text}</div>
+              {item.sub_label && <div style={{ fontSize: 20, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
+              {item.description && (
+                Array.isArray(item.description) ? (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {(item.description as string[]).map((point, pi) => (
+                      <div key={pi} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                        <div style={{
+                          width: 6, height: 6, borderRadius: '50%',
+                          background: palette.accent, flexShrink: 0, marginTop: 9,
+                        }} />
+                        <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.35, fontWeight: 500 }}>
+                          {point}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>
+                )
+              )}
             </div>
           );
         })}
