@@ -586,7 +586,7 @@ SceneItem shape:
   "status": "<optional — 'pass' | 'gap' | 'warn'>",
   "icon": "<optional — adds immediate semantic meaning; omit when uncertain. PREFER a named icon that renders as a crisp accent-coloured glyph: shield, lock, globe, building, mic, calendar, fuel, target, gauge, document, network, checkmark. Otherwise a single emoji: 🎯 📊 ⚡ 🔒 🌐 🔧 📱 💡 🚀 📈 🛡️ 🔄 ✅ ⚠️ 🏆 👥 💼 🧩 📋 🎓 🔍 🌱 ⚖️ 🔬 📡 🏛️ 💬 📐 🗂️>",
   "badge": "<optional — a short ALL-CAPS keyword label shown as an accent pill tag. Vocabulary: KEY CONCEPT · TIP · EXAMPLE · WARNING · BEST PRACTICE · NOTE · STEP · TOOL · RULE · INSIGHT · MYTH · FACT. Use only when the item has a named semantic type.>",
-  "description": "<optional — ONE short sentence (roughly 12-16 words) that fits in 2 lines on screen; a tight explanation, NEVER a full paragraph or multiple sentences; required in editorial layout; useful in framework, card_list, split_blueprint when an item needs more than a label.>"
+  "description": "<optional — for framework layout: a JSON array of 2–4 compact phrases each 5–8 words long, e.g. [\"Students produce original conclusions\", \"No model can replicate lived reasoning\"]; for all other layouts: ONE short sentence (roughly 12–16 words) that fits in 2 lines on screen; NEVER a full paragraph or multiple sentences; required in editorial; useful in card_list and split_blueprint when an item needs more than a label.>"
 }
 
 Scene object also accepts:
@@ -610,7 +610,7 @@ AVAILABLE LAYOUTS and their items[] contract:
 |--------------------|--------------------------------------------------------------------------------------------------|
 | intro              | 3-6 items — concept/topic names that orbit the title card                                        |
 | problem            | 3-5 items — task or pain-point names; set featured:true on the key problem item                  |
-| framework          | 4-6 items — architecture component names (shown as numbered blueprint blocks)                    |
+| framework          | 3 items — numbered blueprint blocks; each item SHOULD have description as a string[] of 2–4 compact phrases (5–8 words each); badge recommended |
 | process            | 3-5 items — ordered pipeline stage names (animated left-to-right with a connecting accent line)  |
 | contrast           | 2-3 items — set role:'bad' on the overloaded/before item, role:'good' on the focused/after items |
 | evaluation         | 3-5 items — test case labels; set status:'gap' on the item that reveals a weakness               |
@@ -657,7 +657,7 @@ DESIGN PRINCIPLES:
 - Scene rhythm: alternate between analytical layouts (framework, quad_grid, split_blueprint, checklist_reveal, editorial) and high-impact visual layouts (process, cycle_loop, contrast, before_after, branching_flow) for natural pacing. Avoid clustering the same category of layout.
 - Icon economy: assign an icon only when an emoji unambiguously matches the item concept and adds meaning a viewer will register instantly. Omit the icon field entirely when uncertain — decoration is worse than absence.
 - Badge labels: assign badge only when the item has a clear named semantic type (a TIP is different from a RULE; a MYTH is different from a FACT). Use the vocabulary provided. Do not add badges to every item.
-- Description usage: add description when an item needs more than a label. Keep every description to ONE short sentence that fits 2 lines — never a paragraph or multiple sentences. Required in editorial; optional elsewhere. Do not pad with repetition of item.text.
+- Description usage: add description when an item needs more than a label. For framework layout, set description to a string[] of 2–4 compact phrases (5–8 words each) — e.g. ["First compact point", "Second compact point"]. For all other layouts, keep description to ONE short sentence (12–16 words, fits 2 lines) — never a paragraph or multiple sentences. Required in editorial; optional elsewhere. Do not pad with repetition of item.text.
 - Callout placement: use callout for the scene's single most important insight. Prefer editorial for callout-heavy content. In other layouts, use callout sparingly — one callout per video is better than one per scene.
 - Editorial layout: choose editorial for scenes where the content is primarily conceptual — definitions, comparisons, explanations, analyses. Give every editorial item both sub_label and description, but keep each description to one tight 2-line sentence; always include a callout.
 - Progressive density: open with visual impact (intro), build conceptual complexity in middle scenes (mix analytical + editorial), close with synthesis and call to action (conclusion or cycle_loop).

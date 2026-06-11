@@ -42,8 +42,8 @@ export interface SceneItem {
   icon?: string;
   /** Short ALL-CAPS keyword label rendered as an accent pill tag (e.g. "KEY CONCEPT", "TIP"). */
   badge?: string;
-  /** Body paragraph text rendered below sub_label; required in editorial layout. */
-  description?: string;
+  /** Body text rendered below sub_label. Array = compact bullet list (framework layout); string = paragraph (other layouts). Required in editorial. */
+  description?: string | string[];
 }
 
 export interface Scene {
