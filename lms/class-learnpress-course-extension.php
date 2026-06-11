@@ -8,11 +8,42 @@ class TL_LearnPress_Course_Extension {
 	 */
 	public function __construct() {
 		add_action( 'init', [ $this, 'register_course_shortcodes' ], 5 );
+		add_action( 'init', [ $this, 'register_course_thumbnail_image_size' ] );
 		add_filter( 'elementor/widget/render_content', [ $this, 'process_html_widget_shortcodes' ], 10, 2 );
 		// Course pages must never be served from a page cache — Elementor Theme Builder
 		// uses one shared template for all lp_course posts, so a cached render of
 		// Course A gets served for Course B, C, etc. (our shortcodes won't re-fire).
 		add_action( 'template_redirect', [ $this, 'disable_page_cache_on_course' ] );
+	}
+
+	/**
+	 * Register a WP intermediate image size matching LearnPress's expected
+	 * course thumbnail dimensions ("course_thumbnail_dimensions" setting,
+	 * default 500x300).
+	 *
+	 * Without this, LearnPress\Models\PostModel::get_image_url( [500, 300] )
+	 * generates the "-500x300" file on demand at render time, writing
+	 * straight to disk without calling wp_update_attachment_metadata() —
+	 * so WP Offload Media (which only hooks wp_update_attachment_metadata)
+	 * never syncs that size to S3. Registering it here makes WordPress
+	 * generate it at normal upload time instead, through the metadata
+	 * pipeline Offload Media already watches.
+	 *
+	 * crop is hardcoded true to match get_image_url()'s
+	 * resize( $w, $h, true ) and produce the "-{w}x{h}" filename it
+	 * looks for via file_exists().
+	 */
+	public function register_course_thumbnail_image_size() {
+		$width  = 500;
+		$height = 300;
+
+		if ( class_exists( '\LP_Settings' ) ) {
+			$size_img_setting = \LP_Settings::get_option( 'course_thumbnail_dimensions', [] );
+			$width            = absint( $size_img_setting['width'] ?? 500 ) ?: 500;
+			$height           = absint( $size_img_setting['height'] ?? 300 ) ?: 300;
+		}
+
+		add_image_size( 'tinylxp_course_thumbnail', $width, $height, true );
 	}
 
 	/**
