@@ -369,9 +369,9 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
               borderRadius: 14, padding: '24px 22px 20px', position: 'relative',
             }}>
               <div style={{
-                position: 'absolute', top: -16, left: 16,
+                position: 'absolute', top: -20, left: 16,
                 background: palette.accent, color: NAVY,
-                fontSize: 16, fontWeight: 800, width: 32, height: 32, borderRadius: '50%',
+                fontSize: 20, fontWeight: 800, width: 40, height: 40, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{i + 1}</div>
               {item.badge && <BadgePill text={item.badge} palette={palette} />}
@@ -379,21 +379,27 @@ export const FrameworkScene: React.FC<{ scene: Scene; palette: Palette }> = ({ s
               <div style={{ fontSize: 26, color: WHITE, fontWeight: 700, marginTop: (item.icon || item.badge) ? 0 : 6 }}>{item.text}</div>
               {item.sub_label && <div style={{ fontSize: 20, color: WHITE_DIM, marginTop: 4 }}>{item.sub_label}</div>}
               {item.description && (
-                Array.isArray(item.description) ? (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {(item.description as string[]).map((point, pi) => (
-                      <div key={pi} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                        <div style={{
-                          width: 6, height: 6, borderRadius: '50%',
-                          background: palette.accent, flexShrink: 0, marginTop: 9,
-                        }} />
-                        <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.35, fontWeight: 500 }}>
-                          {point}
+                Array.isArray(item.description) ? (() => {
+                  const points = item.description as string[];
+                  const avgWords = points.reduce((sum, p) => sum + p.trim().split(/\s+/).filter(Boolean).length, 0) / points.length;
+                  const fSize = avgWords <= 4 ? 28 : avgWords <= 6 ? 23 : 19;
+                  const dotMargin = Math.round(fSize * 0.42);
+                  return (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: fSize >= 26 ? 8 : 5 }}>
+                      {points.map((point, pi) => (
+                        <div key={pi} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                          <div style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: palette.accent, flexShrink: 0, marginTop: dotMargin,
+                          }} />
+                          <div style={{ fontSize: fSize, color: WHITE_SOFT, lineHeight: 1.3, fontWeight: 500 }}>
+                            {point}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
+                      ))}
+                    </div>
+                  );
+                })() : (
                   <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>
                 )
               )}
