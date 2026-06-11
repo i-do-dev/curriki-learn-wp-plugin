@@ -537,11 +537,11 @@ export const EvaluationScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
           const checkP = spring({ frame: Math.max(0, frame - delay - 14), fps, config: { damping: 14, stiffness: 140 } });
           return (
             <GlassCard key={i} style={{
-              opacity, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px',
+              opacity, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px',
               borderColor: isGap && !isResolved ? 'rgba(245,158,11,0.5)' : CARD_PLAIN,
             }}>
-              <span style={{ fontSize: 22, color: isGap && !isResolved ? AMBER : WHITE }}>{item.text}</span>
-              <div style={{ transform: `scale(${checkP})`, fontSize: 20, fontWeight: 700, color: isGap && !isResolved ? AMBER : palette.accent }}>
+              <span style={{ fontSize: 26, color: isGap && !isResolved ? AMBER : WHITE }}>{item.text}</span>
+              <div style={{ transform: `scale(${checkP})`, fontSize: 22, fontWeight: 700, color: isGap && !isResolved ? AMBER : palette.accent }}>
                 {isGap && !isResolved ? '⚠ GAP' : '✓'}
               </div>
             </GlassCard>
@@ -1007,7 +1007,6 @@ export const FuelEngineScene: React.FC<{ scene: Scene; palette: Palette }> = ({ 
                   {item.icon && <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{renderIcon(item.icon, 24)}</span>}
                   <div style={{ fontSize: 21, color: WHITE_DIM, fontWeight: 500 }}>{item.text}</div>
                 </div>
-                {item.description && <div style={{ fontSize: 19, color: WHITE_SOFT, lineHeight: 1.6, marginTop: 6 }}>{item.description}</div>}
               </GlassCard>
             </div>
           ))}
@@ -1071,12 +1070,10 @@ export const ChecklistRevealScene: React.FC<{ scene: Scene; palette: Palette }> 
               </div>
               <div style={{ flex: 1 }}>
                 {item.badge && <BadgePill text={item.badge} palette={palette} />}
-                <div style={{ fontSize: 23, color: showGap ? AMBER : WHITE, fontWeight: showGap ? 700 : 400, lineHeight: 1.3 }}>
-                  {item.icon && <span style={{ marginRight: 10 }}>{renderIcon(item.icon, 23)}</span>}
+                <div style={{ fontSize: 26, color: showGap ? AMBER : WHITE, fontWeight: showGap ? 700 : 400, lineHeight: 1.3 }}>
+                  {item.icon && <span style={{ marginRight: 10 }}>{renderIcon(item.icon, 26)}</span>}
                   {item.text}
                 </div>
-                {item.sub_label && <div style={{ fontSize: 19, color: WHITE_DIM, marginTop: 2 }}>{item.sub_label}</div>}
-                {item.description && <div style={{ fontSize: 20, color: WHITE_SOFT, lineHeight: 1.6, marginTop: 4 }}>{item.description}</div>}
               </div>
             </div>
           );
@@ -1324,13 +1321,13 @@ export const GateScene: React.FC<{ scene: Scene; palette: Palette }> = ({ scene,
           const op = interpolate(Math.max(0, frame - delay), [0, 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
           const x  = interpolate(Math.max(0, frame - delay), [0, 14], [40, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
           return (
-            <GlassCard key={i} palette={palette} style={{ opacity: op, transform: `translateX(${x}px)`, display: 'flex', alignItems: 'center', gap: 16, padding: '16px 24px' }}>
+            <GlassCard key={i} palette={palette} style={{ opacity: op, transform: `translateX(${x}px)`, display: 'flex', alignItems: 'center', gap: 18, padding: '20px 26px' }}>
               <div style={{
-                width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
                 border: `2px solid ${palette.accent}`, color: palette.accent,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800,
               }}>?</div>
-              <span style={{ fontSize: 22, color: WHITE }}><RichText text={item.text} /></span>
+              <span style={{ flex: 1, fontSize: 26, color: WHITE, lineHeight: 1.35 }}><RichText text={item.text} /></span>
             </GlassCard>
           );
         })}
