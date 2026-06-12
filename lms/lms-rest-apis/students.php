@@ -853,16 +853,38 @@ class Rest_Lxp_Student
 		$school_admin_id = $request->get_param('school_admin_id');
 		$file = $request->get_file_params();
 		$students_csv = isset($file['students']) ? $file['students'] : null;
-		if ($students_csv['size'] > 0 && $students_csv['type'] == 'text/csv') {
-			
-			$overrides = array('test_form' => false);
+
+		// Accept by extension and a small allow-list of CSV MIME variants. Browsers
+		// (notably Excel-saved files) report text/csv, application/vnd.ms-excel or
+		// application/octet-stream, so a strict text/csv check rejects valid files.
+		$allowed_csv_types = array('text/csv', 'application/vnd.ms-excel', 'application/octet-stream', 'text/plain');
+		$has_csv_ext = $students_csv && isset($students_csv['name'])
+			&& strtolower(pathinfo($students_csv['name'], PATHINFO_EXTENSION)) === 'csv';
+		$has_csv_type = $students_csv && in_array($students_csv['type'], $allowed_csv_types, true);
+
+		if ($students_csv && $students_csv['size'] > 0 && ($has_csv_ext || $has_csv_type)) {
+
+			$overrides = array('test_form' => false, 'mimes' => array('csv' => 'text/csv'));
 			$upload = wp_handle_upload( $students_csv, $overrides );
 			if ( $upload && !isset( $upload['error'] ) ) {
-				$csv_file_url = $upload["url"];
-				
-				if (($handle = fopen($csv_file_url, "r")) !== false) {
+				// Read the local filesystem path, not the public URL: fopen() on a URL
+				// depends on allow_url_fopen and the upload being HTTP-reachable, which
+				// fails on localhost/XAMPP and locked-down hosts.
+				$csv_file_path = $upload["file"];
+
+				$imported   = 0;
+				$skipped    = 0;
+				$duplicates = 0;
+
+				if (($handle = fopen($csv_file_path, "r")) !== false) {
 					while (($row = fgetcsv($handle, 1000, ",")) !== false) {
-						if (count($row) >= 4) {
+						// Skip an optional header row.
+						if (isset($row[0]) && strtolower(trim($row[0])) === 'first_name') {
+							continue;
+						}
+
+						// Need all 6 columns: first_name, last_name, username, password, grade, student_id.
+						if (count($row) >= 6) {
 							$first_name = trim($row[0]);
 							$last_name = trim($row[1]);
 							$user_display_name = $last_name . ', ' . $first_name;
@@ -871,7 +893,7 @@ class Rest_Lxp_Student
 							$password = trim($row[3]);
 							$grades = explode('-', trim($row[4]));
 							$student_id = trim($row[5]);
-							
+
 							if (!get_user_by('email', $email)) {
 								$student_post_arg = array(
 									'post_title'    => wp_strip_all_tags($user_display_name),
@@ -904,15 +926,25 @@ class Rest_Lxp_Student
 								update_post_meta($student_post_id, 'lxp_teacher_id', ($lxp_teacher_id ? [$lxp_teacher_id] : 0));
 								update_post_meta($student_post_id, 'grades', json_encode($grades));
 								update_post_meta($student_post_id, 'student_id', ($student_id ? $student_id : 0));
+								$imported++;
+							} else {
+								$duplicates++;
 							}
-						}		
+						} else {
+							$skipped++;
+						}
 					}
 					fclose($handle);
 				}
-				return wp_send_json_success("Students imported successfully.");
+				return wp_send_json_success(array(
+					"message"    => "Students imported successfully.",
+					"imported"   => $imported,
+					"skipped"    => $skipped,
+					"duplicates" => $duplicates,
+				));
 			} else {
 				return  wp_send_json_error("File could not uploaded.", 400);
-			} 
+			}
 
 		} else {
 			return  wp_send_json_error("Invalid file . Upload valid CSV file.", 400);

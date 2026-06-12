@@ -475,7 +475,7 @@ $edlink_options = get_option('edlink_options');
         </script>
     <?php } ?>
     
-    <?php if(isset($_GET['teacher_id'])) { ?>
+    <?php if($school_post) { ?>
         <input type="hidden" name="school_admin_id_imp" id="school_admin_id_imp" value="<?php echo get_post_meta( $school_post->ID, 'lxp_school_admin_id', true ); ?>">
         <input type="hidden" name="student_school_id_imp" id="student_school_id_imp" value="<?php echo $school_post->ID; ?>">
         <input type="hidden" name="teacher_id_imp" id="teacher_id_imp" value="<?php echo isset($_GET['teacher_id']) ? $_GET['teacher_id'] : 0; ?>">
@@ -484,12 +484,13 @@ $edlink_options = get_option('edlink_options');
             jQuery(document).ready(function() {
                 let host = window.location.hostname === 'localhost' ? window.location.origin + '<?php echo WORDPRESS_HOST; ?>' : window.location.origin;
                 let apiUrl = host + '/wp-json/lms/v1/';
-                
+
                 jQuery("#import-student").on("change", function(e) {
+                    if (!e.target.files.length) return;
                     let formData = new FormData();
                     formData.append('student_school_id', jQuery("#student_school_id_imp").val());
                     formData.append('school_admin_id', jQuery("#school_admin_id_imp").val());
-                    formData.append('teacher_id', jQuery("#teacher_id_imp").val());
+                    formData.append('teacher_id', jQuery("#teacher_id_imp").val() || 0);
                     formData.append('students', e.target.files[0]);
                     $.ajax({
                         method: "POST",
@@ -501,6 +502,12 @@ $edlink_options = get_option('edlink_options');
                         cache: false,
                     }).done(function( response ) {
                         jQuery("#import-student").val("");
+                        var d = response && response.data ? response.data : {};
+                        if (typeof d === 'object' && (d.imported !== undefined)) {
+                            alert('Import complete.\nImported: ' + (d.imported || 0) +
+                                  '\nDuplicates skipped: ' + (d.duplicates || 0) +
+                                  '\nMalformed rows skipped: ' + (d.skipped || 0));
+                        }
                         window.location.reload();
                     }).fail(function (response) {
                         jQuery("#import-student").val("");
