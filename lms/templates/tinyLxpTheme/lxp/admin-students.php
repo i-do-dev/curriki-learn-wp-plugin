@@ -251,13 +251,32 @@ $edlink_options = get_option('edlink_options');
                                     Add New Student
                                 </button>
                                 <?php 
-                                    if (!isset($_GET['district_type']) || $_GET['district_type'] != 'edlink') {
+                                    if ((!isset($_GET['district_type']) || $_GET['district_type'] != 'edlink') && $school_post) {
+                                        // LearnPress courses to optionally enroll imported students into.
+                                        $lp_courses = get_posts(array(
+                                            'post_type'      => LP_COURSE_CPT,
+                                            'post_status'    => 'publish',
+                                            'posts_per_page' => -1,
+                                            'orderby'        => 'title',
+                                            'order'          => 'ASC',
+                                        ));
                                 ?>
+                                        <label for="import-course-ids" class="add-heading" style="display:block;font-weight:600;margin-bottom:4px;">
+                                            Enroll in course(s) <small style="font-weight:400;">(optional)</small>
+                                        </label>
+                                        <select id="import-course-ids" multiple class="add-heading" style="min-width:200px;vertical-align:middle;" title="Enroll imported students into these LearnPress course(s)">
+                                            <?php foreach ($lp_courses as $lp_course) { ?>
+                                                <option value="<?php echo esc_attr($lp_course->ID); ?>"><?php echo esc_html(get_the_title($lp_course->ID)); ?></option>
+                                            <?php } ?>
+                                        </select>
+                                        <small class="add-heading" style="display:block;margin-top:4px;color:#666;">
+                                            Leave empty to onboard students without enrolling — they can self-enroll later.
+                                        </small>
                                         <label for="import-student" class="primary-btn add-heading">
                                             Import Students (CSV)
                                         </label >
                                         <input type="file" id="import-student" hidden />
-                                <?php    
+                                <?php
                                     }
                                 ?>
                         </div>
@@ -491,6 +510,7 @@ $edlink_options = get_option('edlink_options');
                     formData.append('student_school_id', jQuery("#student_school_id_imp").val());
                     formData.append('school_admin_id', jQuery("#school_admin_id_imp").val());
                     formData.append('teacher_id', jQuery("#teacher_id_imp").val() || 0);
+                    formData.append('course_ids', JSON.stringify(jQuery("#import-course-ids").val() || []));
                     formData.append('students', e.target.files[0]);
                     $.ajax({
                         method: "POST",
@@ -505,6 +525,7 @@ $edlink_options = get_option('edlink_options');
                         var d = response && response.data ? response.data : {};
                         if (typeof d === 'object' && (d.imported !== undefined)) {
                             alert('Import complete.\nImported: ' + (d.imported || 0) +
+                                  '\nEnrolled in course(s): ' + (d.enrolled || 0) +
                                   '\nDuplicates skipped: ' + (d.duplicates || 0) +
                                   '\nMalformed rows skipped: ' + (d.skipped || 0));
                         }

@@ -762,6 +762,7 @@ class Tiny_LXP_Platform_Tool extends Tool
 
         $student = get_role('lxp_student');
         if ($student) {
+            $student->add_cap('read');               // base WP cap LearnPress learners need
             $student->add_cap('read' . $course_cap);
             $student->add_cap('read' . $lesson_cap);
         }
