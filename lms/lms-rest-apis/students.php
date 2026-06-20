@@ -853,16 +853,42 @@ class Rest_Lxp_Student
 		$school_admin_id = $request->get_param('school_admin_id');
 		$file = $request->get_file_params();
 		$students_csv = isset($file['students']) ? $file['students'] : null;
-		if ($students_csv['size'] > 0 && $students_csv['type'] == 'text/csv') {
-			
-			$overrides = array('test_form' => false);
+
+		// LearnPress course(s) the imported students should be enrolled into.
+		$course_ids = array_filter(array_map('absint', (array) json_decode($request->get_param('course_ids'), true)));
+
+		// Accept by extension and a small allow-list of CSV MIME variants. Browsers
+		// (notably Excel-saved files) report text/csv, application/vnd.ms-excel or
+		// application/octet-stream, so a strict text/csv check rejects valid files.
+		$allowed_csv_types = array('text/csv', 'application/vnd.ms-excel', 'application/octet-stream', 'text/plain');
+		$has_csv_ext = $students_csv && isset($students_csv['name'])
+			&& strtolower(pathinfo($students_csv['name'], PATHINFO_EXTENSION)) === 'csv';
+		$has_csv_type = $students_csv && in_array($students_csv['type'], $allowed_csv_types, true);
+
+		if ($students_csv && $students_csv['size'] > 0 && ($has_csv_ext || $has_csv_type)) {
+
+			$overrides = array('test_form' => false, 'mimes' => array('csv' => 'text/csv'));
 			$upload = wp_handle_upload( $students_csv, $overrides );
 			if ( $upload && !isset( $upload['error'] ) ) {
-				$csv_file_url = $upload["url"];
-				
-				if (($handle = fopen($csv_file_url, "r")) !== false) {
+				// Read the local filesystem path, not the public URL: fopen() on a URL
+				// depends on allow_url_fopen and the upload being HTTP-reachable, which
+				// fails on localhost/XAMPP and locked-down hosts.
+				$csv_file_path = $upload["file"];
+
+				$imported   = 0;
+				$skipped    = 0;
+				$duplicates = 0;
+				$enrolled   = 0;
+
+				if (($handle = fopen($csv_file_path, "r")) !== false) {
 					while (($row = fgetcsv($handle, 1000, ",")) !== false) {
-						if (count($row) >= 4) {
+						// Skip an optional header row.
+						if (isset($row[0]) && strtolower(trim($row[0])) === 'first_name') {
+							continue;
+						}
+
+						// Need all 6 columns: first_name, last_name, username, password, grade, student_id.
+						if (count($row) >= 6) {
 							$first_name = trim($row[0]);
 							$last_name = trim($row[1]);
 							$user_display_name = $last_name . ', ' . $first_name;
@@ -871,7 +897,7 @@ class Rest_Lxp_Student
 							$password = trim($row[3]);
 							$grades = explode('-', trim($row[4]));
 							$student_id = trim($row[5]);
-							
+
 							if (!get_user_by('email', $email)) {
 								$student_post_arg = array(
 									'post_title'    => wp_strip_all_tags($user_display_name),
@@ -894,31 +920,98 @@ class Rest_Lxp_Student
 									'role' => 'lxp_student'
 								);
 								$student_admin_id  = wp_insert_user($student_admin_data);
-								if ($student_admin_id) {
+								if ($student_admin_id && !is_wp_error($student_admin_id)) {
 									wp_set_password( $password, $student_admin_id );
 									add_post_meta($student_post_id, 'lxp_student_admin_id', $student_admin_id, true);
 									add_post_meta($student_post_id, 'lxp_student_school_id', trim($request->get_param('student_school_id')), true);
+
+									// Natively enroll the new student into the selected LearnPress course(s).
+									$enrolled += self::enroll_user_in_courses($student_admin_id, $course_ids);
 								}
 
 								$lxp_teacher_id = $request->get_param('teacher_id');
 								update_post_meta($student_post_id, 'lxp_teacher_id', ($lxp_teacher_id ? [$lxp_teacher_id] : 0));
 								update_post_meta($student_post_id, 'grades', json_encode($grades));
 								update_post_meta($student_post_id, 'student_id', ($student_id ? $student_id : 0));
+								$imported++;
+							} else {
+								$duplicates++;
 							}
-						}		
+						} else {
+							$skipped++;
+						}
 					}
 					fclose($handle);
 				}
-				return wp_send_json_success("Students imported successfully.");
+				return wp_send_json_success(array(
+					"message"    => "Students imported successfully.",
+					"imported"   => $imported,
+					"skipped"    => $skipped,
+					"duplicates" => $duplicates,
+					"enrolled"   => $enrolled,
+				));
 			} else {
 				return  wp_send_json_error("File could not uploaded.", 400);
-			} 
+			}
 
 		} else {
 			return  wp_send_json_error("Invalid file . Upload valid CSV file.", 400);
 		}
 
 		return wp_send_json_success("");
+	}
+
+	/**
+	 * Enroll a user into one or more LearnPress courses using LearnPress's own
+	 * model-layer API (UserCourseModel) — the same pattern LP uses in its enroll
+	 * REST controller. Going through the model's save() routes the write through
+	 * LP_User_Items_DB and clears LP caches, and the learnpress/user/course-enrolled
+	 * action fires so dependent LP features react. No raw SQL.
+	 *
+	 * Courses the user is already enrolled in are skipped. Returns the number of
+	 * new enrollments created.
+	 */
+	private static function enroll_user_in_courses($user_id, $course_ids)
+	{
+		$user_id = absint($user_id);
+		if (!$user_id || empty($course_ids)) {
+			return 0;
+		}
+		if (!class_exists('\\LearnPress\\Models\\UserItems\\UserCourseModel')) {
+			return 0;
+		}
+
+		$enrolled = 0;
+		foreach (array_unique(array_map('absint', $course_ids)) as $course_id) {
+			if (!$course_id) {
+				continue;
+			}
+
+			try {
+				$userCourse = \LearnPress\Models\UserItems\UserCourseModel::find($user_id, $course_id, true);
+				// Already enrolled — skip (dedupe).
+				if ($userCourse && $userCourse->status === LP_COURSE_ENROLLED) {
+					continue;
+				}
+				if (!$userCourse) {
+					$userCourse = new \LearnPress\Models\UserItems\UserCourseModel();
+					$userCourse->user_id = $user_id;
+					$userCourse->item_id = $course_id;
+					$userCourse->ref_id  = 0; // admin force-enroll: no backing order
+				}
+				$userCourse->status     = LP_COURSE_ENROLLED;
+				$userCourse->graduation = LP_COURSE_GRADUATION_IN_PROGRESS;
+				$userCourse->start_time = gmdate('Y-m-d H:i:s', time());
+				$userCourse->save();
+
+				do_action('learnpress/user/course-enrolled', $userCourse->ref_id, $course_id, $user_id);
+				$enrolled++;
+			} catch (\Throwable $e) {
+				// Skip this course on failure; continue the batch.
+			}
+		}
+
+		return $enrolled;
 	}
 
 	public static function store_student()

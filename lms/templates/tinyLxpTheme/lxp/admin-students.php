@@ -251,13 +251,76 @@ $edlink_options = get_option('edlink_options');
                                     Add New Student
                                 </button>
                                 <?php 
-                                    if (!isset($_GET['district_type']) || $_GET['district_type'] != 'edlink') {
+                                    if ((!isset($_GET['district_type']) || $_GET['district_type'] != 'edlink') && $school_post) {
+                                        // LearnPress courses to optionally enroll imported students into.
+                                        $lp_courses = get_posts(array(
+                                            'post_type'      => LP_COURSE_CPT,
+                                            'post_status'    => 'publish',
+                                            'posts_per_page' => -1,
+                                            'orderby'        => 'title',
+                                            'order'          => 'ASC',
+                                        ));
                                 ?>
+                                        <label for="import-course-ids" class="add-heading" style="display:block;font-weight:600;margin-bottom:4px;">
+                                            Enroll in course(s) <small style="font-weight:400;">(optional)</small>
+                                        </label>
+                                        <select id="import-course-ids" multiple class="add-heading" style="min-width:200px;vertical-align:middle;" title="Enroll imported students into these LearnPress course(s)">
+                                            <?php foreach ($lp_courses as $lp_course) { ?>
+                                                <option value="<?php echo esc_attr($lp_course->ID); ?>"><?php echo esc_html(get_the_title($lp_course->ID)); ?></option>
+                                            <?php } ?>
+                                        </select>
+                                        <small class="add-heading" style="display:block;margin-top:4px;color:#666;">
+                                            Leave empty to onboard students without enrolling — they can self-enroll later.
+                                        </small>
                                         <label for="import-student" class="primary-btn add-heading">
                                             Import Students (CSV)
                                         </label >
                                         <input type="file" id="import-student" hidden />
-                                <?php    
+                                        <a href="#" class="add-heading" data-bs-toggle="modal" data-bs-target="#csvGuideModal" style="margin-left:8px;text-decoration:underline;">
+                                            CSV format guide
+                                        </a>
+
+                                        <!-- CSV format guide modal -->
+                                        <div class="modal fade" id="csvGuideModal" tabindex="-1" aria-labelledby="csvGuideModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h2 class="modal-title" id="csvGuideModalLabel">Prepare your students CSV</h2>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Your file must have <strong>6 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
+                                                        <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>#</th>
+                                                                    <th>Column</th>
+                                                                    <th>Example</th>
+                                                                    <th>Notes</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr><td>1</td><td>first_name</td><td>Ava</td><td>Student's first name.</td></tr>
+                                                                <tr><td>2</td><td>last_name</td><td>Stone</td><td>Student's last name.</td></tr>
+                                                                <tr><td>3</td><td>username</td><td>ava.stone</td><td>Becomes the login <em>and</em> the email <code>username@tinylxp.com</code>. Must be unique &mdash; existing emails are skipped as duplicates.</td></tr>
+                                                                <tr><td>4</td><td>password</td><td>ChangeMe123!</td><td>The student's initial login password.</td></tr>
+                                                                <tr><td>5</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or a range with a hyphen (e.g. <code>3-5</code>).</td></tr>
+                                                                <tr><td>6</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier.</td></tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <ul>
+                                                            <li>Exactly 6 columns per row, in the order above. Rows with fewer columns are skipped.</li>
+                                                            <li>Save the file as <code>.csv</code> (Excel "CSV" formats are accepted).</li>
+                                                            <li>Optionally choose course(s) in the <strong>Enroll in course(s)</strong> picker to enroll students on import &mdash; otherwise they are onboarded only and can self-enroll later.</li>
+                                                        </ul>
+                                                        <a class="primary-btn add-heading" download href="<?php echo esc_url($treks_src . 'assets/sample-students.csv'); ?>">
+                                                            Download sample CSV
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                <?php
                                     }
                                 ?>
                         </div>
@@ -475,7 +538,7 @@ $edlink_options = get_option('edlink_options');
         </script>
     <?php } ?>
     
-    <?php if(isset($_GET['teacher_id'])) { ?>
+    <?php if($school_post) { ?>
         <input type="hidden" name="school_admin_id_imp" id="school_admin_id_imp" value="<?php echo get_post_meta( $school_post->ID, 'lxp_school_admin_id', true ); ?>">
         <input type="hidden" name="student_school_id_imp" id="student_school_id_imp" value="<?php echo $school_post->ID; ?>">
         <input type="hidden" name="teacher_id_imp" id="teacher_id_imp" value="<?php echo isset($_GET['teacher_id']) ? $_GET['teacher_id'] : 0; ?>">
@@ -484,12 +547,14 @@ $edlink_options = get_option('edlink_options');
             jQuery(document).ready(function() {
                 let host = window.location.hostname === 'localhost' ? window.location.origin + '<?php echo WORDPRESS_HOST; ?>' : window.location.origin;
                 let apiUrl = host + '/wp-json/lms/v1/';
-                
+
                 jQuery("#import-student").on("change", function(e) {
+                    if (!e.target.files.length) return;
                     let formData = new FormData();
                     formData.append('student_school_id', jQuery("#student_school_id_imp").val());
                     formData.append('school_admin_id', jQuery("#school_admin_id_imp").val());
-                    formData.append('teacher_id', jQuery("#teacher_id_imp").val());
+                    formData.append('teacher_id', jQuery("#teacher_id_imp").val() || 0);
+                    formData.append('course_ids', JSON.stringify(jQuery("#import-course-ids").val() || []));
                     formData.append('students', e.target.files[0]);
                     $.ajax({
                         method: "POST",
@@ -501,6 +566,13 @@ $edlink_options = get_option('edlink_options');
                         cache: false,
                     }).done(function( response ) {
                         jQuery("#import-student").val("");
+                        var d = response && response.data ? response.data : {};
+                        if (typeof d === 'object' && (d.imported !== undefined)) {
+                            alert('Import complete.\nImported: ' + (d.imported || 0) +
+                                  '\nEnrolled in course(s): ' + (d.enrolled || 0) +
+                                  '\nDuplicates skipped: ' + (d.duplicates || 0) +
+                                  '\nMalformed rows skipped: ' + (d.skipped || 0));
+                        }
                         window.location.reload();
                     }).fail(function (response) {
                         jQuery("#import-student").val("");
