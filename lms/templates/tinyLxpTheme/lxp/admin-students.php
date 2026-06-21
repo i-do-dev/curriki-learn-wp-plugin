@@ -176,7 +176,7 @@ $edlink_options = get_option('edlink_options');
             <section class="school_teacher_cards">
                 <div class="add-teacher-box">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <form class="row">
                                 <?php 
                                     if (isset($edlink_options['edlink_application_id']) && $edlink_options['edlink_application_id'] != '' && isset($edlink_options['edlink_application_secrets']) && $edlink_options['edlink_application_secrets'] != '' && isset($edlink_options['edlink_sso_enable']) && $edlink_options['edlink_sso_enable'] == 1
@@ -231,7 +231,9 @@ $edlink_options = get_option('edlink_options');
                                 </div>
                             </form>
                         </div>
-                        <div class="col-md-6">
+                    </div>
+                    <div style="row">
+                        <div class="col-md-12">
                             <?php 
                                 if (isset($_GET['district_type']) && $_GET['district_type'] == 'edlink') {
                                     $model_id = 'edlinkStudentModal';
@@ -268,8 +270,7 @@ $edlink_options = get_option('edlink_options');
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">
-                                                        <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
-                                                        <p><em>Passwords are no longer set in the CSV &mdash; the default student password can optionally be configured in WP Admin &rarr; Settings &rarr; Curriki Learn. If no default is set, each student receives a unique random password stored in their admin record.</em></p>
+                                                        <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional.</p>
                                                         <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
                                                             <thead>
                                                                 <tr>

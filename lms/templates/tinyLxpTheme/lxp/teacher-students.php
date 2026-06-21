@@ -157,8 +157,7 @@
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
-                                                <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
-                                                <p><em>Passwords are no longer set in the CSV &mdash; the default student password can optionally be configured in WP Admin &rarr; Settings &rarr; Curriki Learn. If no default is set, each student receives a unique random password stored in their admin record.</em></p>
+                                                <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional.</p>
                                                 <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
                                                     <thead>
                                                         <tr><th>#</th><th>Column</th><th>Example</th><th>Notes</th></tr>
