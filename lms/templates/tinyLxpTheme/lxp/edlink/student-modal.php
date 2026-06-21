@@ -385,6 +385,7 @@
             jQuery('#edlinkStudentModal #teacher_id').val(student.teacher_id);
             jQuery("#edlinkSaveStudentBtn").attr("disabled", false);
             
+            jQuery('#edlinkStudentModal input.grade-checkbox').prop('checked', false);
             if (student.grades) {
                 student.grades.forEach(grade => jQuery('#edlinkStudentModal input.grade-checkbox[value=' + grade +']').prop('checked', true));
             }

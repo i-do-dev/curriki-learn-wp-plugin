@@ -669,7 +669,10 @@ class Rest_Lxp_Student
 		if ( intval($request->get_param('student_post_id')) < 1 && !$user_by_login ) {
 			// create a new student user
 			$student_admin_data['user_login'] = $lxp_username;
-			$student_admin_data['user_email'] = $lxp_username . '@tinylxp.com';
+			$_site_host_s   = wp_parse_url( home_url(), PHP_URL_HOST );
+			$_email_domain_s = ( ! empty( $_site_host_s ) && $_site_host_s !== 'localhost' && ! filter_var( $_site_host_s, FILTER_VALIDATE_IP ) )
+				? $_site_host_s : 'curriki.org';
+			$student_admin_data['user_email'] = $lxp_username . '@' . $_email_domain_s;
 			$student_admin_data['user_nicename'] = $lxp_username;
 			$student_admin_data['role'] = 'lxp_student';
 		} elseif ( $user_by_login && intval($request->get_param('student_post_id')) > 0  ) {
@@ -878,6 +881,11 @@ class Rest_Lxp_Student
 
 				$configured_password = get_option( 'tl_student_default_password', '' );
 
+				$_site_host   = wp_parse_url( home_url(), PHP_URL_HOST );
+				$email_domain = ( ! empty( $_site_host ) && $_site_host !== 'localhost' && ! filter_var( $_site_host, FILTER_VALIDATE_IP ) )
+					? $_site_host
+					: 'curriki.org';
+
 				if (($handle = fopen($csv_file_path, "r")) !== false) {
 					while (($row = fgetcsv($handle, 1000, ",")) !== false) {
 						// Skip an optional header row.
@@ -891,8 +899,20 @@ class Rest_Lxp_Student
 							$last_name = trim($row[1]);
 							$user_display_name = $last_name . ', ' . $first_name;
 							$username = strtolower( trim($row[2]) );
-							$email = strtolower( trim($row[2]) ) . '@tinylxp.com';
-							$grades = explode('-', trim($row[3]));
+							$email = strtolower( trim($row[2]) ) . '@' . $email_domain;
+							$_grade_ordinals = ['1'=>'1st','2'=>'2nd','3'=>'3rd','4'=>'4th','5'=>'5th',
+								                    '6'=>'6th','7'=>'7th','8'=>'8th','9'=>'9th'];
+							$_grade_raw   = trim($row[3]);
+							$_grade_parts = explode('-', $_grade_raw);
+							if (count($_grade_parts) === 2 && is_numeric(trim($_grade_parts[0])) && is_numeric(trim($_grade_parts[1]))) {
+								$grades = [];
+								for ($g = (int) trim($_grade_parts[0]); $g <= (int) trim($_grade_parts[1]); $g++) {
+									$grades[] = isset($_grade_ordinals[(string)$g]) ? $_grade_ordinals[(string)$g] : (string)$g;
+								}
+							} else {
+								$_g     = trim($_grade_parts[0]);
+								$grades = [isset($_grade_ordinals[$_g]) ? $_grade_ordinals[$_g] : $_g];
+							}
 							$student_id = trim($row[4]);
 							$password = ! empty( $configured_password )
 								? $configured_password
