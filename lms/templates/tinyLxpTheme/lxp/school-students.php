@@ -148,7 +148,45 @@
                                             Import Students (CSV)
                                         </label >
                                         <input type="file" id="import-student" hidden />
-                                <?php        
+                                        <a href="#" class="add-heading" data-bs-toggle="modal" data-bs-target="#csvGuideModal" style="margin-left:8px;text-decoration:underline;">
+                                            CSV format guide
+                                        </a>
+
+                                        <!-- CSV format guide modal -->
+                                        <div class="modal fade" id="csvGuideModal" tabindex="-1" aria-labelledby="csvGuideModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h2 class="modal-title" id="csvGuideModalLabel">Prepare your students CSV</h2>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
+                                                        <p><em>Passwords are no longer set in the CSV &mdash; the default student password can optionally be configured in WP Admin &rarr; Settings &rarr; Curriki Learn. If no default is set, each student receives a unique random password stored in their admin record.</em></p>
+                                                        <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
+                                                            <thead>
+                                                                <tr><th>#</th><th>Column</th><th>Example</th><th>Notes</th></tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr><td>1</td><td>first_name</td><td>Ava</td><td>Student's first name.</td></tr>
+                                                                <tr><td>2</td><td>last_name</td><td>Stone</td><td>Student's last name.</td></tr>
+                                                                <tr><td>3</td><td>username</td><td>ava.stone</td><td>Becomes the login <em>and</em> the email <code>username@tinylxp.com</code>. Must be unique &mdash; existing emails are skipped as duplicates.</td></tr>
+                                                                <tr><td>4</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or a range with a hyphen (e.g. <code>3-5</code>).</td></tr>
+                                                                <tr><td>5</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier.</td></tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <ul>
+                                                            <li>Exactly 5 columns per row, in the order above. Rows with fewer columns are skipped.</li>
+                                                            <li>Save the file as <code>.csv</code> (Excel "CSV" formats are accepted).</li>
+                                                        </ul>
+                                                        <a class="primary-btn add-heading" download href="<?php echo esc_url($treks_src . 'assets/sample-students.csv'); ?>">
+                                                            Download sample CSV
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                <?php
                                     }
                                 ?>
                                 </div>
