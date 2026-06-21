@@ -37,6 +37,7 @@ class TL_Student_Post_Type extends TL_Post_Type
    public function __construct()
    {
       parent::__construct();
+      add_action( 'save_post_' . TL_STUDENT_CPT, [ $this, 'save_student_password' ], 10, 2 );
    }
 
    /**
@@ -124,6 +125,15 @@ class TL_Student_Post_Type extends TL_Post_Type
          'advanced',         // Context
          'default',         // Priority
          // 'show_in_rest' => true,
+      ]);
+
+      $this->add_meta_box([
+         'student-password',
+         esc_html__( 'Student Password', 'student' ),
+         [ self::instance(), 'lxp_student_password_metabox_html' ],
+         $this->_post_type,
+         'advanced',
+         'default',
       ]);
    }
 
@@ -226,6 +236,48 @@ class TL_Student_Post_Type extends TL_Post_Type
    public function update_edit_form()
    {
       echo ' enctype="multipart/form-data"';
+   }
+
+   public function lxp_student_password_metabox_html( $post = null ) {
+      wp_nonce_field( 'lxp_save_student_password', 'lxp_student_password_nonce' );
+      $pw = get_post_meta( $post->ID, 'lxp_student_password', true );
+      ?>
+      <p>
+         <input type="text" name="lxp_student_password"
+                value="<?php echo esc_attr( $pw ); ?>"
+                class="regular-text" autocomplete="off" />
+         <span class="description">Saving a new value here updates the student's WordPress login password immediately.</span>
+      </p>
+      <?php
+   }
+
+   public function save_student_password( $post_id, $post ) {
+      if ( ! isset( $_POST['lxp_student_password_nonce'] ) ||
+           ! wp_verify_nonce( $_POST['lxp_student_password_nonce'], 'lxp_save_student_password' ) ) {
+         return;
+      }
+      if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+         return;
+      }
+      if ( ! current_user_can( 'edit_post', $post_id ) ) {
+         return;
+      }
+      if ( ! isset( $_POST['lxp_student_password'] ) ) {
+         return;
+      }
+      $new_pw = sanitize_text_field( $_POST['lxp_student_password'] );
+      if ( empty( $new_pw ) ) {
+         return;
+      }
+      $old_pw = get_post_meta( $post_id, 'lxp_student_password', true );
+      if ( $new_pw === $old_pw ) {
+         return;
+      }
+      update_post_meta( $post_id, 'lxp_student_password', $new_pw );
+      $user_id = (int) get_post_meta( $post_id, 'lxp_student_admin_id', true );
+      if ( $user_id ) {
+         wp_set_password( $new_pw, $user_id );
+      }
    }
 
    public function save_tl_post($post_id = null)

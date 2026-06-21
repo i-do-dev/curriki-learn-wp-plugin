@@ -731,6 +731,26 @@ class Tiny_LXP_Platform_Admin
             array( $this, 'field_remotion_serve_url' ), Tiny_LXP_Platform::get_plugin_name(), 'section_remotion',
             array( 'class' => 'row', 'label_for' => 'tl_remotion_serve_url' ) );
 
+        // Register student import settings
+        register_setting( 'tiny-lxp-platform', 'tl_student_default_password', [
+            'sanitize_callback' => 'sanitize_text_field',
+            'default'           => '',
+        ] );
+        add_settings_section(
+            'section_student_import',
+            __( 'Student Import Settings', Tiny_LXP_Platform::get_plugin_name() ),
+            null,
+            Tiny_LXP_Platform::get_plugin_name()
+        );
+        add_settings_field(
+            'field_student_default_password',
+            __( 'Default Student Password', Tiny_LXP_Platform::get_plugin_name() ),
+            [ $this, 'field_student_default_password' ],
+            Tiny_LXP_Platform::get_plugin_name(),
+            'section_student_import',
+            [ 'class' => 'row', 'label_for' => 'tl_student_default_password' ]
+        );
+
         // Register a new setting for 'edlink' options
         register_setting('edlink_options_group', 'edlink_options');
         
@@ -813,6 +833,19 @@ class Tiny_LXP_Platform_Admin
         $val = get_option( 'tl_remotion_serve_url', '' );
         echo '<input id="tl_remotion_serve_url" type="url" name="tl_remotion_serve_url" value="' . esc_attr( $val ) . '" class="regular-text" placeholder="https://s3.amazonaws.com/remotionlambda-xxx/sites/currikilearnai/index.html" />';
         echo '<p class="description">' . esc_html__( 'Serve URL returned by: npx remotion lambda sites create src/index.ts --site-name=currikilearnai', 'tiny-lxp-platform' ) . '</p>';
+    }
+
+    public function field_student_default_password( $args ) {
+        $val = get_option( 'tl_student_default_password', '' );
+        ?>
+        <input type="text" id="tl_student_default_password"
+               name="tl_student_default_password"
+               value="<?php echo esc_attr( $val ); ?>"
+               class="regular-text" autocomplete="off" />
+        <p class="description">
+            <?php esc_html_e( 'Applied to every student created via CSV import. Also stored per-student in their admin record.', 'tiny-lxp-platform' ); ?>
+        </p>
+        <?php
     }
 
     public function field_checkbox($args)
