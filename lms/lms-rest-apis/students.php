@@ -880,6 +880,8 @@ class Rest_Lxp_Student
 				$duplicates = 0;
 				$enrolled   = 0;
 
+				$configured_password = get_option( 'tl_student_default_password', '' );
+
 				if (($handle = fopen($csv_file_path, "r")) !== false) {
 					while (($row = fgetcsv($handle, 1000, ",")) !== false) {
 						// Skip an optional header row.
@@ -887,16 +889,18 @@ class Rest_Lxp_Student
 							continue;
 						}
 
-						// Need all 6 columns: first_name, last_name, username, password, grade, student_id.
-						if (count($row) >= 6) {
+						// Need all 5 columns: first_name, last_name, username, grade, student_id.
+						if (count($row) >= 5) {
 							$first_name = trim($row[0]);
 							$last_name = trim($row[1]);
 							$user_display_name = $last_name . ', ' . $first_name;
 							$username = strtolower( trim($row[2]) );
 							$email = strtolower( trim($row[2]) ) . '@tinylxp.com';
-							$password = trim($row[3]);
-							$grades = explode('-', trim($row[4]));
-							$student_id = trim($row[5]);
+							$grades = explode('-', trim($row[3]));
+							$student_id = trim($row[4]);
+							$password = ! empty( $configured_password )
+								? $configured_password
+								: wp_generate_password( 12, false );
 
 							if (!get_user_by('email', $email)) {
 								$student_post_arg = array(
@@ -908,7 +912,7 @@ class Rest_Lxp_Student
 								);
 								// Insert Student post
 								$student_post_id = wp_insert_post($student_post_arg);
-	
+
 								// ========== Student Admin ===========
 								$student_admin_data = array(
 									'user_login' => $username,
@@ -933,6 +937,7 @@ class Rest_Lxp_Student
 								update_post_meta($student_post_id, 'lxp_teacher_id', ($lxp_teacher_id ? [$lxp_teacher_id] : 0));
 								update_post_meta($student_post_id, 'grades', json_encode($grades));
 								update_post_meta($student_post_id, 'student_id', ($student_id ? $student_id : 0));
+								add_post_meta($student_post_id, 'lxp_student_password', $password, true);
 								$imported++;
 							} else {
 								$duplicates++;

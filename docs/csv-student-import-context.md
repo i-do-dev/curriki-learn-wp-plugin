@@ -25,21 +25,21 @@ LearnPress courses immediately.
 
 ## CSV Format
 
-Exactly **6 columns**, in this order, no reordering:
+Exactly **5 columns**, in this order, no reordering. Passwords are **not** in the CSV — an optional common password can be configured in WP Admin → Settings → Curriki Learn → Student Import Settings. If not set, each student receives a unique random password (via `wp_generate_password(12, false)`) stored in `lxp_student_password` post meta.
 
 | # | Column | Example | Notes |
 |---|--------|---------|-------|
 | 1 | `first_name` | `Ava` | Student's first name |
 | 2 | `last_name` | `Stone` | Student's last name |
 | 3 | `username` | `ava.stone` | Becomes WP login AND `username@tinylxp.com` email |
-| 4 | `password` | `ChangeMe123!` | Plain-text; hashed by `wp_set_password()` on import |
-| 5 | `grade` | `3-5` or `6` | Single value or hyphen range |
-| 6 | `student_id` | `S001` | School-assigned ID stored as post meta |
+| 4 | `grade` | `3-5` or `6` | Single value or hyphen range |
+| 5 | `student_id` | `S001` | School-assigned ID stored as post meta |
 
 - **Header row** (`first_name,last_name,...`) is auto-skipped when present.
-- Rows with fewer than 6 columns → `$skipped` counter, row silently skipped.
+- Rows with fewer than 5 columns → `$skipped` counter, row silently skipped.
 - Rows whose generated email (`username@tinylxp.com`) already exists → `$duplicates` counter, skipped.
 - File must be `.csv`; MIME allow-list: `text/csv`, `application/vnd.ms-excel`, `application/octet-stream`, `text/plain` (covers Excel-saved CSVs).
+- If `tl_student_default_password` option is empty, each student gets a unique `wp_generate_password(12, false)` password stored in their `lxp_student_password` meta.
 
 ---
 
@@ -74,9 +74,10 @@ Exactly **6 columns**, in this order, no reordering:
 ## What Happens Per Row
 
 1. `wp_insert_user()` — creates WP user with `lxp_student` role.
-2. `wp_set_password()` — sets the plain-text CSV password (hashed by WP).
+2. `wp_set_password()` — sets the default password from `get_option('tl_student_default_password')` (hashed by WP).
 3. `wp_insert_post()` — creates `tl_student` CPT post linked to the school.
-4. `enroll_user_in_courses($user_id, $course_ids)` — enrolls in any selected LP courses (skipped if `course_ids` is empty).
+4. `add_post_meta($id, 'lxp_student_password', $default_password)` — stores plain-text password on the CPT post for per-student admin visibility.
+5. `enroll_user_in_courses($user_id, $course_ids)` — enrolls in any selected LP courses (skipped if `course_ids` is empty).
 
 ---
 
@@ -149,10 +150,23 @@ Triggered by a link next to the Import button. Contains:
 
 ---
 
+## Admin: Per-Student Password
+
+The `lxp_student_password` post meta is surfaced as a "Student Password" meta box on the `tl_student` edit screen in WP Admin. Saving a new value there:
+- Updates `lxp_student_password` post meta.
+- Calls `wp_set_password()` on the linked WP user (`lxp_student_admin_id` meta).
+
+## Admin: Default Password Setting
+
+WP Admin → Settings → Curriki Learn → **Student Import Settings** → *Default Student Password*.
+- Option key: `tl_student_default_password`
+- `sanitize_text_field` sanitization on save.
+- Import returns 400 if this option is empty.
+
 ## Known Limitations / Pending Work
 
 | Topic | Status |
 |-------|--------|
-| **Password handling** | Plain-text in CSV, hashed on import via `wp_set_password()`. No forced-change on first login, no auto-generated password, no email notification. **Deferred — user wants to discuss separately.** |
-| Runtime test plan | `php -l` passes. Full 21-step manual test (role caps, onboard-only, enroll path, LP cache, hook firing, dedupe) not yet executed — needs running WP + LP instance. |
+| **Password handling** | Optional common password from WP Admin settings; falls back to `wp_generate_password(12, false)` per student if not set. Stored plain-text per-student in `lxp_student_password` post meta. No forced-change on first login, no email notification. |
+| Runtime test plan | `php -l` passes. Full manual test (role caps, onboard-only, enroll path, LP cache, hook firing, dedupe) not yet executed — needs running WP + LP instance. |
 | MIME detection | Uses extension + allow-list; if WP's `finfo` is unreliable on the host, could still reject valid CSVs from some Excel versions. |

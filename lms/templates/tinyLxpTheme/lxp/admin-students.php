@@ -289,7 +289,8 @@ $edlink_options = get_option('edlink_options');
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">
-                                                        <p>Your file must have <strong>6 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
+                                                        <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional &mdash; it is skipped automatically if the first cell is <code>first_name</code>.</p>
+                                                        <p><em>Passwords are no longer set in the CSV &mdash; the default student password can optionally be configured in WP Admin &rarr; Settings &rarr; Curriki Learn. If no default is set, each student receives a unique random password stored in their admin record.</em></p>
                                                         <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
                                                             <thead>
                                                                 <tr>
@@ -303,13 +304,12 @@ $edlink_options = get_option('edlink_options');
                                                                 <tr><td>1</td><td>first_name</td><td>Ava</td><td>Student's first name.</td></tr>
                                                                 <tr><td>2</td><td>last_name</td><td>Stone</td><td>Student's last name.</td></tr>
                                                                 <tr><td>3</td><td>username</td><td>ava.stone</td><td>Becomes the login <em>and</em> the email <code>username@tinylxp.com</code>. Must be unique &mdash; existing emails are skipped as duplicates.</td></tr>
-                                                                <tr><td>4</td><td>password</td><td>ChangeMe123!</td><td>The student's initial login password.</td></tr>
-                                                                <tr><td>5</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or a range with a hyphen (e.g. <code>3-5</code>).</td></tr>
-                                                                <tr><td>6</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier.</td></tr>
+                                                                <tr><td>4</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or a range with a hyphen (e.g. <code>3-5</code>).</td></tr>
+                                                                <tr><td>5</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier.</td></tr>
                                                             </tbody>
                                                         </table>
                                                         <ul>
-                                                            <li>Exactly 6 columns per row, in the order above. Rows with fewer columns are skipped.</li>
+                                                            <li>Exactly 5 columns per row, in the order above. Rows with fewer columns are skipped.</li>
                                                             <li>Save the file as <code>.csv</code> (Excel "CSV" formats are accepted).</li>
                                                             <li>Optionally choose course(s) in the <strong>Enroll in course(s)</strong> picker to enroll students on import &mdash; otherwise they are onboarded only and can self-enroll later.</li>
                                                         </ul>
