@@ -174,35 +174,19 @@ class TL_Student_Post_Type extends TL_Post_Type
       echo $output;
    }
 
-   public function lxp_student_admin_metabox_html($post = null)
-   {
-      $args = array(
-         'role' => 'lxp_student_admin',
-         'order' => 'ASC'
-      );
-      $studentAdmins = get_users($args);
-      
-      $users = get_users(
-         array(
-            'role' => 'lxp_student_admin',
-            'meta_key' => 'lxp_student_admin_id',
-            'meta_value' => $post->ID,
-            'number' => -1
-         )
-      );
+   public function lxp_student_admin_metabox_html( $post = null ) {
+      // Imported students are created with the lxp_student role.
+      $studentAdmins = get_users( [ 'role' => 'lxp_student', 'order' => 'ASC' ] );
 
-      $selectedAdmin = isset($users[0]) ? $users[0]->ID : "";
-      $output = '<h4>Select Student Admin</h4>';
+      // The linked user ID is stored as post meta on the CPT post.
+      $selectedAdmin = get_post_meta( $post->ID, 'lxp_student_admin_id', true );
 
-      $output .= '<select name="lxp_student_admin_id"  style="margin-top:-10px"> ';
+      $output  = '<h4>Select Student Admin</h4>';
+      $output .= '<select name="lxp_student_admin_id" style="margin-top:-10px">';
       $output .= '<option value="0">Select An Admin</option>';
-      foreach ($studentAdmins as $admin) {
-         if ($selectedAdmin == $admin->ID) {
-            $selected = "selected";
-         } else {
-            $selected = "";
-         }
-         $output .= '<option value="' . $admin->ID . '" ' . $selected . ' >' . $admin->display_name . ' </option>';
+      foreach ( $studentAdmins as $admin ) {
+         $selected = ( (int) $selectedAdmin === (int) $admin->ID ) ? 'selected' : '';
+         $output .= '<option value="' . esc_attr( $admin->ID ) . '" ' . $selected . '>' . esc_html( $admin->display_name ) . '</option>';
       }
       $output .= '</select>';
       echo $output;

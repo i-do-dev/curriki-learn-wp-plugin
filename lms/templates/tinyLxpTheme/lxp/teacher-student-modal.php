@@ -221,6 +221,7 @@ function onStudentEdit(lxp_student_id) {
         jQuery('#studentModal #lxp_usernameStudent').val(admin.user_login);
         jQuery('#studentModal #inputUsernameDefaultStudent').val(admin.user_login);
         
+        jQuery('#studentModal input.grade-checkbox').prop('checked', false);
         if (student.grades) {
             student.grades.forEach(grade => jQuery('#studentModal input.grade-checkbox[value=' + grade +']').prop('checked', true));
         }
