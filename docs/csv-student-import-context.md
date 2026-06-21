@@ -1,14 +1,13 @@
 # CSV Student Import — Feature Context
 
-Session context: CSV student import improvements (completed June 20, 2026)
+Session context: CSV student import improvements (completed June 21, 2026)
 
 ---
 
 ## Purpose
 
 Allow school admins to bulk-import students from a CSV file. Each row creates a WordPress user
-(`lxp_student` role) + a student CPT post, and optionally enrolls the student in one or more
-LearnPress courses immediately.
+(`lxp_student` role) + a student CPT post. Course enrollment is handled separately after import.
 
 ---
 
@@ -16,8 +15,8 @@ LearnPress courses immediately.
 
 | File | Role |
 |------|------|
-| `lms/lms-rest-apis/students.php` | REST handler `Rest_Lxp_Student::import()` + `enroll_user_in_courses()` |
-| `lms/templates/tinyLxpTheme/lxp/admin-students.php` | Admin UI: upload form, course picker, guide modal |
+| `lms/lms-rest-apis/students.php` | REST handler `Rest_Lxp_Student::import()` |
+| `lms/templates/tinyLxpTheme/lxp/admin-students.php` | Admin UI: upload form, guide modal |
 | `includes/class-tiny-lxp-platform-tool.php` | `lxp_add_user_roles()` — role + capability definitions |
 | `lms/templates/tinyLxpTheme/treks-src/assets/sample-students.csv` | Downloadable sample for admins |
 
@@ -55,17 +54,15 @@ Exactly **5 columns**, in this order, no reordering. Passwords are **not** in th
 | `school_admin_id_imp` | int | School admin user ID |
 | `student_school_id_imp` | int | School CPT post ID |
 | `teacher_id_imp` | int | Teacher user ID (0 if not set) |
-| `course_ids` | JSON string | e.g. `[42, 71]` — empty array = onboard only |
 
 **Response JSON:**
 
 ```json
 {
-  "message": "X students imported successfully.",
+  "message": "Students imported successfully.",
   "imported": 3,
   "skipped": 1,
-  "duplicates": 0,
-  "enrolled": 3
+  "duplicates": 0
 }
 ```
 
@@ -74,28 +71,9 @@ Exactly **5 columns**, in this order, no reordering. Passwords are **not** in th
 ## What Happens Per Row
 
 1. `wp_insert_user()` — creates WP user with `lxp_student` role.
-2. `wp_set_password()` — sets the default password from `get_option('tl_student_default_password')` (hashed by WP).
+2. `wp_set_password()` — sets the password from `get_option('tl_student_default_password')` or `wp_generate_password(12, false)` (hashed by WP).
 3. `wp_insert_post()` — creates `tl_student` CPT post linked to the school.
-4. `add_post_meta($id, 'lxp_student_password', $default_password)` — stores plain-text password on the CPT post for per-student admin visibility.
-5. `enroll_user_in_courses($user_id, $course_ids)` — enrolls in any selected LP courses (skipped if `course_ids` is empty).
-
----
-
-## Enrollment API
-
-Uses `\LearnPress\Models\UserItems\UserCourseModel` — the same model LP uses in its own enroll
-REST controller. **No raw SQL.** Goes through `LP_User_Items_DB::insert_data()` + `clean_caches()`
-and fires `do_action('learnpress/user/course-enrolled', ...)`.
-
-```php
-$userCourse = \LearnPress\Models\UserItems\UserCourseModel::find($user_id, $course_id, true);
-// skip if already enrolled
-$userCourse->status     = LP_COURSE_ENROLLED;           // 'enrolled'
-$userCourse->graduation = LP_COURSE_GRADUATION_IN_PROGRESS; // 'in-progress'
-$userCourse->start_time = gmdate('Y-m-d H:i:s', time());
-$userCourse->save();
-do_action('learnpress/user/course-enrolled', $userCourse->ref_id, $course_id, $user_id);
-```
+4. `add_post_meta($id, 'lxp_student_password', $password)` — stores plain-text password on the CPT post for per-student admin visibility.
 
 ---
 
@@ -123,27 +101,14 @@ block students from accessing course/lesson pages.
 
 ## Admin UI (admin-students.php)
 
-All import controls (upload button, course picker, guide link, modals) are inside the
-`if($school_post)` guard — they only render when a school is selected. Gate was previously
-`if(isset($_GET['teacher_id']))`, which broke the Import button at school level without a teacher
-context (fixed).
-
-### Course picker
-
-A Bootstrap multi-select (`#import-course-ids`) populated server-side with all published LP courses:
-
-```php
-get_posts(['post_type' => LP_COURSE_CPT, 'post_status' => 'publish', 'numberposts' => -1])
-```
-
-Label: **"Enroll in course(s) (optional)"** — hint text: *"Leave empty to onboard students without
-enrolling — they can self-enroll later."*
+All import controls (upload button, guide link, modal) are inside the `if($school_post)` guard —
+they only render when a school is selected.
 
 ### CSV format guide modal (`#csvGuideModal`)
 
 Triggered by a link next to the Import button. Contains:
-- The 6-column reference table (same as above).
-- Rules list (column order, header row, file format, duplicates, short rows, course picker optional).
+- The 5-column reference table.
+- Rules list (column order, header row, file format, duplicates, short rows).
 - **"Download sample CSV"** button: `<a download href="<?php echo esc_url($treks_src . 'assets/sample-students.csv'); ?>">`.
 
 `$treks_src` = `TL_PLUGIN_URL . 'lms/templates/tinyLxpTheme/treks-src/'`
@@ -161,12 +126,12 @@ The `lxp_student_password` post meta is surfaced as a "Student Password" meta bo
 WP Admin → Settings → Curriki Learn → **Student Import Settings** → *Default Student Password*.
 - Option key: `tl_student_default_password`
 - `sanitize_text_field` sanitization on save.
-- Import returns 400 if this option is empty.
+- Falls back to `wp_generate_password(12, false)` per student if not configured.
 
 ## Known Limitations / Pending Work
 
 | Topic | Status |
 |-------|--------|
 | **Password handling** | Optional common password from WP Admin settings; falls back to `wp_generate_password(12, false)` per student if not set. Stored plain-text per-student in `lxp_student_password` post meta. No forced-change on first login, no email notification. |
-| Runtime test plan | `php -l` passes. Full manual test (role caps, onboard-only, enroll path, LP cache, hook firing, dedupe) not yet executed — needs running WP + LP instance. |
+| Runtime test plan | `php -l` passes. Full manual test (role caps, onboard-only, LP cache, dedupe) not yet executed — needs running WP + LP instance. |
 | MIME detection | Uses extension + allow-list; if WP's `finfo` is unreliable on the host, could still reject valid CSVs from some Excel versions. |

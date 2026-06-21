@@ -854,9 +854,6 @@ class Rest_Lxp_Student
 		$file = $request->get_file_params();
 		$students_csv = isset($file['students']) ? $file['students'] : null;
 
-		// LearnPress course(s) the imported students should be enrolled into.
-		$course_ids = array_filter(array_map('absint', (array) json_decode($request->get_param('course_ids'), true)));
-
 		// Accept by extension and a small allow-list of CSV MIME variants. Browsers
 		// (notably Excel-saved files) report text/csv, application/vnd.ms-excel or
 		// application/octet-stream, so a strict text/csv check rejects valid files.
@@ -878,7 +875,6 @@ class Rest_Lxp_Student
 				$imported   = 0;
 				$skipped    = 0;
 				$duplicates = 0;
-				$enrolled   = 0;
 
 				$configured_password = get_option( 'tl_student_default_password', '' );
 
@@ -928,9 +924,6 @@ class Rest_Lxp_Student
 									wp_set_password( $password, $student_admin_id );
 									add_post_meta($student_post_id, 'lxp_student_admin_id', $student_admin_id, true);
 									add_post_meta($student_post_id, 'lxp_student_school_id', trim($request->get_param('student_school_id')), true);
-
-									// Natively enroll the new student into the selected LearnPress course(s).
-									$enrolled += self::enroll_user_in_courses($student_admin_id, $course_ids);
 								}
 
 								$lxp_teacher_id = $request->get_param('teacher_id');
@@ -953,7 +946,6 @@ class Rest_Lxp_Student
 					"imported"   => $imported,
 					"skipped"    => $skipped,
 					"duplicates" => $duplicates,
-					"enrolled"   => $enrolled,
 				));
 			} else {
 				return  wp_send_json_error("File could not uploaded.", 400);
@@ -964,59 +956,6 @@ class Rest_Lxp_Student
 		}
 
 		return wp_send_json_success("");
-	}
-
-	/**
-	 * Enroll a user into one or more LearnPress courses using LearnPress's own
-	 * model-layer API (UserCourseModel) — the same pattern LP uses in its enroll
-	 * REST controller. Going through the model's save() routes the write through
-	 * LP_User_Items_DB and clears LP caches, and the learnpress/user/course-enrolled
-	 * action fires so dependent LP features react. No raw SQL.
-	 *
-	 * Courses the user is already enrolled in are skipped. Returns the number of
-	 * new enrollments created.
-	 */
-	private static function enroll_user_in_courses($user_id, $course_ids)
-	{
-		$user_id = absint($user_id);
-		if (!$user_id || empty($course_ids)) {
-			return 0;
-		}
-		if (!class_exists('\\LearnPress\\Models\\UserItems\\UserCourseModel')) {
-			return 0;
-		}
-
-		$enrolled = 0;
-		foreach (array_unique(array_map('absint', $course_ids)) as $course_id) {
-			if (!$course_id) {
-				continue;
-			}
-
-			try {
-				$userCourse = \LearnPress\Models\UserItems\UserCourseModel::find($user_id, $course_id, true);
-				// Already enrolled — skip (dedupe).
-				if ($userCourse && $userCourse->status === LP_COURSE_ENROLLED) {
-					continue;
-				}
-				if (!$userCourse) {
-					$userCourse = new \LearnPress\Models\UserItems\UserCourseModel();
-					$userCourse->user_id = $user_id;
-					$userCourse->item_id = $course_id;
-					$userCourse->ref_id  = 0; // admin force-enroll: no backing order
-				}
-				$userCourse->status     = LP_COURSE_ENROLLED;
-				$userCourse->graduation = LP_COURSE_GRADUATION_IN_PROGRESS;
-				$userCourse->start_time = gmdate('Y-m-d H:i:s', time());
-				$userCourse->save();
-
-				do_action('learnpress/user/course-enrolled', $userCourse->ref_id, $course_id, $user_id);
-				$enrolled++;
-			} catch (\Throwable $e) {
-				// Skip this course on failure; continue the batch.
-			}
-		}
-
-		return $enrolled;
 	}
 
 	public static function store_student()
