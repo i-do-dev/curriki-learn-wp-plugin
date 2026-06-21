@@ -248,11 +248,10 @@ $edlink_options = get_option('edlink_options');
                                     // echo '<button id="'.$stdTakenModalBtn.'" class="add-heading" type="button" data-bs-toggle="modal" data-bs-target="#'.$stdTakenModal.'" class="primary-btn"> Add Lxp Students </button>';
                                 }
                             ?>
-                                <!-- 
+                                
                                 <button id="<?php echo $add_btn; ?>" class="add-heading" type="button" data-bs-toggle="modal" data-bs-target="#<?php echo $model_id; ?>" class="primary-btn">
                                     Add New Student
                                 </button>
-                                -->
 
                                 <?php if ((!isset($_GET['district_type']) || $_GET['district_type'] != 'edlink') && $school_post) { ?>
                                         <label for="import-student" class="primary-btn add-heading">
