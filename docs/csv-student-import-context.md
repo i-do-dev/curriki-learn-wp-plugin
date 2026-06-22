@@ -31,7 +31,7 @@ Exactly **5 columns**, in this order, no reordering. Passwords are **not** in th
 | 1 | `first_name` | `Ava` | Student's first name |
 | 2 | `last_name` | `Stone` | Student's last name |
 | 3 | `username` | `ava.stone` | Becomes WP login AND `username@tinylxp.com` email |
-| 4 | `grade` | `3-5` or `6` | Single value or hyphen range |
+| 4 | `grade` | `6` or `3-5` or `3-5-7` | Single grade or multiple grades separated by hyphens (each maps to ordinal: `6`→`6th`, `3-5`→`["3rd","5th"]`) |
 | 5 | `student_id` | `S001` | School-assigned ID stored as post meta |
 
 - **Header row** (`first_name,last_name,...`) is auto-skipped when present.
