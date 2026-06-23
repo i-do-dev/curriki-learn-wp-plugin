@@ -902,16 +902,10 @@ class Rest_Lxp_Student
 							$email = strtolower( trim($row[2]) ) . '@' . $email_domain;
 							$_grade_ordinals = ['1'=>'1st','2'=>'2nd','3'=>'3rd','4'=>'4th','5'=>'5th',
 								                    '6'=>'6th','7'=>'7th','8'=>'8th','9'=>'9th'];
-							$_grade_raw   = trim($row[3]);
-							$_grade_parts = explode('-', $_grade_raw);
-							if (count($_grade_parts) === 2 && is_numeric(trim($_grade_parts[0])) && is_numeric(trim($_grade_parts[1]))) {
-								$grades = [];
-								for ($g = (int) trim($_grade_parts[0]); $g <= (int) trim($_grade_parts[1]); $g++) {
-									$grades[] = isset($_grade_ordinals[(string)$g]) ? $_grade_ordinals[(string)$g] : (string)$g;
-								}
-							} else {
-								$_g     = trim($_grade_parts[0]);
-								$grades = [isset($_grade_ordinals[$_g]) ? $_grade_ordinals[$_g] : $_g];
+							$grades = [];
+							foreach (explode('-', trim($row[3])) as $_g) {
+								$_g       = trim($_g);
+								$grades[] = isset($_grade_ordinals[$_g]) ? $_grade_ordinals[$_g] : $_g;
 							}
 							$student_id = trim($row[4]);
 							$password = ! empty( $configured_password )
