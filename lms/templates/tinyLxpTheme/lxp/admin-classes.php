@@ -268,6 +268,11 @@ $edlink_options = get_option('edlink_options');
                                         </div>
                                     </th>
                                     <th>
+                                        <div class="th1">
+                                            Code
+                                        </div>
+                                    </th>
+                                    <th>
                                         <div class="th1 th5">
                                             Groups
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -278,6 +283,7 @@ $edlink_options = get_option('edlink_options');
                             <tbody>
                                 <?php
                                     foreach ($classes as $class) {
+                                        $lxp_class_code = get_post_meta($class->ID, 'lxp_class_code', true);
                                 ?>
                                     <tr>
                                         <td class="user-box">
@@ -305,6 +311,15 @@ $edlink_options = get_option('edlink_options');
                                             <span><?php echo get_post_meta($class->ID, 'grade', true); ?></span>
                                         </td>
                                         <td><?php echo count(get_post_meta($class->ID, 'lxp_class_course_ids')) ?: '&mdash;'; ?></td>
+                                        <td style="white-space:nowrap">
+                                            <?php if ($lxp_class_code) : ?>
+                                                <code class="lxp-class-code-tag" style="background:#f1f3f4;padding:2px 7px;border-radius:4px;font-size:12px;letter-spacing:.5px"><?php echo esc_html($lxp_class_code); ?></code>
+                                                <button class="lxp-copy-code" data-code="<?php echo esc_attr($lxp_class_code); ?>" title="Copy code" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px">&#10697;</button>
+                                                <button class="lxp-copy-link" data-code="<?php echo esc_attr($lxp_class_code); ?>" title="Copy share link" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px">&#128279;</button>
+                                            <?php else : ?>
+                                                &mdash;
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php
                                                 echo count(lxp_get_class_group($class->ID));
@@ -371,6 +386,11 @@ $edlink_options = get_option('edlink_options');
                                         </div>
                                     </th>
                                     <th>
+                                        <div class="th1">
+                                            Code
+                                        </div>
+                                    </th>
+                                    <th>
                                         <div class="th1 th5">
                                             Groups
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -381,6 +401,7 @@ $edlink_options = get_option('edlink_options');
                             <tbody>
                                 <?php
                                     foreach ($other_groups as $other_group) {
+                                        $lxp_group_code = get_post_meta($other_group->ID, 'lxp_class_code', true);
                                 ?>
                                     <tr>
                                         <td class="user-box">
@@ -408,6 +429,15 @@ $edlink_options = get_option('edlink_options');
                                             <span><?php echo get_post_meta($other_group->ID, 'grade', true); ?></span>
                                         </td>
                                         <td><?php echo count(get_post_meta($other_group->ID, 'lxp_class_course_ids')) ?: '&mdash;'; ?></td>
+                                        <td style="white-space:nowrap">
+                                            <?php if ($lxp_group_code) : ?>
+                                                <code class="lxp-class-code-tag" style="background:#f1f3f4;padding:2px 7px;border-radius:4px;font-size:12px;letter-spacing:.5px"><?php echo esc_html($lxp_group_code); ?></code>
+                                                <button class="lxp-copy-code" data-code="<?php echo esc_attr($lxp_group_code); ?>" title="Copy code" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px">&#10697;</button>
+                                                <button class="lxp-copy-link" data-code="<?php echo esc_attr($lxp_group_code); ?>" title="Copy share link" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px">&#128279;</button>
+                                            <?php else : ?>
+                                                &mdash;
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php
                                                 echo count(lxp_get_class_group($other_group->ID));
@@ -526,6 +556,29 @@ $edlink_options = get_option('edlink_options');
             // Reload the page with the new URL
             window.location.href = newUrl;
         }
+
+        document.querySelectorAll('.lxp-copy-code').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var code = btn.getAttribute('data-code');
+                navigator.clipboard.writeText(code).then(function() {
+                    var orig = btn.innerHTML;
+                    btn.innerHTML = '&#10003;';
+                    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+                });
+            });
+        });
+
+        document.querySelectorAll('.lxp-copy-link').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var code = btn.getAttribute('data-code');
+                var url = window.location.origin + '/student-courses/?class_code=' + code;
+                navigator.clipboard.writeText(url).then(function() {
+                    var orig = btn.innerHTML;
+                    btn.innerHTML = '&#10003;';
+                    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+                });
+            });
+        });
     </script>
 </body>
 

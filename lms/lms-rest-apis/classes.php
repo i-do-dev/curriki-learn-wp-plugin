@@ -132,6 +132,14 @@ class Rest_Lxp_Class
 			)
 		));
 
+		register_rest_route('lms/v1', '/class/by-code', array(
+			array(
+				'methods' => WP_REST_Server::READABLE,
+				'callback' => array('Rest_Lxp_Class', 'get_by_code'),
+				'permission_callback' => '__return_true'
+			)
+		));
+
 		register_rest_route('lms/v1', '/update/class', array(
 			array(
 				'methods' => WP_REST_Server::EDITABLE,
@@ -192,6 +200,11 @@ class Rest_Lxp_Class
 		
 		// Insert / Update
 		$class_post_id = wp_insert_post($class_post_arg);
+
+		if ( ! get_post_meta( $class_post_id, 'lxp_class_code', true ) ) {
+			update_post_meta( $class_post_id, 'lxp_class_code', self::generate_class_code() );
+		}
+
 		$grade = $request->get_param('grade') && $request->get_param('grade') != '0' ? $request->get_param('grade') : '';
 		update_post_meta($class_post_id, 'grade', $grade);
 
@@ -275,6 +288,7 @@ class Rest_Lxp_Class
 		$class->lxp_class_type = get_post_meta($class_id, 'lxp_class_type', true);
 		$class->edlink_class_sec_id = get_post_meta($class_id, 'edlink_class_sec_id', true);
 		$class->lxp_class_course_ids = get_post_meta($class_id, 'lxp_class_course_ids');
+		$class->lxp_class_code = get_post_meta($class_id, 'lxp_class_code', true);
 		return wp_send_json_success(array("class" => $class));
 	}
 
@@ -335,6 +349,51 @@ class Rest_Lxp_Class
 			return array('ID' => $c->ID, 'post_title' => $c->post_title);
 		}, $courses);
 		return wp_send_json_success(array('courses' => $result));
+	}
+
+	public static function get_by_code($request) {
+		$code = sanitize_text_field( $request->get_param('class_code') );
+		if ( empty( $code ) ) {
+			return wp_send_json_error('class_code is required', 400);
+		}
+		$posts = get_posts(array(
+			'post_type'      => TL_CLASS_CPT,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'meta_key'       => 'lxp_class_code',
+			'meta_value'     => $code,
+		));
+		if ( empty( $posts ) ) {
+			return wp_send_json_error('Class not found', 404);
+		}
+		$class           = $posts[0];
+		$class_id        = $class->ID;
+		$result          = array(
+			'ID'                  => $class_id,
+			'post_title'          => $class->post_title,
+			'lxp_class_code'      => $code,
+			'lxp_class_course_ids' => get_post_meta($class_id, 'lxp_class_course_ids'),
+		);
+		return wp_send_json_success(array('class' => $result));
+	}
+
+	private static function generate_class_code() {
+		$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		do {
+			$code = '';
+			for ( $i = 0; $i < 6; $i++ ) {
+				$code .= $chars[ random_int( 0, strlen( $chars ) - 1 ) ];
+			}
+			$existing = get_posts(array(
+				'post_type'      => TL_CLASS_CPT,
+				'post_status'    => 'any',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_key'       => 'lxp_class_code',
+				'meta_value'     => $code,
+			));
+		} while ( ! empty( $existing ) );
+		return $code;
 	}
 
 }
