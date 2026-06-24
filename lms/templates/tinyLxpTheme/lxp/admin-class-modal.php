@@ -201,6 +201,21 @@ if (!empty($args['district_post'])) {
                                     </div>
                                 </div>
                             </div>
+                            <!-- Courses Section -->
+                            <div class="search_box">
+                                <label class="trek-label">Courses</label>
+                                <div class="dropdown period-box">
+                                    <button class="input_dropdown dropdown-button" type="button" id="coursesDropdownMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <span>--- Select ---</span>
+                                        <img class="rotate-arrow" src="<?php echo $treks_src; ?>/assets/img/down-arrow.svg" alt="logo" />
+                                    </button>
+                                    <div class="dropdown-menu grade-dropdown-menu" aria-labelledby="coursesDropdownMenu">
+                                        <div class="scroll-box" id="courses-list">
+                                            <!-- Populated via JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="horizontal-line"></div>
                             <div id="type-radio-options">
                                 <p class="personal-text">Type</p>
@@ -289,6 +304,14 @@ if (!empty($args['district_post'])) {
 
             jQuery("#studentsDropdownMenu span").text(jQuery(".select-student-check:checked").length);
 
+            jQuery('.select-course-check').prop('checked', false);
+            if (class_record.lxp_class_course_ids && class_record.lxp_class_course_ids.length) {
+                class_record.lxp_class_course_ids.forEach(course_id => {
+                    jQuery('input.select-course-check[value="' + course_id + '"]').prop('checked', true);
+                });
+                jQuery("#coursesDropdownMenu span").text(jQuery('.select-course-check:checked').length);
+            }
+
             classModalObj.show();
         }).fail(function (response) {
             console.error("Can not load class");
@@ -328,6 +351,7 @@ if (!empty($args['district_post'])) {
             jQuery('#classModal #grade').val(0);
             jQuery('input[type="checkbox"]').prop('checked', false);
             jQuery('input[type="time"]').val('');
+            jQuery("#coursesDropdownMenu span").text('--- Select ---');
             jQuery("#edlink_error").html("");
             if (access_token && access_token != '') {
                 jQuery("#edlinkInputClassSecName").html('<option value="0">--- Select ---</option>');
@@ -387,6 +411,15 @@ if (!empty($args['district_post'])) {
         });
 
 
+        // ==== [start] Courses Selection =================
+        loadAvailableCourses();
+
+        jQuery(document).on('change', '.select-course-check', function() {
+            var count = jQuery('.select-course-check:checked').length;
+            jQuery("#coursesDropdownMenu span").text(count > 0 ? count : '--- Select ---');
+        });
+        // ==== [end] Courses Selection =================
+
         // ==== [start] Students Selection =================
         jQuery("#select-all-students").on('change', function(e) {
             if (jQuery("#select-all-students:checked").length) {
@@ -409,6 +442,24 @@ if (!empty($args['district_post'])) {
         // ==== [end] Students Selection =================
 
     });
+
+    function loadAvailableCourses() {
+        $.ajax({
+            method: "POST",
+            url: apiUrl + "class/available-courses"
+        }).done(function(response) {
+            var courses = response.data.courses;
+            var html = '';
+            courses.forEach(function(course) {
+                html += '<div class="dropdown-item dropdown-item2 dd-button">';
+                html += '<div class="time-date-box class-class-box">';
+                html += '<input class="form-check-input select-course-check" type="checkbox" value="' + course.ID + '" name="course_ids[]" />';
+                html += '<div class="tags-body-detail"><p class="class-name">' + course.post_title + '</p></div>';
+                html += '</div></div>';
+            });
+            jQuery("#courses-list").html(html);
+        });
+    }
 
     function getEdlinkClassAndSections($type) {
         jQuery("#edlink-class-action").attr("disabled", true);

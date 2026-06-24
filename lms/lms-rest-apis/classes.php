@@ -108,6 +108,30 @@ class Rest_Lxp_Class
 			),
 		));
 
+		register_rest_route('lms/v1', '/class/courses', array(
+			array(
+				'methods' => WP_REST_Server::EDITABLE,
+				'callback' => array('Rest_Lxp_Class', 'get_class_courses'),
+				'permission_callback' => '__return_true'
+			)
+		));
+
+		register_rest_route('lms/v1', '/class/courses/save', array(
+			array(
+				'methods' => WP_REST_Server::EDITABLE,
+				'callback' => array('Rest_Lxp_Class', 'save_class_courses'),
+				'permission_callback' => '__return_true'
+			)
+		));
+
+		register_rest_route('lms/v1', '/class/available-courses', array(
+			array(
+				'methods' => WP_REST_Server::EDITABLE,
+				'callback' => array('Rest_Lxp_Class', 'get_available_courses'),
+				'permission_callback' => '__return_true'
+			)
+		));
+
 		register_rest_route('lms/v1', '/update/class', array(
 			array(
 				'methods' => WP_REST_Server::EDITABLE,
@@ -188,6 +212,14 @@ class Rest_Lxp_Class
 			add_post_meta($class_post_id, 'lxp_student_ids', $student_id);
 		}
 
+		delete_post_meta($class_post_id, 'lxp_class_course_ids');
+		$course_ids = $request->get_param('course_ids');
+		if (is_array($course_ids)) {
+			foreach ($course_ids as $course_id) {
+				add_post_meta($class_post_id, 'lxp_class_course_ids', absint($course_id));
+			}
+		}
+
 		$schedule = array();
 		if (is_array($request->get_param('schedule'))) {
 			foreach ($request->get_param('schedule') as $day) {
@@ -242,6 +274,7 @@ class Rest_Lxp_Class
 		$class->schedule = json_decode(get_post_meta($class_id, 'schedule', true));
 		$class->lxp_class_type = get_post_meta($class_id, 'lxp_class_type', true);
 		$class->edlink_class_sec_id = get_post_meta($class_id, 'edlink_class_sec_id', true);
+		$class->lxp_class_course_ids = get_post_meta($class_id, 'lxp_class_course_ids');
 		return wp_send_json_success(array("class" => $class));
 	}
 
@@ -257,6 +290,51 @@ class Rest_Lxp_Class
             'user_pass' =>$_POST['login_pass']
          );
          wp_send_json_success (wp_update_user($user_data));
+	}
+
+	public static function get_class_courses($request) {
+		$class_id = absint($request->get_param('class_id'));
+		$course_ids = get_post_meta($class_id, 'lxp_class_course_ids');
+		if (empty($course_ids)) {
+			return wp_send_json_success(array('courses' => array()));
+		}
+		$courses = get_posts(array(
+			'post_type'      => TL_COURSE_CPT,
+			'post__in'       => $course_ids,
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		));
+		$result = array_map(function($c) {
+			return array('ID' => $c->ID, 'post_title' => $c->post_title, 'permalink' => get_permalink($c->ID));
+		}, $courses);
+		return wp_send_json_success(array('courses' => $result));
+	}
+
+	public static function save_class_courses($request) {
+		$class_id  = absint($request->get_param('class_id'));
+		$course_ids = $request->get_param('course_ids');
+		$course_ids = is_array($course_ids) ? $course_ids : array();
+		delete_post_meta($class_id, 'lxp_class_course_ids');
+		foreach ($course_ids as $course_id) {
+			add_post_meta($class_id, 'lxp_class_course_ids', absint($course_id));
+		}
+		return wp_send_json_success('Courses Saved!');
+	}
+
+	public static function get_available_courses($request) {
+		$courses = get_posts(array(
+			'post_type'      => TL_COURSE_CPT,
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		));
+		$result = array_map(function($c) {
+			return array('ID' => $c->ID, 'post_title' => $c->post_title);
+		}, $courses);
+		return wp_send_json_success(array('courses' => $result));
 	}
 
 }
