@@ -174,6 +174,12 @@
                                         </div>
                                     </th>
                                     <th>
+                                        <div class="th1">
+                                            Courses
+                                            <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
+                                        </div>
+                                    </th>
+                                    <th>
                                         <div class="th1 th5">
                                             Groups
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -182,7 +188,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                     foreach ($classes as $class) {
                                 ?>
                                     <tr>
@@ -196,7 +202,7 @@
                                         </td>
                                         <td>
                                             <div class="table-status grade">
-                                                <?php 
+                                                <?php
                                                     $schedule = (array)json_decode(get_post_meta($class->ID, 'schedule', true));
                                                     foreach (array_keys($schedule) as $day) {
                                                         $start = date('h:i a', strtotime($schedule[$day]->start));
@@ -210,9 +216,10 @@
                                         <td class="grade">
                                             <span><?php echo get_post_meta($class->ID, 'grade', true); ?></span>
                                         </td>
+                                        <td><?php echo count(get_post_meta($class->ID, 'lxp_class_course_ids')) ?: '&mdash;'; ?></td>
                                         <td>
                                             <?php
-                                                echo count(lxp_get_class_group($class->ID)); 
+                                                echo count(lxp_get_class_group($class->ID));
                                             ?>
                                         </td>
                                         <td>
@@ -270,6 +277,12 @@
                                         </div>
                                     </th>
                                     <th>
+                                        <div class="th1">
+                                            Courses
+                                            <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
+                                        </div>
+                                    </th>
+                                    <th>
                                         <div class="th1 th5">
                                             Groups
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -278,7 +291,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                     foreach ($other_groups as $other_group) {
                                 ?>
                                     <tr>
@@ -292,7 +305,7 @@
                                         </td>
                                         <td>
                                             <div class="table-status grade">
-                                                <?php 
+                                                <?php
                                                     $schedule = (array)json_decode(get_post_meta($other_group->ID, 'schedule', true));
                                                     foreach (array_keys($schedule) as $day) {
                                                         $start = date('h:i a', strtotime($schedule[$day]->start));
@@ -306,9 +319,10 @@
                                         <td class="grade">
                                             <span><?php echo get_post_meta($other_group->ID, 'grade', true); ?></span>
                                         </td>
+                                        <td><?php echo count(get_post_meta($other_group->ID, 'lxp_class_course_ids')) ?: '&mdash;'; ?></td>
                                         <td>
                                             <?php
-                                                echo count(lxp_get_class_group($other_group->ID)); 
+                                                echo count(lxp_get_class_group($other_group->ID));
                                             ?>
                                         </td>
                                         <td>
