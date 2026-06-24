@@ -98,7 +98,7 @@ All CPT slugs and their constants are defined in [lms/tl-constants.php](lms/tl-c
 | `TL_ASSIGNMENT_SUBMISSION_CPT` | `tl_submission` | `TL_Assignment_Submission_Post_Type` | |
 | `TL_STUDENT_CPT` | `tl_student` | `TL_Student_Post_Type` | |
 | `TL_TEACHER_CPT` | `tl_teacher` | `TL_Teacher_Post_Type` | |
-| `TL_CLASS_CPT` | `tl_class` | `TL_Class_Post_Type` | |
+| `TL_CLASS_CPT` | `tl_class` | `TL_Class_Post_Type` | Meta: `lxp_class_teacher_id`, `lxp_student_ids` (multi), `grade`, `schedule` (JSON), `lxp_class_type`, `edlink_class_sec_id`, `lxp_class_course_ids` (multi — LP course IDs assigned to this class) |
 | `TL_DISTRICT_CPT` | `tl_district` | `TL_District_Post_Type` | |
 | `TL_SCHOOL_CPT` | `tl_school` | `TL_School_Post_Type` | |
 | `TL_GROUP_CPT` | `tl_group` | `TL_Group_Post_Type` | |
@@ -122,7 +122,7 @@ All endpoints use namespace `lms/v1` → base URL `/wp-json/lms/v1/`. Entry poin
 | `teachers.php` | `Rest_Lxp_Teacher` | CRUD teachers, settings, student list, course restrictions |
 | `assignments.php` | `Rest_Lxp_Assignment` | CRUD assignments, calendar events, stats, interactions |
 | `assignment-submissions.php` | `Rest_Lxp_Assignment_Submission` | Submission tracking, feedback, grading |
-| `classes.php` | `Rest_Lxp_Class` | Class CRUD, class students |
+| `classes.php` | `Rest_Lxp_Class` | Class CRUD, class students, LP course assignment (`lxp_class_course_ids`) |
 | `districts.php` | `Rest_Lxp_District` | District CRUD, settings |
 | `schools.php` | `Rest_Lxp_School` | School CRUD, settings |
 | `groups.php` | `Rest_Lxp_Group` | Group CRUD, class groups, group students |
@@ -472,6 +472,61 @@ Registered by `Tiny_LXP_Platform_Admin::register_curriki_learn_menu()`, hooked t
 
 ---
 
+## Class–Course Association
+
+### Overview
+
+A `tl_class` post can be directly associated with one or more LearnPress courses (`lp_course`). This is a first-class relationship separate from the indirect course-class link created through Assignments. The association is stored as repeating post meta on the class post — identical to the `lxp_student_ids` pattern.
+
+**Meta key**: `lxp_class_course_ids` on `tl_class` posts. Multiple entries, one per assigned `lp_course` post ID.
+
+### Files
+
+| File | Role |
+|---|---|
+| [lms/lms-rest-apis/classes.php](lms/lms-rest-apis/classes.php) | `Rest_Lxp_Class` — three new methods and routes; `get_one()` and `create()` updated |
+| [lms/templates/tinyLxpTheme/lxp/admin-class-modal.php](lms/templates/tinyLxpTheme/lxp/admin-class-modal.php) | Admin class modal — Courses picker section + `loadAvailableCourses()` JS |
+| [lms/templates/tinyLxpTheme/lxp/teacher-class-modal.php](lms/templates/tinyLxpTheme/lxp/teacher-class-modal.php) | Teacher class modal — same Courses picker |
+| [lms/templates/tinyLxpTheme/lxp/admin-classes.php](lms/templates/tinyLxpTheme/lxp/admin-classes.php) | Admin class list — Courses count column |
+| [lms/templates/tinyLxpTheme/lxp/teacher-classes.php](lms/templates/tinyLxpTheme/lxp/teacher-classes.php) | Teacher class list — Courses count column |
+
+### REST Endpoints
+
+All in `Rest_Lxp_Class` (`lms/lms-rest-apis/classes.php`):
+
+| Method | Route | Callback | Purpose |
+|---|---|---|---|
+| `POST` | `/wp-json/lms/v1/class/available-courses` | `get_available_courses()` | Returns all published `lp_course` posts (`{ID, post_title}`) for the modal picker |
+| `POST` | `/wp-json/lms/v1/class/courses` | `get_class_courses()` | Returns courses currently assigned to a class (`{ID, post_title, permalink}`) |
+| `POST` | `/wp-json/lms/v1/class/courses/save` | `save_class_courses()` | Replaces all assigned courses for a class; params: `class_id`, `course_ids[]` |
+
+The existing `POST /wp-json/lms/v1/classes/save` endpoint also accepts an optional `course_ids[]` array, saving course associations as part of the normal class create/edit flow.
+
+`GET /wp-json/lms/v1/classes` (`get_one()`) now includes `lxp_class_course_ids` in its response.
+
+### Data Storage
+
+```
+wp_postmeta (post_type = tl_class)
+  lxp_class_course_ids = 101   ← one row per assigned lp_course ID
+  lxp_class_course_ids = 204
+```
+
+On save: all existing `lxp_class_course_ids` meta entries are deleted, then one `add_post_meta()` call per selected course — identical to how `lxp_student_ids` is saved.
+
+### UI
+
+- The class modal (both admin and teacher variants) renders a **Courses dropdown picker** after the Students picker. Courses are loaded once on page load via `loadAvailableCourses()` → `POST /class/available-courses`.
+- When editing an existing class, `onClassEdit()` reads `class_record.lxp_class_course_ids` from `GET /classes` and pre-checks the matching course checkboxes.
+- `course_ids[]` checkboxes are picked up automatically by the existing `FormData` form submission to `/classes/save`.
+- Both the Classes table and the Groups/Other-Groups table in the admin and teacher class list views show a **Courses** count column.
+
+### Relationship to Assignments
+
+Course–class association via `lxp_class_course_ids` is a **direct link** (which courses are available or assigned to this class). The existing **Assignment** flow (which lessons from a course are due for which students by when) is independent and unchanged. The two mechanisms coexist — assigning a course to a class does not auto-enroll students or create assignments.
+
+---
+
 ## Admin UI Reference
 
 | Menu/Page | Slug | Location |
@@ -502,7 +557,8 @@ Use this sequence before editing:
 5. For AI content generation: `includes/class-aws-bedrock-client.php` (SDK wrapper) → `lms/lms-rest-apis/ai-content.php` (REST routes + two-pass classifier + 15 templates + lesson type detection) → `lms/class-learnpress-lesson-extension.php` (admin metabox) → `admin/js/tiny-lxp-platform-post.js` (button handlers).
 6. For capstone submissions: `lms/repositories/class-capstone-submission-repository.php` (DB) → `lms/lms-rest-apis/capstone-submissions.php` (REST) → `public/js/lxp-capstone.js` (frontend) → `admin/class-capstone-submission-list-table.php` + `admin/partials/capstone-submission*.php` (admin UI) → `lms/templates/tinyLxpTheme/page-capstone-journal.php` (student journal page).
 7. For workbook submissions: `lms/repositories/class-workbook-submission-repository.php` (DB) → `lms/lms-rest-apis/workbook-submissions.php` (REST) → `public/js/lxp-workbook.js` (frontend) → `admin/class-workbook-submission-list-table.php` + `admin/partials/workbook-submission*.php` (admin UI).
-8. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
+8. For class–course associations: `lms/lms-rest-apis/classes.php` (`get_available_courses`, `get_class_courses`, `save_class_courses`, updated `get_one`, updated `create`) → `lms/templates/tinyLxpTheme/lxp/admin-class-modal.php` + `teacher-class-modal.php` (picker UI + `loadAvailableCourses` JS) → `lms/templates/tinyLxpTheme/lxp/admin-classes.php` + `teacher-classes.php` (Courses count column). Meta key: `lxp_class_course_ids` on `tl_class` posts.
+9. For admin UI: trace `admin/class-tiny-lxp-platform-admin.php` → `admin/partials/`.
 9. For page rendering: check `lms/templates/tinyLxpTheme/page-{slug}.php`, then partials under `lms/templates/tinyLxpTheme/lxp/`.
 10. For LTI flows: trace `public/class-tiny-lxp-platform-public.php::parse_request()` → `includes/class-tiny-lxp-platform-platform.php`.
 11. For Elementor widgets: `includes/class-tiny-lxp-platform-widget.php` (registry) → `includes/widgets/lxp-{name}-widget.php`.
