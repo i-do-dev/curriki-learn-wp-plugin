@@ -1,6 +1,7 @@
 # CSV Student Import — Feature Context
 
 Session context: CSV student import improvements (completed June 21, 2026)
+Updated June 25, 2026: `student_id` is now the WP username/login (4-column format). See also [student-identity-and-access-context.md](student-identity-and-access-context.md).
 
 ---
 
@@ -24,21 +25,30 @@ Allow school admins to bulk-import students from a CSV file. Each row creates a 
 
 ## CSV Format
 
-Exactly **5 columns**, in this order, no reordering. Passwords are **not** in the CSV — an optional common password can be configured in WP Admin → Settings → Curriki Learn → Student Import Settings. If not set, each student receives a unique random password (via `wp_generate_password(12, false)`) stored in `lxp_student_password` post meta.
+Exactly **4 columns**, in this order, no reordering. Passwords are **not** in the CSV — an optional common password can be configured in WP Admin → Settings → Curriki Learn → Student Import Settings. If not set, each student receives a unique random password (via `wp_generate_password(12, false)`) stored in `lxp_student_password` post meta.
+
+> **Changed June 25, 2026**: the old standalone `username` column was removed. `student_id` is now the student's WP login. The username is derived as `strtolower(sanitize_user($student_id, true))` and the email as `{that}@{domain}`. The raw `student_id` value is still stored in the `student_id` post meta (used by the access-login lookup).
 
 | # | Column | Example | Notes |
 |---|--------|---------|-------|
 | 1 | `first_name` | `Ava` | Student's first name |
 | 2 | `last_name` | `Stone` | Student's last name |
-| 3 | `username` | `ava.stone` | Becomes WP login AND `username@tinylxp.com` email |
-| 4 | `grade` | `6` or `3-5` or `3-5-7` | Single grade or multiple grades separated by hyphens (each maps to ordinal: `6`→`6th`, `3-5`→`["3rd","5th"]`) |
-| 5 | `student_id` | `S001` | School-assigned ID stored as post meta |
+| 3 | `grade` | `6` or `3-5` or `3-5-7` | Single grade or multiple grades separated by hyphens (each maps to ordinal: `6`→`6th`, `3-5`→`["3rd","5th"]`) |
+| 4 | `student_id` | `S001` | School/SIS identifier. **Becomes the WP login** (`s001`) and email (`s001@{domain}`), and is stored raw in `student_id` post meta |
 
 - **Header row** (`first_name,last_name,...`) is auto-skipped when present.
-- Rows with fewer than 5 columns → `$skipped` counter, row silently skipped.
-- Rows whose generated email (`username@tinylxp.com`) already exists → `$duplicates` counter, skipped.
+- Rows with fewer than 4 columns → `$skipped` counter, row silently skipped.
+- Rows whose generated email already exists → `$duplicates` counter, skipped (unique `student_id` ⇒ unique email).
+- Email domain = the site host (`wp_parse_url(home_url(), PHP_URL_HOST)`); falls back to `curriki.org` on localhost / IP hosts.
 - File must be `.csv`; MIME allow-list: `text/csv`, `application/vnd.ms-excel`, `application/octet-stream`, `text/plain` (covers Excel-saved CSVs).
 - If `tl_student_default_password` option is empty, each student gets a unique `wp_generate_password(12, false)` password stored in their `lxp_student_password` meta.
+
+Sample file: `lms/templates/tinyLxpTheme/treks-src/assets/sample-students.csv`
+```
+first_name,last_name,grade,student_id
+Ava,Stone,3-5,S001
+Liam,Reed,6,S002
+```
 
 ---
 
