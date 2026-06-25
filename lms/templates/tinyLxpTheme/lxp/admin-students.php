@@ -271,7 +271,7 @@ $edlink_options = get_option('edlink_options');
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">
-                                                        <p>Your file must have <strong>5 columns in this exact order</strong>. A header row is optional.</p>
+                                                        <p>Your file must have <strong>4 columns in this exact order</strong>. A header row is optional.</p>
                                                         <table class="table" style="width:100%;border-collapse:collapse;" border="1" cellpadding="6">
                                                             <thead>
                                                                 <tr>
@@ -284,13 +284,12 @@ $edlink_options = get_option('edlink_options');
                                                             <tbody>
                                                                 <tr><td>1</td><td>first_name</td><td>Ava</td><td>Student's first name.</td></tr>
                                                                 <tr><td>2</td><td>last_name</td><td>Stone</td><td>Student's last name.</td></tr>
-                                                                <tr><td>3</td><td>username</td><td>ava.stone</td><td>Becomes the login <em>and</em> the email <code>username@tinylxp.com</code>. Must be unique &mdash; existing emails are skipped as duplicates.</td></tr>
-                                                                <tr><td>4</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or multiple grades separated by hyphens (e.g. <code>3-5</code> for 3rd &amp; 5th, <code>3-5-7</code> for 3rd, 5th &amp; 7th).</td></tr>
-                                                                <tr><td>5</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier.</td></tr>
+                                                                <tr><td>3</td><td>grade</td><td>3-5</td><td>A single grade (e.g. <code>6</code>) or multiple grades separated by hyphens (e.g. <code>3-5</code> for 3rd &amp; 5th, <code>3-5-7</code> for 3rd, 5th &amp; 7th).</td></tr>
+                                                                <tr><td>4</td><td>student_id</td><td>S001</td><td>Your SIS / local student identifier. <strong>Becomes the student's login</strong> and the email <code>student_id@domain</code>. Must be unique &mdash; existing students are skipped as duplicates.</td></tr>
                                                             </tbody>
                                                         </table>
                                                         <ul>
-                                                            <li>Exactly 5 columns per row, in the order above. Rows with fewer columns are skipped.</li>
+                                                            <li>Exactly 4 columns per row, in the order above. Rows with fewer columns are skipped.</li>
                                                             <li>Save the file as <code>.csv</code> (Excel "CSV" formats are accepted).</li>
                                                         </ul>
                                                         <a class="primary-btn add-heading" download href="<?php echo esc_url($treks_src . 'assets/sample-students.csv'); ?>">

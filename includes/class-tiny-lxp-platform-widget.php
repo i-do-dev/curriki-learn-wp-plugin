@@ -48,6 +48,7 @@ class Tiny_LXP_Widget
         require_once( __DIR__ . '/widgets/lxp-student-grades-widget.php' );
         require_once( __DIR__ . '/widgets/lxp-student-grade-summary-widget.php' );
         require_once( __DIR__ . '/widgets/lxp-student-courses-widget.php' );
+        require_once( __DIR__ . '/widgets/lxp-student-access-widget.php' );
 
         $widgets_manager->register( new \Edudeme\Elementor\LXP_Course_Widget() );
         $widgets_manager->register( new \Edudeme\Elementor\LXP_Course_HTML_Widget() );
@@ -59,6 +60,7 @@ class Tiny_LXP_Widget
         $widgets_manager->register( new \Edudeme\Elementor\Student_Grades_Widget() );
         $widgets_manager->register( new \Edudeme\Elementor\Student_Grade_Summay_Widget() );
         $widgets_manager->register( new \Edudeme\Elementor\LXP_Student_Courses_Widget() );
+        $widgets_manager->register( new \Edudeme\Elementor\LXP_Student_Access_Widget() );
     }
 
     public function widget_dependencies($hook)
