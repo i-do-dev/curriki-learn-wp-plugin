@@ -222,12 +222,6 @@
                                         </div>
                                     </th>
                                     <th>
-                                        <div class="th1 th2">
-                                            Username
-                                            <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
-                                        </div>
-                                    </th>
-                                    <th>
                                         <div class="th1 th3">
                                             Classes
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -267,9 +261,6 @@
                                                     <h5><?php echo $student->post_title; ?></h5>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <div class="table-status"><?php echo $student_admin->user_login; ?></div>
                                         </td>
                                         <td>
                                             <?php
