@@ -60,21 +60,14 @@
                         </div>
                         <div class="input_box">
                             <div class="label_box">
-                                <label class="label">Username</label>
-                                <input class="form-control" type="text" name="lxp_username" id="lxp_usernameStudent" placeholder="johndoe@gmail.com" />
-                                <input type="hidden" id="inputUsernameDefaultStudent" name="lxp_username_default" />
+                                <label class="label">Student ID</label>
+                                <input class="form-control" type="text" name="lxp_student_id" id="idStudent" placeholder="S001" />
                             </div>
                         </div>
                         <div class="input_box">
                             <div class="label_box">
                                 <label class="label">Password</label>
                                 <input class="form-control" type="password" name="lxp_user_password" id="lxp_passwordStudent" placeholder="***" />
-                            </div>
-                        </div>
-                        <div class="input_box">
-                            <div class="label_box">
-                                <label class="label">ID</label>
-                                <input class="form-control" type="text" name="lxp_student_id" id="idStudent" placeholder="Student ID" />
                             </div>
                         </div>
                         <div class="input_box">
@@ -227,11 +220,10 @@ function onStudentEdit(lxp_student_id) {
         jQuery('#studentModal #lxp_aboutStudent').val(student.post_content);
         // jQuery('#studentModal #teacher_id').val(student.teacher_id);
         jQuery('#studentModal #idStudent').val(student.student_id);
+        jQuery('#studentModal #idStudent').prop('readonly', true);
         jQuery('#studentModal #lxp_first_name_student').val(admin.first_name);
         jQuery('#studentModal #lxp_last_name_student').val(admin.last_name);
-        jQuery('#studentModal #lxp_usernameStudent').val(admin.user_login);
-        jQuery('#studentModal #inputUsernameDefaultStudent').val(admin.user_login);
-        
+
         jQuery('#studentModal input.grade-checkbox').prop('checked', false);
         if (student.grades) {
             student.grades.forEach(grade => jQuery('#studentModal input.grade-checkbox[value=' + grade +']').prop('checked', true));
@@ -281,8 +273,8 @@ function onStudentEdit(lxp_student_id) {
             jQuery('#studentModal #lxp_aboutStudent').val("");
             jQuery('#studentModal #lxp_first_name_student').val("");
             jQuery('#studentModal #lxp_last_name_student').val("");
-            jQuery('#studentModal #usernameStudent').val("");
-            jQuery('#studentModal #inputUsernameDefaultStudent').val("");
+            jQuery("#idStudent").val('');
+            jQuery('#idStudent').prop('readonly', false);
             jQuery('#studentModal #passwordStudent').val("");
             window.location.reload();
         });

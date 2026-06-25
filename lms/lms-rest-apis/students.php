@@ -45,42 +45,6 @@ class Rest_Lxp_Student
 				'callback' => array('Rest_Lxp_Student', 'save_update'),
 				'permission_callback' => '__return_true',
 				'args' => array(
-					'lxp_username' => array(
-						'required' => true,
-						'type' => 'string',
-						'description' => 'user email name',
-						'validate_callback' => function($param, $request, $key) {
-
-							if ( is_email( strtolower(trim($request->get_param('lxp_username'))) ) || strlen(trim($request->get_param('lxp_username'))) == 0 ) {
-								return false;
-							}
-
-							$ok = false;
-							if (strtolower(trim($request->get_param('student_post_id'))) > 0) {
-								$user_by_login = get_user_by ("login", strtolower(trim($request->get_param('lxp_username'))) );
-								if ($user_by_login && $user_by_login->data->ID == strtolower(trim($request->get_param('student_post_id'))) && $user_by_login->data->user_login !== trim($request->get_param('lxp_username_default')) ) {
-									$ok = true;
-								}
-							} 
-							
-							if (!is_email( strtolower(trim($request->get_param('lxp_username'))) ) && is_email( strtolower(trim($request->get_param('lxp_username_default'))) ) ) {
-								$ok = true;
-							}
-
-							if (!is_email( strtolower(trim($request->get_param('lxp_username'))) ) && !strtolower(trim($request->get_param('lxp_username_default'))) ) {
-								$ok = true;
-							}
-
-							if (
-								( strtolower(trim($request->get_param('lxp_username'))) && strtolower(trim($request->get_param('lxp_username_default'))) )
-								&& strtolower(trim($request->get_param('lxp_username'))) == strtolower(trim($request->get_param('lxp_username_default'))) 
-							) {
-								$ok = true;
-							}
-
-							return $ok;
-						}
-					),
 					'lxp_first_name' => array(
 						'required' => true,
 						'type' => 'string',
@@ -127,11 +91,11 @@ class Rest_Lxp_Student
 						}
 					),
 					'lxp_student_id' => array(
-						'required' => false,
+						'required' => true,
 						'type' => 'string',
-						'description' => 'user id',
+						'description' => 'student id (used as the WP login)',
 						'validate_callback' => function($param, $request, $key) {
-							return strlen( $param ) > 0;
+							return strlen( trim($param) ) > 0;
 						}
 					),
 				)
@@ -567,9 +531,20 @@ class Rest_Lxp_Student
 		// ============= Student Post =================================
 		$school_admin_id = $request->get_param('school_admin_id');
 		$student_post_id = intval($request->get_param('student_post_id'));
-		$student_name = strtolower( trim($request->get_param('lxp_username')) );
 		$student_description = trim($request->get_param('lxp_about'));
-		
+
+		// For new students, the Student ID is used as the WP login — ensure it is
+		// valid and unique up front (before any post/user is created).
+		if ( $student_post_id < 1 ) {
+			$check_login = strtolower( sanitize_user( trim($request->get_param('lxp_student_id')), true ) );
+			if ( empty($check_login) ) {
+				return wp_send_json_error('Please enter a valid Student ID.', 400);
+			}
+			if ( get_user_by('login', $check_login) ) {
+				return wp_send_json_error('A student with this Student ID already exists.', 400);
+			}
+		}
+
 		$school_post_arg = array(
 			'post_title'    => wp_strip_all_tags(trim($request->get_param('lxp_last_name')) . ', ' . trim($request->get_param('lxp_first_name'))),
 			'post_content'  => $student_description,
@@ -671,38 +646,29 @@ class Rest_Lxp_Student
 			$student_admin_data['user_pass'] = trim($request->get_param('lxp_user_password'));
 		}
 	
-		$student_admin_id = null;
-		$lxp_username = wp_strip_all_tags(trim($request->get_param('lxp_username')));
+		// The Student ID drives the WP login. It is set once on create and is
+		// read-only on edit, so existing logins are never renamed.
+		$raw_student_id = trim($request->get_param('lxp_student_id'));
+		$student_login  = strtolower( sanitize_user( $raw_student_id, true ) );
 
-		$user_by_login = get_user_by ("login", strtolower(trim($request->get_param('lxp_username'))) );
-		if ( intval($request->get_param('student_post_id')) < 1 && !$user_by_login ) {
-			// create a new student user
-			$student_admin_data['user_login'] = $lxp_username;
+		if ( intval($request->get_param('student_post_id')) < 1 ) {
+			// create a new student user — student_id becomes the login + email
 			$_site_host_s   = wp_parse_url( home_url(), PHP_URL_HOST );
 			$_email_domain_s = ( ! empty( $_site_host_s ) && $_site_host_s !== 'localhost' && ! filter_var( $_site_host_s, FILTER_VALIDATE_IP ) )
 				? $_site_host_s : 'curriki.org';
-			$student_admin_data['user_email'] = $lxp_username . '@' . $_email_domain_s;
-			$student_admin_data['user_nicename'] = $lxp_username;
-			$student_admin_data['role'] = 'lxp_student';
-		} elseif ( $user_by_login && intval($request->get_param('student_post_id')) > 0  ) {
-			// update existing student user
-			$student_admin_id = $user_by_login->data->ID;
-			$student_admin_data['ID'] = $student_admin_id;
-			$student_admin_data['first_name'] = trim($request->get_param('lxp_first_name'));
-			$student_admin_data['last_name'] = trim($request->get_param('lxp_last_name'));
-			$student_admin_data['user_login'] = $lxp_username;
-		} elseif (!is_email($lxp_username) && is_email($request->get_param('lxp_username_default'))) {
-			// update the user which is already in the system as an email address
-			$user_by_login = get_user_by ("login", strtolower(trim($request->get_param('lxp_username_default'))) );
-			$student_admin_id = $user_by_login->data->ID;
-			global $wpdb;
-			$wpdb->update( $wpdb->users, array( 'user_login' => $lxp_username ), array( 'ID' => $student_admin_id ) );
-			$student_admin_data['ID'] = $student_admin_id;
-			$student_admin_data['user_login'] = $lxp_username;
-			$student_admin_data['user_nicename'] = $lxp_username;
+			$student_admin_data['user_login']    = $student_login;
+			$student_admin_data['user_email']    = $student_login . '@' . $_email_domain_s;
+			$student_admin_data['user_nicename'] = $student_login;
+			$student_admin_data['role']          = 'lxp_student';
+		} else {
+			// edit — keep the existing login untouched (Student ID is read-only on edit)
+			$student_admin_data['ID'] = intval( get_post_meta($student_post_id, 'lxp_student_admin_id', true) );
 		}
 
 		$student_admin_id = wp_insert_user($student_admin_data);
+		if ( is_wp_error($student_admin_id) ) {
+			return wp_send_json_error('Could not save the student account.', 400);
+		}
 		
 		if (trim($request->get_param('lxp_user_password'))) {
 			wp_set_password( trim($request->get_param('lxp_user_password')), $student_admin_id );

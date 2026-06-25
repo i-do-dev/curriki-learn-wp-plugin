@@ -330,12 +330,6 @@ $edlink_options = get_option('edlink_options');
                                         </div>
                                     </th>
                                     <th>
-                                        <div class="th1 th2">
-                                            Username
-                                            <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
-                                        </div>
-                                    </th>
-                                    <th>
                                         <div class="th1 th3">
                                             Classes
                                             <img src="<?php echo $treks_src; ?>/assets/img/showing.svg" alt="logo" />
@@ -377,10 +371,7 @@ $edlink_options = get_option('edlink_options');
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="table-status"><?php echo $student_admin->user_login; ?></div>
-                                        </td>
-                                        <td>
-                                            <?php 
+                                            <?php
                                                 // echo count(lxp_get_student_all_classes($student->ID)); 
                                                 echo count(lxp_get_student_class_group_by_type($student->ID, 'classes'));
                                             ?>
