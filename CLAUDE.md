@@ -3,7 +3,8 @@
 WordPress plugin (v2.0.3) that turns a WP site into an IMS LTI 1.3 Platform + full LMS. Manages Courses, Lessons, Assignments, Students, Teachers, Classes, Groups, Schools, Districts, and Treks.
 
 Full architecture and copilot guidance: [.github/copilot-instructions.md](.github/copilot-instructions.md)  
-AI Video feature detail: [docs/ai-video-context.md](docs/ai-video-context.md)
+AI Video feature detail: [docs/ai-video-context.md](docs/ai-video-context.md)  
+Class–Course association detail: [docs/class-course-association-context.md](docs/class-course-association-context.md)
 
 ---
 
@@ -46,6 +47,7 @@ wp rest route list --namespace=lms/v1 --fields=route,methods
 | AI Bedrock calls | `includes/class-aws-bedrock-client.php` (`TL_AWS_Bedrock_Client::invoke_bedrock`) |
 | AI REST endpoints | `lms/lms-rest-apis/ai-content.php` (`Rest_Lxp_AI_Content`) |
 | AI Video endpoints | `lms/lms-rest-apis/ai-video.php` (`Rest_Lxp_AI_Video`) |
+| Class–Course association | `lms/lms-rest-apis/classes.php` (`Rest_Lxp_Class`) + class modal templates |
 
 ---
 
@@ -90,6 +92,26 @@ wp rest route list --namespace=lms/v1 --fields=route,methods
 | Edlink (SIS) | WP option: `edlink_options` array |
 | xAPI / Curriki Studio / Tsugi | `lms/xapi-constants.php` — update constants there, never hardcode URLs |
 | LearnPress | Direct `$wpdb` queries on `{prefix}learnpress_sections` — LP must be active |
+
+---
+
+## Class–Course Association
+
+A `tl_class` post can be directly linked to one or more LearnPress courses (`lp_course`). Stored as repeating post meta (`lxp_class_course_ids`) — same pattern as `lxp_student_ids`.
+
+**REST endpoints** (all in `Rest_Lxp_Class`, `lms/lms-rest-apis/classes.php`):
+
+| Route | Purpose |
+|---|---|
+| `POST /lms/v1/class/available-courses` | All published LP courses (for picker) |
+| `POST /lms/v1/class/courses` | Courses assigned to a given class |
+| `POST /lms/v1/class/courses/save` | Replace full course set for a class |
+| `POST /lms/v1/classes/save` | Existing save endpoint — also accepts optional `course_ids[]` |
+| `POST /lms/v1/classes` | Existing get-one — now includes `lxp_class_course_ids` |
+
+**UI**: Both `admin-class-modal.php` and `teacher-class-modal.php` include a Courses dropdown picker (loaded via `loadAvailableCourses()` on page load). Both class list tables (`admin-classes.php`, `teacher-classes.php`) show a Courses count column.
+
+**Note**: This is a direct association only. It does not auto-enroll students or create Assignments — those flows are independent.
 
 ---
 
