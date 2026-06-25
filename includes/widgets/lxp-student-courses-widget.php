@@ -6,7 +6,7 @@ use Elementor\Controls_Manager;
 class LXP_Student_Courses_Widget extends \Elementor\Widget_Base {
 
 	public function get_name()       { return 'lxp-student-courses'; }
-	public function get_title()      { return esc_html__( 'Student Courses', 'tinylxp' ); }
+	public function get_title()      { return esc_html__( 'LXP Student Courses', 'tinylxp' ); }
 	public function get_icon()       { return 'eicon-library-open'; }
 	public function get_categories() { return [ 'general' ]; }
 

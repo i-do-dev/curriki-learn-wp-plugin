@@ -30,6 +30,15 @@ class Rest_Lxp_Student
 			)
 		));
 
+		// /student/access-login — Student ID + class code based login
+		register_rest_route('lms/v1', '/student/access-login', array(
+			array(
+				'methods' => WP_REST_Server::CREATABLE,
+				'callback' => array('Rest_Lxp_Student', 'access_login'),
+				'permission_callback' => '__return_true'
+			)
+		));
+
 		register_rest_route('lms/v1', '/students/save', array(
 			array(
 				'methods' => WP_REST_Server::EDITABLE,
@@ -893,21 +902,22 @@ class Rest_Lxp_Student
 							continue;
 						}
 
-						// Need all 5 columns: first_name, last_name, username, grade, student_id.
-						if (count($row) >= 5) {
+						// Need all 4 columns: first_name, last_name, grade, student_id.
+						// student_id is used as the WP username and email local-part.
+						if (count($row) >= 4) {
 							$first_name = trim($row[0]);
 							$last_name = trim($row[1]);
 							$user_display_name = $last_name . ', ' . $first_name;
-							$username = strtolower( trim($row[2]) );
-							$email = strtolower( trim($row[2]) ) . '@' . $email_domain;
 							$_grade_ordinals = ['1'=>'1st','2'=>'2nd','3'=>'3rd','4'=>'4th','5'=>'5th',
 								                    '6'=>'6th','7'=>'7th','8'=>'8th','9'=>'9th'];
 							$grades = [];
-							foreach (explode('-', trim($row[3])) as $_g) {
+							foreach (explode('-', trim($row[2])) as $_g) {
 								$_g       = trim($_g);
 								$grades[] = isset($_grade_ordinals[$_g]) ? $_grade_ordinals[$_g] : $_g;
 							}
-							$student_id = trim($row[4]);
+							$student_id = trim($row[3]);
+							$username = strtolower( sanitize_user( $student_id, true ) );
+							$email = $username . '@' . $email_domain;
 							$password = ! empty( $configured_password )
 								? $configured_password
 								: wp_generate_password( 12, false );
@@ -970,6 +980,89 @@ class Rest_Lxp_Student
 		}
 
 		return wp_send_json_success("");
+	}
+
+	/**
+	 * Student ID + class code based login (kiosk style).
+	 *
+	 * Looks the student up by their `student_id` meta (works for students imported
+	 * before student_id became the username too), verifies they belong to the class
+	 * identified by the URL's class code, then signs them in with the password stored
+	 * on the student CPT post.
+	 */
+	public static function access_login($request)
+	{
+		$student_id = sanitize_text_field( $request->get_param('student_id') );
+		$class_code = sanitize_text_field( $request->get_param('class_code') );
+
+		if ( empty( $student_id ) ) {
+			return wp_send_json_error( 'Please enter your Student ID.', 400 );
+		}
+		if ( empty( $class_code ) ) {
+			return wp_send_json_error( 'Invalid or expired class code.', 400 );
+		}
+
+		// 1. Find the student CPT post by its student_id meta.
+		$student_query = new WP_Query( array(
+			'post_type'      => TL_STUDENT_CPT,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'meta_query'     => array(
+				array( 'key' => 'student_id', 'value' => $student_id, 'compare' => '=' ),
+			),
+		) );
+		$student_posts = $student_query->get_posts();
+		if ( empty( $student_posts ) ) {
+			return wp_send_json_error( 'Student ID not found.', 404 );
+		}
+		$student_post = $student_posts[0];
+
+		// 2. Resolve the linked WP user.
+		$wp_user_id = get_post_meta( $student_post->ID, 'lxp_student_admin_id', true );
+		$user       = $wp_user_id ? get_user_by( 'id', $wp_user_id ) : false;
+		if ( ! $user ) {
+			return wp_send_json_error( 'Student account not found.', 404 );
+		}
+
+		// 3. Validate the class code.
+		$class_posts = get_posts( array(
+			'post_type'      => TL_CLASS_CPT,
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'meta_key'       => 'lxp_class_code',
+			'meta_value'     => $class_code,
+		) );
+		if ( empty( $class_posts ) ) {
+			return wp_send_json_error( 'Invalid or expired class code.', 404 );
+		}
+		$class = $class_posts[0];
+
+		// 4. Confirm the student belongs to this class.
+		$class_student_ids = get_post_meta( $class->ID, 'lxp_student_ids' );
+		$class_student_ids = is_array( $class_student_ids ) ? array_map( 'intval', $class_student_ids ) : array();
+		if ( ! in_array( (int) $student_post->ID, $class_student_ids, true ) ) {
+			return wp_send_json_error( 'You are not enrolled in this class.', 403 );
+		}
+
+		// 5. Fetch the stored password and sign in.
+		$password = get_post_meta( $student_post->ID, 'lxp_student_password', true );
+		if ( empty( $password ) ) {
+			return wp_send_json_error( 'Login is not available for this account.', 403 );
+		}
+
+		$signon = wp_signon( array(
+			'user_login'    => $user->user_login,
+			'user_password' => $password,
+			'remember'      => true,
+		), is_ssl() );
+
+		if ( is_wp_error( $signon ) ) {
+			return wp_send_json_error( 'Login failed. Please contact your teacher.', 401 );
+		}
+
+		wp_set_current_user( $signon->ID );
+
+		return wp_send_json_success( array( 'message' => 'Logged in' ) );
 	}
 
 	public static function store_student()
