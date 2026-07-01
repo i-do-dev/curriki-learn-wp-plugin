@@ -19,6 +19,8 @@ require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-student-post-type.p
 require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-class-post-type.php';
 require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-assignment-submission-post-type.php';
 require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-group-post-type.php';
+require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-h5p-autocomplete.php';
+require_once plugin_dir_path(dirname(__FILE__)) . 'lms/class-h5p-extension.php';
 
 // ini_set('display_errors', 1);
 // ini_set('display_startup_errors', 1);
