@@ -4,7 +4,9 @@ WordPress plugin (v2.0.3) that turns a WP site into an IMS LTI 1.3 Platform + fu
 
 Full architecture and copilot guidance: [.github/copilot-instructions.md](.github/copilot-instructions.md)  
 AI Video feature detail: [docs/ai-video-context.md](docs/ai-video-context.md)  
-Class–Course association detail: [docs/class-course-association-context.md](docs/class-course-association-context.md)
+Class–Course association detail: [docs/class-course-association-context.md](docs/class-course-association-context.md)  
+Student identity & access (Student ID login, class code, Student Courses/Access widgets): [docs/student-identity-and-access-context.md](docs/student-identity-and-access-context.md)  
+CSV student import detail: [docs/csv-student-import-context.md](docs/csv-student-import-context.md)
 
 ---
 

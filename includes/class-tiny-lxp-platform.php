@@ -229,6 +229,7 @@ class Tiny_LXP_Platform
         $plugin_public = new Tiny_LXP_Platform_Public(self::get_plugin_name(), $this->get_version());
 		$course_extension = new TL_LearnPress_Course_Extension();
         $lesson_extension = new TL_LearnPress_Lesson_Extension();
+        $tl_h5p_autocomplete = new TL_H5P_AutoComplete();
 
         $this->loader->add_action('parse_request', $plugin_public, 'parse_request');
         $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_workbook_scripts');
@@ -245,6 +246,7 @@ class Tiny_LXP_Platform
         $this->loader->add_action('save_post_lp_lesson', $lesson_extension, 'save_lesson_policy_meta', 30, 2);
         $this->loader->add_action('rest_lp_lesson_query', $lesson_extension, 'post_meta_request_params', 10, 2);
         $this->loader->add_action('rest_insert_lp_lesson', $lesson_extension, 'insert_post_api', 10, 2);
+        $this->loader->add_action( 'plugins_loaded', $tl_h5p_autocomplete, 'init', 20 );
         // $this->loader->add_action('wp_footer', $lesson_extension, 'render_js_debug_panel', 9999);
         // register_course_shortcodes and elementor/widget/render_content are registered
         // directly in TL_LearnPress_Course_Extension::__construct() to bypass the isOK() guard.
